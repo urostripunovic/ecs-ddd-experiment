@@ -46,6 +46,10 @@ Signs something is in the rules but shouldn't be:
 
 When the rules set a *mode*, the simulation already knows how to behave in it. "Nothing spawns once the boss is dead" needs no new rule if spawning already runs only while fighting. The rules set `Cleared`; the simulation reads it.
 
+### When the rules grow
+
+Keep the rules side as small as what reacts to it. When it grows past a few areas, or touches real money, trades between players, or saves that must load across versions, model that part with a dedicated domain-modelling process (for example the `ddd-modelling` skill at standard or strict depth) and leave the simulation out of it.
+
 ## The rules module
 
 Plain words are used here; the formal terms are in brackets for people who know them.
@@ -60,8 +64,10 @@ Plain words are used here; the formal terms are in brackets for people who know 
 - **Time arrives as a request.** Deadlines are stored as ticks, never counted down. The only clock is the tick, never wall time.
 - **Things the rules keep get stable names** [identity]: `BossId`, `WeaponId`. Simulation positions (entity handles) are recycled and never enter the rules. Something born in the simulation gets its name the first time it crosses into the rules.
 - **Every case is handled, and the compiler says where.** Every switch on a request or fact kind ends in an exhaustiveness check, so adding a kind breaks the build everywhere it must be handled.
+- **Ask of every rule: can the simulation make it wrong anyway?** The simulation doesn't stop because a rule decided something: a bullet already in flight, two things dying on the same tick, a request arriving after the mode changed. For each request, go through every state the rules can be in and say what happens. "No facts" in a state nobody thought about is how a game softlocks.
+- **Keep a short examples table per area**: state, request, facts, and the test that pins it. Number the rows and never renumber them, because tests and reviews refer to them. If an area doesn't fit on a page, it has outgrown this skill (see "When the rules grow").
 
-Tests for the rules: given a state and a request, expect these facts. No simulation, no engine.
+Tests for the rules: given a state and a request, expect these facts, one per examples row. No simulation, no engine.
 
 ## The simulation
 

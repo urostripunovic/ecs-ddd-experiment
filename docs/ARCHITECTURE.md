@@ -57,6 +57,27 @@ EntityDowned(player)         → PlayerDowned → RunLost → RunView=Lost
 
 In `npm run dev`, press <kbd>`</kbd> in game to watch these in the tick log.
 
+## Rules examples
+
+Every request, in every state the rules can be in. Row numbers are permanent: tests and reviews refer to them.
+
+| # | Area | State | Request | Facts | Test |
+| --- | --- | --- | --- | --- | --- |
+| R1 | run | new run | | Fighting, arena 1, carrying the gun | `run.test`: starts in arena 1 |
+| R2 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared` | `run.test`: clearing a boss before the last arena |
+| R3 | run | Cleared, not the last arena | `TunnelEntered(loadout)` | `ArenaEntered(next, loadout)` | `run.test`: entering the tunnel after a clear |
+| R4 | run | Fighting | `TunnelEntered` | `TunnelRefused(NotCleared)` | `run.test`: refuses the tunnel |
+| R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | `run.test`: clearing the last arena |
+| R6 | run | Fighting | `PlayerDowned` | `RunLost` | `run.test`: going down loses |
+| R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | `run.test`: a trade on the same tick |
+| R8 | run | Cleared | `PlayerDowned` | **none, and the player stays dead: the run is stuck.** Open: see below | none yet |
+| B1 | boss | phase 1 | `BossThresholdCrossed` | `BossPhaseReached(2)` | `boss.test`: enters phase 2 |
+| B2 | boss | phase 2 | `BossThresholdCrossed` | none: already answered | `boss.test`: ignores a duplicate |
+| B3 | boss | alive | `BossDowned` | `BossDefeated`, phase kept | `boss.test`: defeated once |
+| B4 | boss | defeated | `BossThresholdCrossed` | none | `boss.test`: no phase change after defeat |
+
+R8 was found by asking of each rule whether the simulation can make it wrong anyway: a bullet already in flight when the boss dies can still down the player in a cleared arena.
+
 ## Boss actions
 
 Every boss attack (slam, cone, burst, jump, and the roar that opens phase 2) is an action, run one at a time through `begin()`/`finish()` in `ecs/systems/boss-actions.ts`, so two can never overlap. When the next action may start is the `CHAIN_GAPS` table, not waits inside the scripts:
