@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DDD + ECS Arena</title>
+    <style>
+      :root {
+        --ink: #e8e6e1;
+        --muted: #9a978f;
+        --panel: rgba(20, 21, 23, 0.72);
+        --boss: #d9573b;
+        --player: #7fb2d9;
+        --line: rgba(255, 255, 255, 0.12);
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: #1b1c1e; overflow: hidden; }
+      body { font: 13px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; color: var(--ink); }
+      #app { position: fixed; inset: 0; cursor: crosshair; }
+      #app canvas { display: block; }
+      .hud { position: fixed; pointer-events: none; }
+      .boss { top: 16px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 32px)); }
+      .boss-name { display: flex; justify-content: space-between; margin-bottom: 6px; letter-spacing: 0.08em; text-transform: uppercase; }
+      .bar { height: 10px; background: var(--panel); border: 1px solid var(--line); }
+      .bar > div { height: 100%; width: 100%; transform-origin: left; }
+      .boss .bar > div { background: var(--boss); }
+      .player { left: 16px; bottom: 16px; width: 240px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); }
+      .player .bar > div { background: var(--player); }
+      .row { display: flex; justify-content: space-between; margin-top: 8px; color: var(--muted); }
+      .row b { color: var(--ink); font-weight: 600; }
+      .help { right: 16px; bottom: 16px; color: var(--muted); text-align: right; }
+      .log { left: 16px; top: 16px; max-width: min(620px, calc(100% - 32px)); max-height: 40vh; overflow: hidden;
+             margin: 0; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); white-space: pre-wrap; font-size: 12px; }
+      .banner { inset: 0; display: grid; place-items: center; text-align: center; }
+      .banner h1 { margin: 0; font-size: 44px; letter-spacing: 0.2em; }
+      .banner p { color: var(--muted); }
+      [hidden] { display: none !important; }
+      @media (max-width: 640px) { .help { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/app/main.ts"></script>
+  </body>
+</html>
