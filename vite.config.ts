@@ -8,5 +8,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // The source scans (units, docs drift) list files with import.meta.glob when a
+    // test is transformed. A cached transform keeps the old file list, so a new
+    // file would go unchecked and the scan would pass falsely.
+    fsModuleCache: false,
   },
 });

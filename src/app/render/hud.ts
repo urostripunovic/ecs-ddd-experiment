@@ -1,6 +1,6 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
-import { Ammo, BossPhase, Durability, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
+import { Ammo, BossPhase, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
@@ -35,17 +35,20 @@ export function createHud(root: HTMLElement) {
     <div class="bar"><div data-player-hp></div></div>
     <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
     <div class="row status" data-status></div>`);
-  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space attack · Shift dodge<br>Q / right-click throw · E swap · R reload<br>Enter restart · ` tick log');
+  const help = el('div', 'hud help', `WASD move · mouse aim · click/space attack · Shift dodge<br>Q / right-click throw · E swap · R reload<br>Enter restart · \` tick log${import.meta.env.DEV ? ' · G god mode' : ''}`);
   // The perfect zone is placed from the same constants the simulation uses, so what you see is what you get.
   const gauge = el('div', 'hud gauge', `
     <div class="gauge-fill" data-fill></div>
     <div class="gauge-zone" style="left:${PERFECT_FROM * 100}%;width:${(PERFECT_TO - PERFECT_FROM) * 100}%"></div>`);
   gauge.hidden = true;
   const log = el('pre', 'hud log');
+  // Any cheat marks the run, so a screenshot or a bug report says so.
+  const cheated = el('div', 'hud cheated', 'CHEATS USED');
+  cheated.hidden = true;
   const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p data-subtitle></p></div>');
   log.hidden = true;
   banner.hidden = true;
-  root.append(boss, player, help, gauge, log, banner);
+  root.append(boss, player, help, gauge, log, banner, cheated);
 
   const q = (n: HTMLElement, sel: string) => n.querySelector<HTMLElement>(sel)!;
   const bossHp = q(boss, '[data-boss-hp]');
@@ -95,6 +98,8 @@ export function createHud(root: HTMLElement) {
         set(gaugeFill, 'scale', fill.toFixed(3));
         gaugeFill.className = `gauge-fill ${ZONE_CLASS[throwCharge(fill).zone]}`;
       }
+
+      cheated.hidden = !GodMode.cheated;
 
       const over = RunView.status !== RunStatus.Fighting;
       banner.hidden = !over;

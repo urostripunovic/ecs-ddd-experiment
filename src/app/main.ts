@@ -23,10 +23,30 @@ const frame = createFrameDriver((alpha) => {
   hud.update(match);
 });
 
+// Dev builds only, and loaded on demand, so the release bundle has none of it.
+type GodMenu = { toggle(): void; update(now: number): void };
+let god: GodMenu | null = null;
+let clearCheats = () => {};
+if (import.meta.env.DEV) {
+  void import('./dev/god-menu').then(({ createGodMenu }) => { god = createGodMenu(document.body); });
+  void import('./dev/commands').then(({ queueDev, clearDev }) => {
+    clearCheats = clearDev;
+    // The bot and the recorder send the same commands as the menu.
+    (window as unknown as { __dev: unknown }).__dev = { queue: queueDev };
+  });
+}
+
 let last = performance.now();
 function loop(now: number): void {
-  if (input.consume('Enter')) restart();
+  if (input.consume('Enter')) { restart(); clearCheats(); }
   if (input.consume('Backquote')) hud.toggleLog();
+  // A bug in the dev menu must never stop the game loop.
+  try {
+    if (input.consume('KeyG')) god?.toggle();
+    god?.update(now);
+  } catch (err) {
+    console.error('god menu:', err);
+  }
   input.sample(view, match.player);
   frame((now - last) / 1000);
   last = now;

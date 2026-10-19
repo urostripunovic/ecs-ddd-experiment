@@ -41,6 +41,20 @@
       .banner { inset: 0; display: grid; place-items: center; text-align: center; }
       .banner h1 { margin: 0; font-size: 44px; letter-spacing: 0.2em; }
       .banner p { color: var(--muted); }
+      .cheated { right: 16px; top: 16px; color: #e3b341; letter-spacing: 0.1em; }
+      .god { position: fixed; right: 16px; top: 44px; width: 340px; max-height: calc(100vh - 60px); overflow: auto;
+             padding: 10px 12px; background: rgba(20, 21, 23, 0.94); border: 1px solid #e3b341; z-index: 10; }
+      .god h2 { margin: 0 0 8px; font-size: 14px; color: #e3b341; letter-spacing: 0.08em; text-transform: uppercase; }
+      .god h2 small { color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: normal; }
+      .god h3 { margin: 10px 0 6px; font-size: 12px; color: var(--muted); font-weight: normal; }
+      .god label { display: block; margin: 3px 0; }
+      .god .row { flex-wrap: wrap; gap: 6px; justify-content: flex-start; margin-top: 6px; }
+      .god button, .god select, .god input { font: inherit; color: var(--ink); background: #2a2c30; border: 1px solid var(--line); padding: 3px 6px; }
+      .god button:hover { border-color: #e3b341; }
+      .god select { width: 100%; }
+      .god .fields label { display: flex; justify-content: space-between; gap: 8px; }
+      .god .fields input { width: 90px; }
+      .god .check, .god .muted { color: var(--muted); margin: 6px 0 0; }
       [hidden] { display: none !important; }
       @media (max-width: 640px) { .help { display: none; } }
     </style>
