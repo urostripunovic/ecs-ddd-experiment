@@ -1,7 +1,8 @@
 import { assertNever, NO_EVENTS, type BossId, type PlayerId, type Tick, type WeaponId } from '../shared/types';
 
 // A run is a sequence of arenas. Which arena you're in, whether it's cleared,
-// and what you carry between them are what a save would hold, so they live here.
+// and what you carry between them are rules other parts depend on: the tunnel
+// can be refused, the loadout carries over, the run is won or lost.
 export type RunStatus = 'Fighting' | 'Cleared' | 'Won' | 'Lost';
 export type WeaponKind = 'sword' | 'spear' | 'gun';
 
@@ -10,13 +11,34 @@ export type WeaponKind = 'sword' | 'spear' | 'gun';
 export type CarriedWeapon = { readonly id: WeaponId; readonly kind: WeaponKind; readonly durability: number; readonly ammo: number };
 export type Loadout = { readonly hp: number; readonly weapon: CarriedWeapon | null };
 
-export type RunState = {
-  readonly arena: number; // 1-based
+// The numbers come from the simulation; they are checked once, here, where the
+// loadout is made. A value no player could carry is a bug on the simulation
+// side, not a rule the run decides, so it throws instead of becoming a fact.
+function check(ok: boolean, what: string, value: number): void {
+  if (!ok) throw new RangeError(`not a carriable ${what}: ${value}`);
+}
+
+export function carriedWeapon(id: WeaponId, kind: WeaponKind, durability: number, ammo: number): CarriedWeapon {
+  check(Number.isFinite(durability) && durability >= 0, 'durability', durability);
+  check(Number.isInteger(ammo) && ammo >= 0, 'ammo count', ammo);
+  return { id, kind, durability, ammo };
+}
+
+// Only a living player carries anything into the next arena.
+export function loadoutOf(hp: number, weapon: CarriedWeapon | null): Loadout {
+  check(Number.isFinite(hp) && hp > 0, 'hp', hp);
+  return { hp, weapon };
+}
+
+type Run = {
+  readonly arena: number; // 1-based, never past arenas
   readonly arenas: number;
-  readonly status: RunStatus;
   readonly loadout: Loadout; // what the current arena was entered with
-  readonly endedAt: Tick | null;
 };
+// Only a finished run has an end tick, so "won, but when?" can't be written down.
+export type RunState =
+  | (Run & { readonly status: 'Fighting' | 'Cleared' })
+  | (Run & { readonly status: 'Won' | 'Lost'; readonly endedAt: Tick });
 
 export type RunCommand =
   | { kind: 'PlayerDowned'; player: PlayerId; tick: Tick }
@@ -35,8 +57,12 @@ export const STARTING_LOADOUT: Loadout = {
   weapon: { id: 'w-start' as WeaponId, kind: 'gun', durability: 0, ammo: 16 },
 };
 
-export const initialRun = (arenas: number): RunState =>
-  ({ arena: 1, arenas, status: 'Fighting', loadout: STARTING_LOADOUT, endedAt: null });
+export function initialRun(arenas: number): RunState {
+  if (!Number.isInteger(arenas) || arenas < 1) throw new RangeError(`a run needs at least one arena, not ${arenas}`);
+  return { arena: 1, arenas, status: 'Fighting', loadout: STARTING_LOADOUT };
+}
+
+const run = (s: RunState): Run => ({ arena: s.arena, arenas: s.arenas, loadout: s.loadout });
 
 export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
   switch (cmd.kind) {
@@ -67,10 +93,13 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
 
 export function evolve(s: RunState, e: RunEvent): RunState {
   switch (e.kind) {
-    case 'RunLost': return { ...s, status: 'Lost', endedAt: e.tick };
-    case 'ArenaCleared': return { ...s, status: 'Cleared' };
-    case 'RunWon': return { ...s, status: 'Won', endedAt: e.tick };
-    case 'ArenaEntered': return { ...s, arena: e.arena, status: 'Fighting', loadout: e.loadout };
+    case 'RunLost': return { ...run(s), status: 'Lost', endedAt: e.tick };
+    case 'ArenaCleared': return { ...run(s), status: 'Cleared' };
+    case 'RunWon': return { ...run(s), status: 'Won', endedAt: e.tick };
+    case 'ArenaEntered':
+      // decide never asks for this; a fact past the last arena means a bug upstream.
+      if (e.arena > s.arenas) throw new RangeError(`arena ${e.arena} of ${s.arenas}`);
+      return { ...run(s), arena: e.arena, status: 'Fighting', loadout: e.loadout };
     case 'TunnelRefused': return s;
     default: return assertNever(e);
   }

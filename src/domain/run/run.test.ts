@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { BossId, PlayerId, Tick, WeaponId } from '../shared/types';
-import { decide, evolve, initialRun, STARTING_LOADOUT, type Loadout, type RunCommand, type RunState } from './run';
+import { carriedWeapon, decide, evolve, initialRun, loadoutOf, STARTING_LOADOUT, type Loadout, type RunCommand, type RunState } from './run';
 
 const BOSS = 'warden' as BossId;
 const PLAYER = 'player-1' as PlayerId;
@@ -20,7 +20,8 @@ describe('run', () => {
 
   it('clearing a boss before the last arena clears the arena, not the run', () => {
     const s = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(300) });
-    expect(s).toMatchObject({ arena: 1, status: 'Cleared', endedAt: null });
+    expect(s).toMatchObject({ arena: 1, status: 'Cleared' });
+    expect(s).not.toHaveProperty('endedAt');
   });
 
   it('entering the tunnel after a clear enters the next arena with what you carried', () => {
@@ -67,5 +68,44 @@ describe('run', () => {
   it('going down after the win, on a later tick, changes nothing', () => {
     const won = run({ ...initialRun(2), arena: 2 }, { kind: 'BossCleared', boss: BOSS, tick: t(900) });
     expect(decide({ kind: 'PlayerDowned', player: PLAYER, tick: t(901) }, won)).toHaveLength(0);
+  });
+
+  describe('shape', () => {
+    it('only a finished run has an end tick, and the compiler says so', () => {
+      // @ts-expect-error a won run without its end tick can't be written down
+      const unended: RunState = { status: 'Won', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
+      // @ts-expect-error a run still going has no end tick
+      const early: RunState = { status: 'Fighting', arena: 1, arenas: 2, loadout: STARTING_LOADOUT, endedAt: t(5) };
+      expect([unended, early]).toHaveLength(2);
+    });
+
+    it('a run has at least one arena', () => {
+      expect(() => initialRun(0)).toThrow(RangeError);
+      expect(() => initialRun(1.5)).toThrow(RangeError);
+    });
+
+    it('never enters an arena past the last one', () => {
+      const cleared: RunState = { status: 'Cleared', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
+      expect(() => evolve(cleared, { kind: 'ArenaEntered', arena: 3, loadout: CARRIED, tick: t(1) })).toThrow(RangeError);
+    });
+  });
+
+  // Numbers from the simulation are checked once, where the loadout is made,
+  // not on every field inside the rules.
+  describe('loadout', () => {
+    it('accepts what a living player can carry', () => {
+      expect(loadoutOf(61, carriedWeapon('w-1' as WeaponId, 'gun', 0, 7))).toEqual({
+        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 },
+      });
+      expect(loadoutOf(1, null).weapon).toBeNull();
+    });
+
+    it('refuses numbers no player could carry', () => {
+      expect(() => loadoutOf(0, null)).toThrow(RangeError);
+      expect(() => loadoutOf(Number.NaN, null)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, -1)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 2.5)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'sword', -3, 0)).toThrow(RangeError);
+    });
   });
 });
