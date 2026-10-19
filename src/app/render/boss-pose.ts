@@ -15,20 +15,24 @@ const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 
 // elapsed: ticks since the action began, fractional (interpolated between ticks).
 // slamWindup: 0..1 through a slam's telegraph, which drives its own squash.
-export function bossPose(kind: number, elapsed: number, slamWindup: number): Pose {
+// fromHeight: where a jump starts, when it isn't the ground (a perch).
+export function bossPose(kind: number, elapsed: number, slamWindup: number, fromHeight = 0): Pose {
   switch (kind) {
     case Action.Jump: {
       if (elapsed < JUMP_CROUCH) {
-        // Crouch: the tell that it's about to leave the ground.
+        // Crouch: the tell that it's about to leave the ground (or its perch).
         const c = ease(clamp01(elapsed / JUMP_CROUCH));
-        return { height: 0, sx: 1 + 0.18 * c, sy: 1 - 0.3 * c, lean: 0 };
+        return { height: fromHeight, sx: 1 + 0.18 * c, sy: 1 - 0.3 * c, lean: 0 };
       }
       const air = elapsed - JUMP_CROUCH;
       if (air < JUMP_AIR) {
         const t = air / JUMP_AIR;
-        // Stretched on the way up and down, round at the top.
+        // Stretched on the way up and down, round at the top. From a perch it
+        // hops a little, then falls the rest of the way.
         const stretch = 0.15 * Math.abs(1 - 2 * t);
-        return { height: 4 * JUMP_PEAK * t * (1 - t), sx: 1 - stretch * 0.5, sy: 1 + stretch, lean: 0 };
+        const peak = fromHeight > 0 ? 1.6 : JUMP_PEAK;
+        const height = fromHeight * (1 - t) + 4 * peak * t * (1 - t);
+        return { height, sx: 1 - stretch * 0.5, sy: 1 + stretch, lean: 0 };
       }
       const r = clamp01((air - JUMP_AIR) / JUMP_RECOVER);
       return { height: 0, sx: 1 + 0.25 * (1 - r), sy: 1 - 0.35 * (1 - r), lean: 0 };

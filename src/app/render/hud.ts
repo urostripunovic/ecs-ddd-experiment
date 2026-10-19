@@ -1,6 +1,6 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
-import { Ammo, BossPhase, Durability, Health, MatchStatus, MatchView, Wielder } from '../../ecs/components';
+import { Ammo, BossPhase, Durability, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
@@ -42,7 +42,7 @@ export function createHud(root: HTMLElement) {
     <div class="gauge-zone" style="left:${PERFECT_FROM * 100}%;width:${(PERFECT_TO - PERFECT_FROM) * 100}%"></div>`);
   gauge.hidden = true;
   const log = el('pre', 'hud log');
-  const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p>Press Enter to restart</p></div>');
+  const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p data-subtitle></p></div>');
   log.hidden = true;
   banner.hidden = true;
   root.append(boss, player, help, gauge, log, banner);
@@ -56,6 +56,7 @@ export function createHud(root: HTMLElement) {
   const weaponState = q(player, '[data-weapon-state]');
   const status = q(player, '[data-status]');
   const title = q(banner, '[data-title]');
+  const subtitle = q(banner, '[data-subtitle]');
   const gaugeFill = q(gauge, '[data-fill]');
   // Indexed by ChargeZone.
   const ZONE_CLASS = ['building', 'perfect', 'over'];
@@ -79,7 +80,7 @@ export function createHud(root: HTMLElement) {
       const b = indexOf(h.boss);
       const p = indexOf(h.player);
       set(bossHp, 'scale', (Health.hp[b] / Health.max[b]).toFixed(3));
-      set(phase, 'text', `phase ${BossPhase.phase[b]}`);
+      set(phase, 'text', `arena ${RunView.arena}/${RunView.arenas} · phase ${BossPhase.phase[b]}`);
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
       const item = heldItem(p);
@@ -95,9 +96,13 @@ export function createHud(root: HTMLElement) {
         gaugeFill.className = `gauge-fill ${ZONE_CLASS[throwCharge(fill).zone]}`;
       }
 
-      const over = MatchView.status !== MatchStatus.Fighting;
+      const over = RunView.status !== RunStatus.Fighting;
       banner.hidden = !over;
-      if (over) set(title, 'text', MatchView.status === MatchStatus.Won ? 'VICTORY' : 'DEFEATED');
+      if (over) {
+        const cleared = RunView.status === RunStatus.Cleared;
+        set(title, 'text', cleared ? 'ARENA CLEARED' : RunView.status === RunStatus.Won ? 'VICTORY' : 'DEFEATED');
+        set(subtitle, 'text', cleared ? 'The tunnel to the north is open' : 'Press Enter to restart');
+      }
 
       if (!log.hidden && !DEV) {
         set(log, 'text', 'tick log is dev-only: run npm run dev');

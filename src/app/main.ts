@@ -1,4 +1,4 @@
-import { startMatch } from '../bridge/spawn';
+import { startRun } from '../bridge/spawn';
 import { createInput } from './input';
 import { createFrameDriver } from './loop';
 import { createHud } from './render/hud';
@@ -10,9 +10,10 @@ const host = document.getElementById('app')!;
 const params = new URLSearchParams(location.search);
 const bossHp = Number(params.get('bossHp')) || undefined;
 const seed = Number(params.get('seed')) || undefined;
-const restart = () => startMatch({ bossHp, seed });
+const restart = () => startRun({ bossHp, seed });
 
-let match = restart();
+// The same object for the whole run: building the next arena updates it in place.
+const match = restart();
 const view = createArenaView(host, () => match.player);
 const hud = createHud(document.body);
 const input = createInput(host);
@@ -24,7 +25,7 @@ const frame = createFrameDriver((alpha) => {
 
 let last = performance.now();
 function loop(now: number): void {
-  if (input.consume('Enter')) match = restart();
+  if (input.consume('Enter')) restart();
   if (input.consume('Backquote')) hud.toggleLog();
   input.sample(view, match.player);
   frame((now - last) / 1000);

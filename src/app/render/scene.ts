@@ -1,10 +1,11 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, PlayerInput, Shake, Shape, ShapeKind, Slam, StuckIn, Transform,
-  Velocity,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam, StuckIn,
+  Transform, Velocity,
   Wielder,
 } from '../../ecs/components';
+import { TUNNEL } from '../../ecs/arenas';
 import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
 import { bossPose } from './boss-pose';
 import { handleAt, has, indexOf, isLive, MAX, world, type EntityId, type Handle } from '../../ecs/core/world';
@@ -153,16 +154,45 @@ function buildArena(scene: THREE.Scene): void {
   const wallMat = shaded(COLOR.wall);
   const h = 1.2;
   const t = 0.6;
+  // The north wall has a gap the tunnel opens into; the gate (drawn per frame) fills it.
+  const gap = TUNNEL.halfWidth;
+  const northLen = Arena.half + t - gap;
   for (const [x, z, w, d] of [
-    [0, -Arena.half - t / 2, size + t * 2, t],
+    [-(gap + northLen / 2), -Arena.half - t / 2, northLen, t],
+    [gap + northLen / 2, -Arena.half - t / 2, northLen, t],
     [0, Arena.half + t / 2, size + t * 2, t],
     [-Arena.half - t / 2, 0, t, size],
     [Arena.half + t / 2, 0, t, size],
+    // The tunnel's sides.
+    [-gap - t / 2, -Arena.half - TUNNEL.depth / 2, t, TUNNEL.depth],
+    [gap + t / 2, -Arena.half - TUNNEL.depth / 2, t, TUNNEL.depth],
   ]) {
     const wall = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat));
     wall.position.set(x, h / 2, z);
     scene.add(wall);
   }
+  // Fading to black down the tunnel: you walk into the dark, and come out in the next arena.
+  const tunnelFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(gap * 2, TUNNEL.depth),
+    new THREE.MeshBasicMaterial({ color: 0x000000 }),
+  );
+  tunnelFloor.rotation.x = -Math.PI / 2;
+  tunnelFloor.position.set(0, 0.005, -Arena.half - TUNNEL.depth / 2);
+  scene.add(tunnelFloor);
+  const tunnelEnd = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + t * 2, 4, 0.5), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  tunnelEnd.position.set(0, 2, -Arena.half - TUNNEL.depth);
+  scene.add(tunnelEnd);
+}
+
+const GATE_HEIGHT = 1.6;
+function buildGate(scene: THREE.Scene): THREE.Mesh {
+  const gate = cast(new THREE.Mesh(
+    new THREE.BoxGeometry(TUNNEL.halfWidth * 2, GATE_HEIGHT, 0.5),
+    shaded(COLOR.telegraph),
+  ));
+  gate.position.set(0, GATE_HEIGHT / 2, -Arena.half - 0.25);
+  scene.add(gate);
+  return gate;
 }
 
 // A flat wedge pointing down +x, turned toward the player while a cone winds up.
@@ -225,6 +255,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   scene.add(sun);
 
   buildArena(scene);
+  const gate = buildGate(scene);
 
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.22, 0.3, 32),
@@ -314,8 +345,10 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         const slamming = has(e as EntityId, C.Slam);
         const winding = slamming ? 1 - Slam.timer[e] / Slam.windup[e] : 0;
         const elapsed = world.tick - BossAction.startedAt[e] + alpha;
-        const pose = bossPose(dead ? Action.Idle : BossAction.kind[e], elapsed, winding);
-        v.position.y = dead ? -0.9 : pose.height;
+        const pose = bossPose(dead ? Action.Idle : BossAction.kind[e], elapsed, winding, Jump.fromHeight[e]);
+        // Waiting on a perch before its first move: up there, not inside the pillar.
+        const perched = BossAction.kind[e] === Action.Idle && has(e as EntityId, C.Airborne) ? Jump.fromHeight[e] : 0;
+        v.position.y = dead ? -0.9 : pose.height || perched;
         v.rotation.z = dead ? 0.25 : 0;
         v.rotation.x = pose.lean;
         if (!dead) faceFocus(v);
@@ -353,6 +386,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     }
 
     drawHeld(alpha);
+    // The gate sinks into the floor when the run opens the tunnel, and rises again in the next arena.
+    const gateY = RunView.tunnelOpen ? -GATE_HEIGHT / 2 - 0.05 : GATE_HEIGHT / 2;
+    gate.position.y += (gateY - gate.position.y) * (1 - Math.exp(-dt * 3));
     followCamera(alpha, dt);
 
     // Trauma squared, so small hits barely move the camera and a roar really does.
