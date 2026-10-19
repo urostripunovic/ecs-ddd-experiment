@@ -18,9 +18,11 @@
 
 Expect each change to start with a predicted footprint and the invariants it touches, ask design questions only when the change raises one, and end with a playtest and a comparison with the prediction. If it doesn't, that's a line for `SKILL-NOTES.md`.
 
-**When the prototype is worth building on**, run `/game-to-tickets` by name: "Cut tickets for three more arenas and a second boss." It checks the gate first and stops if the base isn't ready.
+The prototype loop is the main use. Stay in it until the game is worth building on; everything below is optional and can wait.
 
-**In production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`.
+**Later: when the prototype is worth building on**, run `/game-to-tickets` by name: "Cut tickets for three more arenas and a second boss." It checks the gate first and stops if the base isn't ready.
+
+**Later: in production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`. Each ticket's footprint is its blast radius: tickets with no blocking edge and no overlapping files can run side by side in separate git worktrees.
 
 **Now and then**, read `SKILL-NOTES.md`. A line that keeps coming back is an edit to a skill: missing → add it, vague → reword it, ignored though clear → enforce it with a test, a lint rule or a type.
 

@@ -39,7 +39,7 @@ A ticket is one commit per layer, or one small pull request: reviewable in one s
 4. **Tuning:** numbers only, judged by playtest. Its acceptance is a playtest criterion, not a unit test.
 5. **Tooling:** the bot, playtest scripts, scan tests, debug views.
 
-Blocked by: a content ticket by the feature it uses; anything reading a rule by the rule ticket. Tickets with no such edge can run in parallel.
+Blocked by: a content ticket by the feature it uses; anything reading a rule by the rule ticket. The footprint is each ticket's blast radius: tickets with no blocking edge and no shared files can run in parallel, each in its own git worktree. Two tickets that touch the same file (a components list, the tick order) are worked one after the other, or the shared change becomes its own small ticket first.
 
 ## Decisions
 
