@@ -77,8 +77,9 @@ export const BossAction = {
   kind: new Uint8Array(MAX), startedAt: new Uint32Array(MAX),
   lastKind: new Uint8Array(MAX), lastEnd: new Uint32Array(MAX),
 };
-// Ticks of the current jump, for the renderer's arc.
-export const Jump = { airStart: new Uint32Array(MAX), landAt: new Uint32Array(MAX) };
+// Ticks of the current jump, for the renderer's arc. fromHeight is non-zero
+// when it leaves from up high, like the Warden dropping off its perch.
+export const Jump = { airStart: new Uint32Array(MAX), landAt: new Uint32Array(MAX), fromHeight: new Float32Array(MAX) };
 // How much hp the boss lost over the last second, and when it may evade again.
 export const Pressure = {
   hpMark: new Float32Array(MAX), markedAt: new Uint32Array(MAX),
@@ -98,9 +99,11 @@ export const PlayerInput = {
   moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
   throwHeld: false, throwReleases: 0, interactPresses: 0,
 };
-// A read model of the domain's match state, written only by the match projector.
-export const MatchStatus = { Fighting: 0, Won: 1, Lost: 2 } as const;
-export const MatchView = { status: 0 as number, endedAt: 0 };
+// A read model of the domain's run, written only by the run projector and the
+// spawn projection. Cleared: the boss is down, the tunnel may be open, and
+// nothing spawns; the player still moves.
+export const RunStatus = { Fighting: 0, Won: 1, Lost: 2, Cleared: 3 } as const;
+export const RunView = { status: 0 as number, endedAt: 0, arena: 1, arenas: 1, tunnelOpen: false };
 export const Arena = { half: 20 };
 // While a cutscene runs the player can't act; until is a tick deadline.
 export const Cutscene = { until: 0 };
@@ -115,15 +118,22 @@ const perEntity = [
   StuckIn, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape,
 ];
 
-export function resetComponents(): void {
+// Between arenas: every entity's data goes, but the input counters and the
+// run view stay, because the run carries on.
+export function resetEntityComponents(): void {
   for (const group of perEntity) for (const arr of Object.values(group)) arr.fill(0);
+  Stock.respawnAt.fill(0);
+  Cutscene.until = 0;
+  Shake.trauma = 0;
+}
+
+export function resetComponents(): void {
+  resetEntityComponents();
   Object.assign(PlayerInput, {
     moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
     throwHeld: false, throwReleases: 0, interactPresses: 0,
   });
-  MatchView.status = MatchStatus.Fighting;
-  MatchView.endedAt = 0;
-  Stock.respawnAt.fill(0);
-  Cutscene.until = 0;
-  Shake.trauma = 0;
+  RunView.status = RunStatus.Fighting;
+  RunView.endedAt = 0;
+  RunView.tunnelOpen = false;
 }

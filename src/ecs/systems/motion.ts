@@ -21,7 +21,7 @@ export function snapshotSystem(): void {
   }
 }
 
-// reads PlayerInput, MatchView, Cutscene, Buffs, Slowed, Knockback | writes Velocity (player-controlled only)
+// reads PlayerInput, RunView, Cutscene, Buffs, Slowed, Knockback | writes Velocity (player-controlled only)
 // The only writer of a player's velocity: every other effect arrives as its own field.
 export function inputSystem(): void {
   const speedBase = controlsLocked() ? 0 : PLAYER_SPEED;

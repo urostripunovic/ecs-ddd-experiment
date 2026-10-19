@@ -5,7 +5,7 @@ import { world, type Handle } from './world';
 //
 // Lives in ecs/ rather than bridge/ so that ecs/ never imports bridge/:
 // systems write here, the bridge drains it.
-export type OutboxKind = 'EntityDowned' | 'BossThresholdCrossed';
+export type OutboxKind = 'EntityDowned' | 'BossThresholdCrossed' | 'TunnelEntered';
 export type OutboxSlot = { kind: OutboxKind; subject: Handle; other: Handle; value: number; tick: number };
 
 export const OUTBOX_SIZE = 64;

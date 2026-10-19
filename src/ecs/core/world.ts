@@ -73,13 +73,14 @@ export function query(buf: Int32Array, all: ComponentMask, none: ComponentMask =
 export const entityAt = (buf: Int32Array, i: number) => buf[i] as EntityId;
 export const handleAt = (arr: Int32Array, e: EntityId) => arr[e] as Handle;
 
-// Bumps every used slot's generation so handles from the previous match go
-// stale instead of pointing at whatever reuses their slot.
-export function resetWorld(): void {
+// Bumps every used slot's generation so handles from before go stale instead
+// of pointing at whatever reuses their slot. Moving to the next arena keeps the
+// tick, because the run's deadlines and the tick log are measured in it.
+export function resetWorld(keepTick = false): void {
   for (let e = 0; e < world.nextFresh; e++) world.generation[e]++;
   world.mask.fill(0);
   world.alive.fill(0);
   world.freeCount = 0;
   world.nextFresh = 0;
-  world.tick = 0;
+  if (!keepTick) world.tick = 0;
 }

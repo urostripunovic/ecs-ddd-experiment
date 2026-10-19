@@ -1,4 +1,5 @@
-import { Arena, C, Collider, Transform } from '../components';
+import { TUNNEL } from '../arenas';
+import { Arena, C, Collider, RunView, Transform } from '../components';
 import { buf, solidBuf } from '../core/buffers';
 import { despawn, entityAt, has, mask, query } from '../core/world';
 
@@ -9,7 +10,7 @@ const SOLID_EXCLUDE = mask(C.Dead, C.Airborne);
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
 const PROJECTILES = mask(C.Transform, C.Projectile);
 
-// reads Collider, Solid, Arena | writes Transform
+// reads Collider, Solid, Arena, RunView.tunnelOpen | writes Transform
 // Circles only: the arena is a greybox, and circle push-out never snags on corners.
 export function bodyCollisionSystem(): void {
   const solids = query(solidBuf, SOLIDS, SOLID_EXCLUDE);
@@ -36,7 +37,13 @@ export function bodyCollisionSystem(): void {
 
     const limit = Arena.half - r;
     Transform.x[e] = Math.max(-limit, Math.min(limit, Transform.x[e]));
-    Transform.z[e] = Math.max(-limit, Math.min(limit, Transform.z[e]));
+    // An open tunnel lets a body inside its width walk past the north wall;
+    // once past the wall line, the tunnel's sides are the walls.
+    const corridor = TUNNEL.halfWidth - r;
+    const inCorridor = RunView.tunnelOpen && Math.abs(Transform.x[e]) <= corridor;
+    const minZ = inCorridor ? -(Arena.half + TUNNEL.depth - r) : -limit;
+    Transform.z[e] = Math.max(minZ, Math.min(limit, Transform.z[e]));
+    if (Transform.z[e] < -limit) Transform.x[e] = Math.max(-corridor, Math.min(corridor, Transform.x[e]));
   }
 }
 

@@ -2,7 +2,7 @@
 // Equipping, wear and throwing are pure simulation: no rule or save reacts to
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
-  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, MatchStatus, MatchView, PlayerInput, ShapeKind,
+  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, RunStatus, RunView, PlayerInput, ShapeKind,
   Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
@@ -44,7 +44,7 @@ const THROWN_RADIUS = 0.45;
 const DROP_EVERY_TICKS = 7 * 60;
 const MAX_ON_GROUND = 4;
 
-const fighting = () => MatchView.status === MatchStatus.Fighting;
+const fighting = () => RunView.status === RunStatus.Fighting;
 
 export function heldItem(w: EntityId): EntityId | -1 {
   const h = handleAt(Wielder.held, w);
@@ -207,7 +207,7 @@ function meleeHit(w: EntityId, def: WeaponDef): boolean {
   return hit;
 }
 
-// reads PlayerInput, MatchView, Wielder, held item | writes Wielder, Ammo, Durability, Health; spawns bullets
+// reads PlayerInput, RunView, Wielder, held item | writes Wielder, Ammo, Durability, Health; spawns bullets
 export function attackSystem(dt: number): void {
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {
@@ -329,7 +329,7 @@ export function pickupSystem(): void {
   }
 }
 
-// reads Held items, Durability, MatchView | writes Durability; breaks worn-out items wherever they are
+// reads Held items, Durability, RunView | writes Durability; breaks worn-out items wherever they are
 export function durabilitySystem(dt: number): void {
   // Time stops wearing things once the fight is over, so the end screen shows what you finished with.
   const held = fighting() ? query(buf, HELD_ITEMS) : 0;

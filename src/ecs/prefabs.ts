@@ -1,6 +1,6 @@
 import {
-  Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, Pressure, Projectile, Shape, ShapeKind, Team,
-  TeamId, Transform, Velocity, Wielder,
+  Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, PlayerInput, Pressure, Projectile, Shape, ShapeKind,
+  Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
 import { add, mask, NO_HANDLE, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
@@ -33,6 +33,10 @@ export function spawnPlayer(x: number, z: number): EntityId {
   place(e, x, z);
   Health.hp[e] = Health.max[e] = 100;
   Wielder.held[e] = NO_HANDLE;
+  // Starts caught up with the input counters, so presses from before it existed
+  // (a previous arena) aren't replayed as a throw the moment it spawns.
+  Wielder.throwSeen[e] = PlayerInput.throwReleases;
+  Wielder.interactSeen[e] = PlayerInput.interactPresses;
   Team.id[e] = TeamId.Player;
   Collider.radius[e] = 0.45;
   Shape.kind[e] = ShapeKind.Player;

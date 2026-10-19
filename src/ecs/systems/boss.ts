@@ -1,4 +1,4 @@
-import { BossPhase, C, Health, MatchStatus, MatchView, Pressure, Slam, Slowed, Transform } from '../components';
+import { BossPhase, C, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import { send } from '../core/outbox';
 import type { Script } from '../core/script';
@@ -28,10 +28,10 @@ export function resetScripts(): void {
   runningScript.fill(null);
 }
 
-// reads BossPhase, MatchView, Health | writes Pressure, BossPhase.running, and via the
+// reads BossPhase, RunView, Health | writes Pressure, BossPhase.running, and via the
 // phase's script: Velocity, Slam, BossAction, Jump, Airborne
 export function bossPhaseSystem(): void {
-  if (MatchView.status !== MatchStatus.Fighting) return;
+  if (RunView.status !== RunStatus.Fighting) return;
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);

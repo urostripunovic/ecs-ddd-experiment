@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BossAction, BossPhase, C, Health, Knockback, MatchStatus, MatchView, Pressure, resetComponents, Shake, Slam, TeamId,
+  BossAction, BossPhase, C, Health, Knockback, RunStatus, RunView, Pressure, resetComponents, Shake, Slam, TeamId,
   Transform,
 } from '../components';
 import { buf } from '../core/buffers';
@@ -24,7 +24,7 @@ function arena(phase: number): void {
   resetWorld();
   resetComponents();
   resetScripts();
-  MatchView.status = MatchStatus.Fighting;
+  RunView.status = RunStatus.Fighting;
   for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, 1.4);
   p = spawnPlayer(0, 12);
   b = spawnBoss(0, -8, 100_000); // never dies, so the choreography keeps running

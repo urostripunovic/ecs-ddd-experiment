@@ -125,13 +125,19 @@ function* burst(boss: EntityId, count: number, offset: number): Script {
 
 // Where a jump comes down: on the player, or away from them. Chosen at take-off
 // and shown at once, so the player always gets the full flight time to react.
-function landingSpot(boss: EntityId, mode: 'at' | 'away', out: { x: number; z: number }): void {
+function landingSpot(boss: EntityId, mode: JumpMode, out: { x: number; z: number }): void {
   const p = findPlayer();
   let x = Transform.x[boss];
   let z = Transform.z[boss];
   if (p !== -1 && mode === 'at') {
     x = Transform.x[p];
     z = Transform.z[p];
+  } else if (p !== -1 && mode === 'toward') {
+    const dx = Transform.x[p] - x;
+    const dz = Transform.z[p] - z;
+    const d = Math.hypot(dx, dz) || 1;
+    x += (dx / d) * DROP_DISTANCE;
+    z += (dz / d) * DROP_DISTANCE;
   } else if (p !== -1) {
     const dx = x - Transform.x[p];
     const dz = z - Transform.z[p];
@@ -160,10 +166,14 @@ function landingSpot(boss: EntityId, mode: 'at' | 'away', out: { x: number; z: n
 }
 
 const spot = { x: 0, z: 0 };
+// 'toward' lands a set distance toward the player rather than on them: the
+// entrance drop announces the fight without opening it with a hit.
+type JumpMode = 'at' | 'away' | 'toward';
+const DROP_DISTANCE = 6;
 
 // Crouch, fly, land. The landing is an ordinary slam centred on the landing
 // spot, so it shares the slam's telegraph, damage and slow.
-function* jump(boss: EntityId, mode: 'at' | 'away'): Script {
+function* jump(boss: EntityId, mode: JumpMode): Script {
   yield* begin(boss, Action.Jump);
   stop(boss);
   yield* waitTicks(JUMP_CROUCH);
@@ -181,6 +191,7 @@ function* jump(boss: EntityId, mode: 'at' | 'away'): Script {
   yield* waitTicks(JUMP_AIR);
 
   remove(boss, C.Airborne);
+  Jump.fromHeight[boss] = 0;
   stop(boss);
   // Integrating a velocity drifts by a hair; landing exactly on the telegraph keeps it honest.
   Transform.x[boss] = tx;
@@ -221,6 +232,13 @@ function* roar(boss: EntityId): Script {
   finish(boss);
 }
 
+// An entrance from a perch: the player watches it crouch up there and drop in,
+// and can't act until it lands, so the fight starts on equal terms.
+function* dropIn(boss: EntityId): Script {
+  startCutscene(JUMP_CROUCH + JUMP_AIR);
+  yield* jump(boss, 'toward');
+}
+
 function shouldEvade(boss: EntityId): boolean {
   if (world.tick < Pressure.evadeReadyAt[boss]) return false;
   if (Pressure.recentLoss[boss] <= Health.max[boss] * EVADE_LOSS_SHARE) return false;
@@ -236,6 +254,8 @@ function distanceToPlayer(boss: EntityId): number {
 // Phase 1: lumbers toward the player and slams; kept at range, it alternates
 // an aimed cone with a jump onto the player.
 export function* phaseOne(boss: EntityId): Script {
+  // Spawned on a perch (some arenas): its first move is to come down.
+  if (Jump.fromHeight[boss] > 0) yield* dropIn(boss);
   let farTurns = 0;
   for (;;) {
     if (shouldEvade(boss)) yield* jump(boss, 'away');
