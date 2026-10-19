@@ -23,7 +23,7 @@ describe('arena loop', () => {
     const kinds = log.map((l) => l.split(': ')[1]);
 
     expect(kinds).toEqual([
-      'BossThresholdCrossed(warden) -> BossPhaseReached -> BossPhase[5]=2',
+      'BossThresholdCrossed(warden) -> BossPhaseReached -> BossPhase(warden)=2',
       'BossDowned(warden) -> BossDefeated -> no component change',
       'BossCleared -> MatchWon -> MatchView=Won',
     ]);

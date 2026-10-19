@@ -1,9 +1,9 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossPhase, C, Collider, Hurt, PlayerInput, Shape, ShapeKind, Slam, Transform, Velocity,
+  Arena, BossPhase, C, Collider, Hurt, PlayerInput, Shape, ShapeKind, Slam, Transform, Velocity, Wielder,
 } from '../../ecs/components';
-import { has, indexOf, isLive, MAX, world, type EntityId, type Handle } from '../../ecs/core/world';
+import { handleAt, has, indexOf, isLive, MAX, world, type EntityId, type Handle } from '../../ecs/core/world';
 
 const COLOR = {
   bg: 0x1b1c1e,
@@ -17,7 +17,15 @@ const COLOR = {
   enemyBullet: 0xff6b3d,
   telegraph: 0xd9573b,
   dead: 0x2f3134,
+  steel: 0xc9ced6,
+  wood: 0x9c7a52,
+  gun: 0x3b4048,
+  haste: 0x5fd39a,
+  fury: 0xe8584a,
 };
+
+const SWING_TICKS = 10; // matches the attack system; only used to time the animation
+const HAND_HEIGHT = 0.9;
 
 const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
 // Leading the aim a little shows more of where you are shooting than where you have been.
@@ -44,10 +52,35 @@ const geo = {
   bullet: new THREE.CapsuleGeometry(0.11, 0.7, 4, 8).rotateX(Math.PI / 2),
   enemyBullet: new THREE.SphereGeometry(0.24, 12, 10),
   pillar: new THREE.CylinderGeometry(1, 1, 3.2, 24),
+  // Weapons point down local -z, the same way the player faces, so one yaw aims both.
+  blade: new THREE.BoxGeometry(0.1, 0.05, 1.3).translate(0, 0, -0.85),
+  guard: new THREE.BoxGeometry(0.42, 0.08, 0.08).translate(0, 0, -0.18),
+  shaft: new THREE.CylinderGeometry(0.04, 0.04, 2.4, 8).rotateX(Math.PI / 2).translate(0, 0, -0.7),
+  tip: new THREE.ConeGeometry(0.1, 0.35, 10).rotateX(-Math.PI / 2).translate(0, 0, -2.05),
+  gunBody: new THREE.BoxGeometry(0.18, 0.2, 0.62).translate(0, 0, -0.25),
+  gunGrip: new THREE.BoxGeometry(0.14, 0.26, 0.14).translate(0, -0.18, 0),
+  buff: new THREE.OctahedronGeometry(0.34),
 };
 const bulletMat = new THREE.MeshBasicMaterial({ color: COLOR.bullet });
 const enemyBulletMat = new THREE.MeshBasicMaterial({ color: COLOR.enemyBullet });
 const pillarMat = shaded(COLOR.pillar);
+const steelMat = new THREE.MeshStandardMaterial({ color: COLOR.steel, roughness: 0.35, metalness: 0.6 });
+const woodMat = shaded(COLOR.wood);
+const gunMat = shaded(COLOR.gun);
+
+function weapon(...parts: [THREE.BufferGeometry, THREE.Material][]): Visual {
+  const g = new THREE.Group() as Visual;
+  for (const [geometry, material] of parts) g.add(new THREE.Mesh(geometry, material));
+  return cast(g);
+}
+
+function buffVisual(color: number): Visual {
+  const m = new THREE.Mesh(
+    geo.buff,
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.4 }),
+  ) as Visual;
+  return cast(m);
+}
 
 function build(kind: number): Visual {
   switch (kind) {
@@ -84,6 +117,11 @@ function build(kind: number): Visual {
       const m = new THREE.Mesh(geo.pillar, pillarMat) as Visual;
       return cast(m);
     }
+    case ShapeKind.Sword: return weapon([geo.blade, steelMat], [geo.guard, gunMat]);
+    case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
+    case ShapeKind.Gun: return weapon([geo.gunBody, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Haste: return buffVisual(COLOR.haste);
+    case ShapeKind.Fury: return buffVisual(COLOR.fury);
     default:
       return new THREE.Object3D() as Visual;
   }
@@ -177,7 +215,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const visuals: (Visual | null)[] = new Array(MAX).fill(null);
   const visualGen = new Uint16Array(MAX);
   const visualKind = new Uint8Array(MAX);
-  const pools: Visual[][] = [[], [], [], [], [], []];
+  const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
   const telegraphs: (THREE.Group | null)[] = new Array(MAX).fill(null);
   let highWater = 0;
 
@@ -192,6 +230,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const acquire = (e: number, kind: number): Visual => {
     const v = pools[kind].pop() ?? build(kind);
     v.rotation.set(0, 0, 0);
+    v.scale.setScalar(1);
     v.position.y = kind === ShapeKind.Bullet || kind === ShapeKind.EnemyBullet ? AIM_HEIGHT : 0;
     scene.add(v);
     visuals[e] = v;
@@ -219,6 +258,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   function render(alpha: number): void {
     const now = performance.now();
     const dt = Math.min((now - lastTime) / 1000, 0.1);
+    const t = now / 1000;
     lastTime = now;
 
     highWater = Math.max(highWater, world.nextFresh);
@@ -260,11 +300,54 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         const r = Collider.radius[e];
         v.scale.set(r, 1, r);
         v.position.y = 1.6;
+      } else if (kind === ShapeKind.Haste || kind === ShapeKind.Fury) {
+        v.position.y = 0.8 + Math.sin(t * 3 + e) * 0.15;
+        v.rotation.y = t * 2;
+      } else if (has(e as EntityId, C.Flying)) {
+        v.position.y = HAND_HEIGHT;
+        const yaw = Math.atan2(-Velocity.x[e], -Velocity.z[e]);
+        // A spear flies point first; anything else tumbles.
+        v.rotation.y = kind === ShapeKind.Spear ? yaw : t * 22;
+        v.scale.setScalar(1);
+      } else if (has(e as EntityId, C.Grounded)) {
+        // Lying flat and turning slowly, so drops catch the eye without looking like buffs.
+        v.position.y = 0.12;
+        v.rotation.y = t * 0.8 + e;
+        v.scale.setScalar(1.4);
       }
     }
 
+    drawHeld(alpha);
     followCamera(alpha, dt);
     renderer.render(scene, camera);
+  }
+
+  // Held items are drawn in the player's hand: the simulation only keeps them at
+  // the player's centre, and the hand, swing and thrust are presentation.
+  function drawHeld(alpha: number): void {
+    const h = focus();
+    if (!isLive(h)) return;
+    const p = indexOf(h);
+    const item = handleAt(Wielder.held, p);
+    if (!isLive(item)) return;
+    const v = visuals[indexOf(item)];
+    if (!v) return;
+
+    const yaw = Math.atan2(-PlayerInput.aimX, -PlayerInput.aimZ);
+    const progress = Wielder.swing[p] > 0 ? 1 - Wielder.swing[p] / SWING_TICKS : 0;
+    const kind = visualKind[indexOf(item)];
+    const thrust = kind === ShapeKind.Spear ? Math.sin(progress * Math.PI) * 0.9 : 0;
+    // A sword sweeps right to left across the arc.
+    const sweep = kind === ShapeKind.Sword && progress > 0 ? 1.1 - 2.2 * progress : 0;
+
+    const px = Transform.px[p] + (Transform.x[p] - Transform.px[p]) * alpha;
+    const pz = Transform.pz[p] + (Transform.z[p] - Transform.pz[p]) * alpha;
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    // Right hand: forward rotated a quarter turn clockwise.
+    v.position.set(px - fz * 0.45 + fx * (0.15 + thrust), HAND_HEIGHT, pz + fx * 0.45 + fz * (0.15 + thrust));
+    v.rotation.set(0, yaw + sweep, 0);
+    v.scale.setScalar(1);
   }
 
   // The boss's glowing core turns to track the player, so its attention is readable.

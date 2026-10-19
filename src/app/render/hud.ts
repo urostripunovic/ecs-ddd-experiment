@@ -1,7 +1,9 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
-import { BossPhase, Health, MatchStatus, MatchView, Weapon } from '../../ecs/components';
-import { indexOf, type Handle } from '../../ecs/core/world';
+import { Ammo, BossPhase, Durability, Health, MatchStatus, MatchView } from '../../ecs/components';
+import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
+import { furious, hasted, slowed } from '../../ecs/systems/status';
+import { defOf, heldItem } from '../../ecs/systems/weapons';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '') => {
   const n = document.createElement(tag);
@@ -10,14 +12,29 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '
   return n;
 };
 
+function weaponDetail(item: EntityId | -1, mag: number, durability: number): string {
+  if (item === -1) return '';
+  if (mag > 0) return Ammo.reload[item] > 0 ? 'reloading' : `${Ammo.count[item]}/${mag}`;
+  return durability > 0 ? `${Math.max(0, Math.ceil(Durability.value[item]))}%` : '';
+}
+
+function statusLine(p: EntityId): string {
+  const parts: string[] = [];
+  if (hasted(p)) parts.push('HASTE');
+  if (furious(p)) parts.push('FURY');
+  if (slowed(p)) parts.push('SLOWED');
+  return parts.join(' · ') || ' ';
+}
+
 export function createHud(root: HTMLElement) {
   const boss = el('div', 'hud boss', `
     <div class="boss-name"><span>The Warden</span><span data-phase></span></div>
     <div class="bar"><div data-boss-hp></div></div>`);
   const player = el('div', 'hud player', `
     <div class="bar"><div data-player-hp></div></div>
-    <div class="row"><span>HP <b data-hp></b></span><span>AMMO <b data-ammo></b></span></div>`);
-  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space fire<br>R reload · Enter restart · ` tick log');
+    <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
+    <div class="row status" data-status></div>`);
+  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space attack<br>Q / right-click throw · E swap · R reload<br>Enter restart · ` tick log');
   const log = el('pre', 'hud log');
   const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p>Press Enter to restart</p></div>');
   log.hidden = true;
@@ -29,7 +46,9 @@ export function createHud(root: HTMLElement) {
   const phase = q(boss, '[data-phase]');
   const playerHp = q(player, '[data-player-hp]');
   const hpText = q(player, '[data-hp]');
-  const ammoText = q(player, '[data-ammo]');
+  const weaponText = q(player, '[data-weapon]');
+  const weaponState = q(player, '[data-weapon-state]');
+  const status = q(player, '[data-status]');
   const title = q(banner, '[data-title]');
 
   // Skips DOM writes when nothing changed, so the HUD costs nothing at rest.
@@ -54,7 +73,11 @@ export function createHud(root: HTMLElement) {
       set(phase, 'text', `phase ${BossPhase.phase[b]}`);
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
-      set(ammoText, 'text', Weapon.reload[p] > 0 ? 'reloading' : `${Weapon.ammo[p]}/${Weapon.mag[p]}`);
+      const item = heldItem(p);
+      const def = defOf(item);
+      set(weaponText, 'text', def.name.toUpperCase());
+      set(weaponState, 'text', weaponDetail(item, def.mag, def.durability));
+      set(status, 'text', statusLine(p));
 
       const over = MatchView.status !== MatchStatus.Fighting;
       banner.hidden = !over;

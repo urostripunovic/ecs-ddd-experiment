@@ -2,8 +2,11 @@ import { domainStep } from '../bridge/dispatch';
 import { world } from '../ecs/core/world';
 import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems/boss';
 import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
-import { deathSystem, fireSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
+import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
+import {
+  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, throwSystem,
+} from '../ecs/systems/weapons';
 
 export const DT = 1 / 60;
 
@@ -14,11 +17,17 @@ export function tick(): void {
   bossPhaseSystem();
   movementSystem(DT);
   bodyCollisionSystem();
-  fireSystem(DT);
+  heldFollowSystem();
+  throwSystem();
+  attackSystem(DT);
+  flightSystem();
+  pickupSystem();
   projectileCollisionSystem();
   projectileSystem(DT);
   slamSystem();
+  durabilitySystem(DT);
   hurtFlashSystem();
+  dropSystem();
   bossThresholdSystem();
   deathSystem();
   domainStep(); // decide + evolve + project, inside the same tick

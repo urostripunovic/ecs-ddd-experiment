@@ -13,12 +13,19 @@ export function createInput(target: HTMLElement) {
   window.addEventListener('keydown', (ev) => {
     if (!keys.has(ev.code)) pressed.add(ev.code);
     keys.add(ev.code);
+    // Counted at the event, not sampled per frame, so a tap shorter than a frame still throws.
+    if (ev.repeat) return;
+    if (ev.code === 'KeyQ') PlayerInput.throwPresses++;
+    if (ev.code === 'KeyE') PlayerInput.interactPresses++;
   });
   window.addEventListener('keyup', (ev) => keys.delete(ev.code));
   // Losing focus mid-press would otherwise leave the player running forever.
   window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
   target.addEventListener('pointermove', (ev) => { mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.seen = true; });
-  target.addEventListener('pointerdown', (ev) => { if (ev.button === 0) mouse.down = true; });
+  target.addEventListener('pointerdown', (ev) => {
+    if (ev.button === 0) mouse.down = true;
+    if (ev.button === 2) PlayerInput.throwPresses++;
+  });
   window.addEventListener('pointerup', (ev) => { if (ev.button === 0) mouse.down = false; });
   target.addEventListener('contextmenu', (ev) => ev.preventDefault());
 

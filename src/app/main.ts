@@ -6,9 +6,11 @@ import { createArenaView } from './render/scene';
 
 const host = document.getElementById('app')!;
 
-// ?bossHp=200 shortens the fight while tuning the greybox.
-const bossHp = Number(new URLSearchParams(location.search).get('bossHp')) || undefined;
-const restart = () => startMatch({ bossHp });
+// ?bossHp=200 shortens the fight while tuning; ?seed=7 picks another drop sequence.
+const params = new URLSearchParams(location.search);
+const bossHp = Number(params.get('bossHp')) || undefined;
+const seed = Number(params.get('seed')) || undefined;
+const restart = () => startMatch({ bossHp, seed });
 
 let match = restart();
 const view = createArenaView(host, () => match.player);
