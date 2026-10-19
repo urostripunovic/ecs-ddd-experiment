@@ -1,5 +1,31 @@
 # Skills: from prototype to production
 
+## How to use them
+
+**Setting up a new game:**
+
+1. Copy this folder (`.claude/skills/`) into the new repository.
+2. Add a few lines to the root `CLAUDE.md`: where the zones are (rules, seam, simulation, app), the command to run before finishing (typecheck, tests, boundary lint, build), and a pointer to this README.
+3. Set up a boundary lint from the first commit (for TypeScript, dependency-cruiser rules: rules import nothing, the simulation imports neither the rules nor the seam). The skills assume one exists.
+4. Bring or write a playtest bot and recorder early (`tools/playtest/` in the reference game). The gate to tickets requires one in the repo.
+5. Create an empty `SKILL-NOTES.md` for incidents where the skills fell short.
+
+**While prototyping**, just ask for features in plain words. `rules-and-simulation` and `game-design-interview` load on their own:
+
+- "Add a dodge that makes you invulnerable for a few ticks."
+- "The boss should drop down from a pillar when the arena starts."
+- "What should happen if we die in the same tick as the boss?"
+
+Expect each change to start with a predicted footprint and the invariants it touches, ask design questions only when the change raises one, and end with a playtest and a comparison with the prediction. If it doesn't, that's a line for `SKILL-NOTES.md`.
+
+**When the prototype is worth building on**, run `/game-to-tickets` by name: "Cut tickets for three more arenas and a second boss." It checks the gate first and stops if the base isn't ready.
+
+**In production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`.
+
+**Now and then**, read `SKILL-NOTES.md`. A line that keeps coming back is an edit to a skill: missing → add it, vague → reword it, ignored though clear → enforce it with a test, a lint rule or a type.
+
+## The cycle
+
 Three skills for games built as a simulation (ECS) plus a thin rules module. They plug into Matt Pocock's skills (`grilling`, `to-tickets`, `implement`, `tdd`, `code-review`) and the ddd-skill kit, and work without either.
 
 | Phase | Goal | Skills | What carries forward |
