@@ -32,7 +32,7 @@ export function startMatch(opts: MatchOptions = {}): MatchHandles {
   const player = toHandle(spawnPlayer(0, 12));
   idMap.bind(player, { context: 'player', id: PLAYER_ID });
 
-  const b = spawnBoss(0, -8, opts.bossHp ?? 1500);
+  const b = spawnBoss(0, -8, opts.bossHp ?? 900);
   const boss = toHandle(b);
   idMap.bind(boss, { context: 'boss', id: BOSS_ID });
   store.bosses.set(BOSS_ID, initialBoss(BOSS_ID));
