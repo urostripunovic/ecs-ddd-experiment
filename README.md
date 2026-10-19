@@ -26,8 +26,9 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 
 ## The fight
 
-- **Phase 1:** The Warden walks toward you and slams. The red ring shows where it will land, and the fill shows when.
-- **Phase 2** (at 50% hp, decided by the domain): radial bullet bursts between strafes, then a faster slam.
+- **Phase 1:** The Warden walks toward you and slams. The red ring shows where it will land, and the fill shows when. Kept at range, it alternates an aimed cone (the red wedge) with a jump onto you.
+- **Phase 2** (at 50% hp, decided by the domain): radial bursts and cones between strafes, then a cone that rolls straight into a jump, then a faster slam.
+- While it's in the air, nothing hits it. Hurt it fast enough and it jumps away, at most once every 8 seconds.
 - Win when the boss goes down; lose when you do. The match outcome is domain state, reached through a process manager.
 
 ## Weapons
@@ -39,6 +40,8 @@ You start with a gun; a sword and a spear lie nearby, and a weapon or buff drops
 | Gun | 16-round magazine, 25 per shot | never wears | 20, keeps its ammo |
 | Sword | wide arc, 55 | wears per hit and over time | 60 |
 | Spear | long, narrow thrust, 60 | wears per hit and over time | 95 |
+
+A throw that hits sticks in the boss and falls out at its next slam or landing. A throw that misses can't be picked up for a second or more.
 
 Haste (green) speeds you up and Fury (red) adds 50% damage, for 6 seconds each. The slam halves your speed for a second. All of it is ECS: nothing here is saved or rule-bound yet.
 
