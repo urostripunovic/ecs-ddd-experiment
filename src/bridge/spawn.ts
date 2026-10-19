@@ -1,12 +1,12 @@
 import { initialBoss } from '../domain/boss/boss';
-import type { Loadout } from '../domain/run/run';
+import type { Loadout, RunStatus as RunStatusName } from '../domain/run/run';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
 import { Ammo, BossPhase, C, Durability, Health, Jump, RunStatus, RunView, resetArenaState, resetRunState } from '../ecs/components';
 import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
 import { hp } from '../ecs/core/units';
-import { add, NO_HANDLE, resetWorld, toHandle, type Handle } from '../ecs/core/world';
+import { add, NO_HANDLE, resetWorld, toHandle, type EntityId, type Handle } from '../ecs/core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
 import { equip } from '../ecs/systems/weapons';
@@ -26,6 +26,19 @@ export type RunHandles = { player: Handle; boss: Handle };
 // One object, updated in place by every build, so whoever holds it (the app,
 // the camera) follows the player into the next arena without asking again.
 export const handles: RunHandles = { player: NO_HANDLE, boss: NO_HANDLE };
+
+// The run's status as the simulation reads it. A Record, so a new status
+// breaks the build here instead of loading as something else.
+const VIEW_STATUS: Record<RunStatusName, number> = {
+  Fighting: RunStatus.Fighting, Cleared: RunStatus.Cleared, Won: RunStatus.Won, Lost: RunStatus.Lost,
+};
+
+// Built already down, so the death sensor never reports it again: the rules
+// have decided this one.
+function downed(e: EntityId): void {
+  Health.hp[e] = 0;
+  add(e, C.Dead);
+}
 let options: RunOptions = {};
 
 export function startRun(opts: RunOptions = {}): RunHandles {
@@ -43,6 +56,8 @@ export function startRun(opts: RunOptions = {}): RunHandles {
 
 // The spawn projection: the ECS world rebuilt purely from domain state. Arena 1
 // and every arena after it are built by this one path, so a save/load would be too.
+// It reads every rules state, not only the ones play reaches when entering an
+// arena: a cleared arena is built cleared, a lost run with the player down.
 export function buildArena(arena: number, loadout: Loadout): void {
   resetWorld(true);
   resetArenaState();
@@ -83,19 +98,24 @@ export function buildArena(arena: number, loadout: Loadout): void {
   // ?bossHp shortens the fight while tuning; everything else comes from the def.
   const def = options.bossHp ? { ...WARDEN, hp: hp(options.bossHp) } : WARDEN;
   const b = spawnBoss(def, bx, bz);
-  if (layout.perch >= 0) {
+  if (!store.bosses.has(bossId)) store.bosses.set(bossId, initialBoss(bossId));
+  const bossState = store.bosses.get(bossId)!;
+  if (bossState.defeated) downed(b);
+  else if (layout.perch >= 0) {
     // Up on its perch: out of reach until it drops in.
     add(b, C.Airborne);
     Jump.fromHeight[b] = PILLAR_HEIGHT;
   }
   idMap.bind(toHandle(b), { context: 'boss', id: bossId });
-  if (!store.bosses.has(bossId)) store.bosses.set(bossId, initialBoss(bossId));
-  BossPhase.phase[b] = store.bosses.get(bossId)!.phase;
+  BossPhase.phase[b] = bossState.phase;
+  if (store.run.status === 'Lost') downed(p);
 
   RunView.arena = arena;
   RunView.arenas = store.run.arenas;
-  RunView.status = RunStatus.Fighting;
-  RunView.tunnelOpen = false;
+  RunView.status = VIEW_STATUS[store.run.status];
+  RunView.endedAt = store.run.endedAt ?? 0;
+  // The run projector opens it on ArenaCleared; a loaded clear must open it too.
+  RunView.tunnelOpen = store.run.status === 'Cleared';
   handles.player = toHandle(p);
   handles.boss = toHandle(b);
 }

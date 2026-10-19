@@ -9,3 +9,4 @@ The only folder that imports both `domain/` and `ecs/`. Never imports `app/` or 
 - Every chain step goes through `logChain` so the dev tick log shows command → event → component write.
 - A projector never rebuilds the world itself; it records the request (`takePendingArena`), and `dispatch.ts` builds after the step.
 - The outbox itself lives in `ecs/core/outbox.ts` so `ecs/` never imports `bridge/`; `dispatch.ts` drains it.
+- `buildArena` builds from every rules state, not only the ones play reaches (a cleared arena has its boss down and its tunnel open), because it's also what a load would use. `run/load.test.ts` checks each state in the rules examples.
