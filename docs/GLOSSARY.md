@@ -10,7 +10,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
-| `RunView` | ECS singleton | Projected copy of the run (status, arena, whether the tunnel is open) that systems and the HUD read. Written only by the run projector and the spawn projection. |
+| `RunView` | ECS singleton | Projected copy of the run (status, arena, whether the tunnel is open) that systems and the HUD read. Typed read-only; only `bridge/` can import its writable side (`RunViewWritable`), so only the run projector and the spawn projection write it. |
 | **Command** | bridge | Something the simulation asks the domain, e.g. `BossDowned`. Imperative or attempt. |
 | **Domain event** | domain | A fact the domain decided, e.g. `BossDefeated`. Past tense. |
 | **Projector** | bridge | Turns a domain event into component writes. Never sends commands. |
