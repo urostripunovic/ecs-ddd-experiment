@@ -1,9 +1,11 @@
 import { initialBoss } from '../domain/boss/boss';
 import type { Loadout } from '../domain/run/run';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
-import { Ammo, BossPhase, C, Durability, Health, Jump, RunStatus, RunView, resetComponents, resetEntityComponents } from '../ecs/components';
+import { Ammo, BossPhase, C, Durability, Health, Jump, RunStatus, RunView, resetArenaState, resetRunState } from '../ecs/components';
+import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
+import { hp } from '../ecs/core/units';
 import { add, NO_HANDLE, resetWorld, toHandle, type Handle } from '../ecs/core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
@@ -29,7 +31,7 @@ let options: RunOptions = {};
 export function startRun(opts: RunOptions = {}): RunHandles {
   options = opts;
   resetWorld();
-  resetComponents();
+  resetRunState();
   clearOutbox();
   clearTickLog();
   idMap.clear();
@@ -43,7 +45,7 @@ export function startRun(opts: RunOptions = {}): RunHandles {
 // and every arena after it are built by this one path, so a save/load would be too.
 export function buildArena(arena: number, loadout: Loadout): void {
   resetWorld(true);
-  resetEntityComponents();
+  resetArenaState();
   resetScripts();
   idMap.unbindHandles();
   const layout = ARENAS[arena - 1];
@@ -78,7 +80,9 @@ export function buildArena(arena: number, loadout: Loadout): void {
 
   const bossId = bossIdFor(arena);
   const [bx, bz] = layout.bossStart;
-  const b = spawnBoss(bx, bz, options.bossHp ?? 1200);
+  // ?bossHp shortens the fight while tuning; everything else comes from the def.
+  const def = options.bossHp ? { ...WARDEN, hp: hp(options.bossHp) } : WARDEN;
+  const b = spawnBoss(def, bx, bz);
   if (layout.perch >= 0) {
     // Up on its perch: out of reach until it drops in.
     add(b, C.Airborne);
