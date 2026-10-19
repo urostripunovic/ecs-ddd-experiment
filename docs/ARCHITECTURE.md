@@ -58,24 +58,24 @@ In `npm run dev`, press <kbd>`</kbd> in game to watch these in the tick log.
 
 ## Rules examples
 
-Every request, in every state the rules can be in. Row numbers are permanent: tests and reviews refer to them.
+Every request, in every state the rules can be in. Row numbers are permanent: tests and reviews refer to them. Status says how settled a row is: accepted (decided, pinned by its test), experimental (a guess to try in play, safe to change) or open (waiting for a decision). `src/docs.test.ts` checks that every row has a status, that an accepted row names a test, and that the tests it names exist.
 
-| # | Area | State | Request | Facts | Test |
-| --- | --- | --- | --- | --- | --- |
-| R1 | run | new run | | Fighting, arena 1, carrying the gun | `run.test`: starts in arena 1 |
-| R2 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared` | `run.test`: clearing a boss before the last arena |
-| R3 | run | Cleared, not the last arena | `TunnelEntered(loadout)` | `ArenaEntered(next, loadout)` | `run.test`: entering the tunnel after a clear |
-| R4 | run | Fighting | `TunnelEntered` | `TunnelRefused(NotCleared)` | `run.test`: refuses the tunnel |
-| R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | `run.test`: clearing the last arena |
-| R6 | run | Fighting | `PlayerDowned` | `RunLost` | `run.test`: going down loses |
-| R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | `run.test`: a trade on the same tick |
-| R8 | run | Cleared | `PlayerDowned` | `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | `run.test`: going down after the clear; `transition.test`: nothing hurts you once cleared |
-| R9 | run | Won, this tick | `PlayerDowned` | `RunLost`: if we die, we die. A trade loses whichever death was reported first | `run.test`: a trade with the last boss; `flow.test`: both outbox orders |
-| B1 | boss | (removed: the phase moved to the simulation) | | | |
-| B2 | boss | (removed) | | | |
-| B3 | boss | alive | `BossDowned` | `BossDefeated` | `boss.test`: defeated once |
-| B3b | boss | defeated | `BossDowned` | none: already answered | `boss.test`: defeated once |
-| B4 | boss | (removed) | | | |
+| # | Area | State | Request | Facts | Status | Test |
+| --- | --- | --- | --- | --- | --- | --- |
+| R1 | run | new run |  | Fighting, arena 1, carrying the gun | accepted | `run.test`: starts in arena 1 |
+| R2 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared` | accepted | `run.test`: clearing a boss before the last arena |
+| R3 | run | Cleared, not the last arena | `TunnelEntered(loadout)` | `ArenaEntered(next, loadout)` | accepted | `run.test`: entering the tunnel after a clear |
+| R4 | run | Fighting | `TunnelEntered` | `TunnelRefused(NotCleared)` | accepted | `run.test`: refuses the tunnel |
+| R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | accepted | `run.test`: clearing the last arena |
+| R6 | run | Fighting | `PlayerDowned` | `RunLost` | accepted | `run.test`: going down loses |
+| R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | accepted | `run.test`: a trade on the same tick |
+| R8 | run | Cleared | `PlayerDowned` | `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | accepted | `run.test`: going down after the clear; `transition.test`: nothing hurts you once the arena is cleared |
+| R9 | run | Won, this tick | `PlayerDowned` | `RunLost`: if we die, we die. A trade loses whichever death was reported first | accepted | `run.test`: a trade with the last boss; `flow.test`: a trade with the last boss loses the run |
+| B1 | boss | (removed: the phase moved to the simulation) |  |  |  |  |
+| B2 | boss | (removed) |  |  |  |  |
+| B3 | boss | alive | `BossDowned` | `BossDefeated` | accepted | `boss.test`: defeated once |
+| B3b | boss | defeated | `BossDowned` | none: already answered | accepted | `boss.test`: defeated once |
+| B4 | boss | (removed) |  |  |  |  |
 
 R8 was found by asking of each rule whether the simulation can make it wrong anyway: a bullet already in flight when the boss died could still down the player in a cleared arena, leaving the run neither lost nor going on. Two separate fixes: the rules now answer it (you lose), and, as a design choice for this game that may change, the simulation stops damage after a clear. Changing that choice is one line in `hurt()`.
 
