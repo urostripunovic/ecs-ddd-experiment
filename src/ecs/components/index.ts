@@ -17,17 +17,28 @@ export const Velocity = { x: new Float32Array(MAX), y: new Float32Array(MAX), z:
 export const Health = { hp: new Float32Array(MAX), max: new Float32Array(MAX) };
 // Ticks of hit flash left. Game feel only, so it never leaves the ECS.
 export const Hurt = { flash: new Uint8Array(MAX) };
-// Remembered so the downed command can say who downed whom. Holds a Handle.
-export const LastHit = { by: new Int32Array(MAX) };
+// Handles are plain numbers in an Int32Array, like the input counters. Declaring
+// them here, not in a comment, lets tools (the god menu's inspector) tell
+// "points at Gun #6" from a count, without a second list to keep in step.
+const HANDLE_FIELDS = new WeakSet<Int32Array>();
+function handleField(): Int32Array {
+  const a = new Int32Array(MAX);
+  HANDLE_FIELDS.add(a);
+  return a;
+}
+export const holdsHandles = (field: unknown): boolean => field instanceof Int32Array && HANDLE_FIELDS.has(field);
 
-// held is a Handle (NO_HANDLE = fists). cooldown is seconds until the next attack;
+// Remembered so the downed command can say who downed whom.
+export const LastHit = { by: handleField() };
+
+// held: NO_HANDLE means fists. cooldown is seconds until the next attack;
 // swing is ticks of attack animation left, for the renderer.
 // throwSeen/interactSeen: the PlayerInput release/press counts this wielder has
 // acted on. The app only ever increments the counts and the ECS only writes the
 // seen values, so an input is never lost or doubled whatever the frame rate.
 // charge: ticks the throw has been held, capped at CHARGE_MAX_TICKS.
 export const Wielder = {
-  held: new Int32Array(MAX), cooldown: new Float32Array(MAX), swing: new Uint8Array(MAX),
+  held: handleField(), cooldown: new Float32Array(MAX), swing: new Uint8Array(MAX),
   throwSeen: new Int32Array(MAX), interactSeen: new Int32Array(MAX), charge: new Uint8Array(MAX),
 };
 
@@ -38,14 +49,14 @@ export const Item = { kind: new Uint8Array(MAX), pickupAt: new Uint32Array(MAX) 
 export const Durability = { value: new Float32Array(MAX) };
 // reload is seconds left; the magazine refills when it reaches 0.
 export const Ammo = { count: new Uint16Array(MAX), reload: new Float32Array(MAX) };
-// by is the thrower's Handle; dmg and wearMul are fixed at release, so a buff
+// by is the thrower; dmg and wearMul are fixed at release, so a buff
 // ending mid-flight doesn't change what the throw does.
 export const Thrown = {
-  by: new Int32Array(MAX), dmg: new Float32Array(MAX), wearMul: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX),
+  by: handleField(), dmg: new Float32Array(MAX), wearMul: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX),
 };
 
-// host is a Handle; angle is where around the host it went in, so it rides there.
-export const StuckIn = { host: new Int32Array(MAX), angle: new Float32Array(MAX) };
+// angle is where around the host it went in, so it rides there.
+export const StuckIn = { host: handleField(), angle: new Float32Array(MAX) };
 
 export const BuffPickup = { kind: new Uint8Array(MAX) };
 // Tick deadlines rather than countdowns: written once on pickup, read by
@@ -65,8 +76,7 @@ export const Knockback = { x: new Float32Array(MAX), z: new Float32Array(MAX), u
 
 export const Team = { id: new Uint8Array(MAX) };
 export const TeamId = { Player: 0, Enemy: 1, Neutral: 2 } as const;
-// owner holds a Handle.
-export const Projectile = { owner: new Int32Array(MAX), dmg: new Float32Array(MAX), life: new Float32Array(MAX) };
+export const Projectile = { owner: handleField(), dmg: new Float32Array(MAX), life: new Float32Array(MAX) };
 export const Collider = { radius: new Float32Array(MAX) };
 
 // phase: which stage of the fight, written only by bossThresholdSystem.
