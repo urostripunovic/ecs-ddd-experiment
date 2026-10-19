@@ -1,7 +1,8 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, PlayerInput, Shape, ShapeKind, Slam, StuckIn, Transform, Velocity,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, PlayerInput, Shake, Shape, ShapeKind, Slam, StuckIn, Transform,
+  Velocity,
   Wielder,
 } from '../../ecs/components';
 import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
@@ -27,7 +28,12 @@ const COLOR = {
   fury: 0xe8584a,
 };
 
-const SWING_TICKS = 10; // matches the attack system; only used to time the animation
+const SWING_TICKS = 10;
+
+// Two sines at unrelated rates: smooth, so the shake rolls instead of jittering.
+// Render-only, so it may be anything; it never reaches the simulation.
+const wobble = (x: number, seed: number) => (Math.sin(x + seed * 12.9) + Math.sin(x * 1.7 + seed * 4.1)) * 0.5;
+const shakeOffset = new THREE.Vector3(); // matches the attack system; only used to time the animation
 const HAND_HEIGHT = 0.9;
 
 const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
@@ -348,7 +354,18 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
 
     drawHeld(alpha);
     followCamera(alpha, dt);
+
+    // Trauma squared, so small hits barely move the camera and a roar really does.
+    const s = Shake.trauma * Shake.trauma;
+    const roll = wobble(t * 17, 4) * 0.04 * s;
+    shakeOffset.set(wobble(t * 23, 1) * 0.9 * s, wobble(t * 19, 2) * 0.5 * s, wobble(t * 29, 3) * 0.9 * s);
+    camera.position.add(shakeOffset);
+    camera.rotation.z += roll;
     renderer.render(scene, camera);
+    // Undone straight away: mouse aim raycasts through this camera, and a shaken
+    // camera would move the aim point, leaking the shake into the simulation.
+    camera.position.sub(shakeOffset);
+    camera.rotation.z -= roll;
   }
 
   // Held items are drawn in the player's hand: the simulation only keeps them at

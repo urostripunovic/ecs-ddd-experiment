@@ -2,7 +2,7 @@
 // how far into it we are. The simulation only stores which action and since
 // when, so animation can be tuned here without touching gameplay.
 import {
-  Action, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER,
+  Action, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER, ROAR_HOLD, ROAR_REAR,
 } from '../../ecs/systems/boss-actions';
 
 export type Pose = { height: number; sx: number; sy: number; lean: number };
@@ -47,6 +47,18 @@ export function bossPose(kind: number, elapsed: number, slamWindup: number): Pos
       // Swells, then snaps back as the ring goes out.
       const puff = elapsed < BURST_WINDUP ? 0.18 * ease(w) : 0.18 * Math.exp(-(elapsed - BURST_WINDUP) * 0.5);
       return { height: 0, sx: 1 + puff, sy: 1 + puff, lean: 0 };
+    }
+    case Action.Roar: {
+      if (elapsed < ROAR_REAR) {
+        // Rears back and draws itself up.
+        const r = ease(clamp01(elapsed / ROAR_REAR));
+        return { height: 0, sx: 1 - 0.06 * r, sy: 1 + 0.15 * r, lean: -0.4 * r };
+      }
+      // Lunges forward into the roar and trembles, settling as it ends.
+      const t = elapsed - ROAR_REAR;
+      const settle = 1 - clamp01(t / ROAR_HOLD);
+      const tremble = Math.sin(t * 2.6) * 0.05 * settle;
+      return { height: 0, sx: 1 + 0.08 * settle + tremble, sy: 1 + 0.08 * settle - tremble, lean: 0.25 * settle };
     }
     case Action.Slam:
       return { height: 0, sx: 1 + slamWindup * 0.12, sy: 1 - slamWindup * 0.18, lean: 0.12 * slamWindup };

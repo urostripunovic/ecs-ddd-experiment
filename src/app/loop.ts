@@ -3,6 +3,7 @@ import { world } from '../ecs/core/world';
 import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems/boss';
 import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
 import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
+import { shakeSystem } from '../ecs/systems/cutscene';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
 import {
   attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, stockSystem,
@@ -14,6 +15,7 @@ export const DT = 1 / 60;
 // The order is written down here, not implied by imports. docs/ARCHITECTURE.md mirrors it.
 export function tick(): void {
   snapshotSystem();
+  shakeSystem();
   inputSystem();
   bossPhaseSystem();
   movementSystem(DT);

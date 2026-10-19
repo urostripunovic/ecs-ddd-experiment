@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Action, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER } from '../../ecs/systems/boss-actions';
+import { Action, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER, ROAR_HOLD, ROAR_REAR } from '../../ecs/systems/boss-actions';
 import { bossPose } from './boss-pose';
 
 describe('boss pose', () => {
@@ -10,6 +10,12 @@ describe('boss pose', () => {
     expect(peak).toBeGreaterThan(4);
     expect(bossPose(Action.Jump, JUMP_CROUCH + JUMP_AIR, 0).height).toBe(0);
     expect(bossPose(Action.Jump, JUMP_CROUCH + JUMP_AIR + JUMP_RECOVER, 0)).toMatchObject({ sx: 1, sy: 1 });
+  });
+
+  it('a roar rears back, lunges, and settles exactly to rest', () => {
+    expect(bossPose(Action.Roar, ROAR_REAR - 1, 0).lean).toBeLessThan(0);
+    expect(bossPose(Action.Roar, ROAR_REAR + 1, 0).lean).toBeGreaterThan(0);
+    expect(bossPose(Action.Roar, ROAR_REAR + ROAR_HOLD, 0)).toEqual({ height: 0, sx: 1, sy: 1, lean: 0 });
   });
 
   it('is at rest when idle', () => {
