@@ -32,3 +32,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Stuck** | ECS | The fourth item state: a thrown weapon lodged in its target. It drops when the target slams, lands a jump or dies. |
 | **Stock** | ECS | How many of each weapon kind the arena keeps in play, in any state (`WEAPON_STOCK`). A broken one is replaced `RESPAWN_TICKS` later in a random clear spot. |
 | **Charge** | ECS | Ticks a throw has been held (`Wielder.charge`, capped at 60). `throwCharge(fill)` turns it into damage, wear and speed multipliers and a zone: building, perfect (68–80%) or overcharged. |
+| **Cutscene** | ECS | A tick deadline during which the player can't move, attack, throw or pick up (`controlsLocked()`). |
+| **Shake** | ECS → app | Camera trauma 0..1, decayed per tick in the simulation; the wobble is drawn by the renderer and never fed back. |
+| **Knockback** | ECS | A shove in m/s until a tick, in its own field; `inputSystem` adds it, staying the only writer of player velocity. |
+| **Invulnerable** | ECS | Hits flash but take no hp. The boss during its roar. |

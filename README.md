@@ -27,7 +27,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 ## The fight
 
 - **Phase 1:** The Warden walks toward you and slams. The red ring shows where it will land, and the fill shows when. Kept at range, it alternates an aimed cone (the red wedge) with a jump onto you.
-- **Phase 2** (at 50% hp, decided by the domain): radial bursts and cones between strafes, then a cone that rolls straight into a jump, then a faster slam.
+- **Phase 2** (at 50% hp, decided by the domain) opens with a roar: the screen shakes, you're shoved back if close, and you can't act until it ends. Then radial bursts and cones between strafes, then a cone that rolls straight into a jump, then a faster slam.
 - While it's in the air, nothing hits it. Hurt it fast enough and it jumps away, at most once every 8 seconds.
 - Win when the boss goes down; lose when you do. The match outcome is domain state, reached through a process manager.
 
