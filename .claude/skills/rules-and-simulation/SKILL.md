@@ -20,7 +20,7 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 3. **Ask what the change leaves open.** If it touches a trigger in `game-design-interview`, ask those questions before building.
 4. **Write the failing test first**, and check it fails for the right reason.
 5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*.
-6. **Playtest.** A bot playing headless, with frames to look at. Feel and "it works but it's wrong" only show up here.
+6. **Playtest.** A bot playing headless, with frames to look at. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
 7. **Compare** the prediction with what changed, and explain each miss. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
@@ -97,7 +97,7 @@ A save holds the rules state, the RNG's position if loads must replay exactly, a
 3. **Simulation:** systems in isolation, plus long runs with property checks (4,000 ticks: every gap between actions, nothing fired mid-air).
 4. **Whole game:** determinism (same seed twice; uneven frame times against a steady rate), a **transition test** (play a level, move on, compare with the next level built fresh: any difference is a leak), and a bot playthrough with frames.
 
-The docs are part of the contract, so a **drift test** checks them against the code: every code name the architecture doc and glossary mention exists, every examples row has a status, and the tests the rows name exist. It can't prove the meaning matches; it makes the common drift loud. Rules the compiler can't express (deadlines only through `after()`) get a source scan test; `@ts-expect-error` lines prove the types still reject what they should. A test must fail before the change; one that guards against future mistakes is checked by breaking the code on purpose once (copy the file aside first, and restore from the copy).
+The docs are part of the contract, so a **drift test** checks them against the code: every code name the architecture doc and glossary mention exists, every examples row has a status, and the tests the rows name exist. It can't prove the meaning matches; it makes the common drift loud. Rules the compiler can't express (deadlines only through `after()`) get a source scan test; `@ts-expect-error` lines prove the types still reject what they should. A test must fail before the change; one that guards against future mistakes is checked by breaking the code on purpose once (copy the file aside first, and restore from the copy). A test you've never seen fail may be blind, and a blind test looks exactly like a passing one. The two checks cover each other: the playtest finds what no test runs, breaking the code finds tests that can't fail.
 
 ## Where this goes wrong
 
