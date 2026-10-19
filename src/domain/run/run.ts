@@ -43,8 +43,10 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
     case 'PlayerDowned':
       // Lost while the run is still going, including in a cleared arena: whether
       // you can be hurt there is the simulation's design choice, and the run must
-      // answer either way. Once won or lost, the first outcome stands.
-      return s.status === 'Fighting' || s.status === 'Cleared'
+      // answer either way. A trade on the tick of the win loses too (if we die, we
+      // die), so the outcome never depends on which death was reported first.
+      // After that, the outcome stands.
+      return s.status === 'Fighting' || s.status === 'Cleared' || (s.status === 'Won' && s.endedAt === cmd.tick)
         ? [{ kind: 'RunLost', player: cmd.player, tick: cmd.tick }]
         : NO_EVENTS;
     case 'BossCleared':

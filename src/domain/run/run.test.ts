@@ -53,4 +53,19 @@ describe('run', () => {
     const cleared = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
     expect(run(cleared, { kind: 'PlayerDowned', player: PLAYER, tick: t(530) })).toMatchObject({ status: 'Lost', endedAt: t(530) });
   });
+
+  // R9: if we die, we die. A trade on the tick of the win loses, whichever
+  // death the simulation happened to report first.
+  it('a trade with the last boss loses the run, in either order', () => {
+    const last: RunState = { ...initialRun(2), arena: 2 };
+    const down = { kind: 'PlayerDowned', player: PLAYER, tick: t(900) } as const;
+    const clear = { kind: 'BossCleared', boss: BOSS, tick: t(900) } as const;
+    expect(run(run(last, clear), down)).toMatchObject({ status: 'Lost', endedAt: t(900) });
+    expect(run(run(last, down), clear)).toMatchObject({ status: 'Lost', endedAt: t(900) });
+  });
+
+  it('going down after the win, on a later tick, changes nothing', () => {
+    const won = run({ ...initialRun(2), arena: 2 }, { kind: 'BossCleared', boss: BOSS, tick: t(900) });
+    expect(decide({ kind: 'PlayerDowned', player: PLAYER, tick: t(901) }, won)).toHaveLength(0);
+  });
 });
