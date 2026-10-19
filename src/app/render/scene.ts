@@ -8,7 +8,8 @@ import {
 import { TUNNEL } from '../../ecs/arenas';
 import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
 import { bossPose } from './boss-pose';
-import { handleAt, has, indexOf, isLive, MAX, world, type EntityId, type Handle } from '../../ecs/core/world';
+import { follow, type Follow } from './camera';
+import { handleAt, has, indexOf, isLive, MAX, NO_HANDLE, world, type EntityId, type Handle } from '../../ecs/core/world';
 
 const COLOR = {
   bg: 0x1b1c1e,
@@ -245,6 +246,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
   camera.position.copy(CAMERA_OFFSET);
   const lookAt = new THREE.Vector3();
+  const cam: Follow = { x: 0, z: 0, focus: NO_HANDLE };
 
   scene.add(new THREE.HemisphereLight(0xe4e8ee, 0x2a2b2e, 1.2));
   const sun = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -477,11 +479,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       const e = indexOf(h);
       const x = Transform.px[e] + (Transform.x[e] - Transform.px[e]) * alpha + PlayerInput.aimX * LOOK_AHEAD;
       const z = Transform.pz[e] + (Transform.z[e] - Transform.pz[e]) * alpha + PlayerInput.aimZ * LOOK_AHEAD;
-      // Frame-rate independent smoothing: the same feel at 30 Hz and 144 Hz.
-      const k = 1 - Math.exp(-dt * 8);
-      lookAt.x += (x - lookAt.x) * k;
-      lookAt.z += (z - lookAt.z) * k;
+      follow(cam, h, x, z, dt);
     }
+    lookAt.set(cam.x, 0, cam.z);
     camera.position.set(lookAt.x + CAMERA_OFFSET.x, CAMERA_OFFSET.y, lookAt.z + CAMERA_OFFSET.z);
     camera.lookAt(lookAt);
   }

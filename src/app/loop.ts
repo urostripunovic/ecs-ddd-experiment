@@ -1,4 +1,5 @@
 import { domainStep } from '../bridge/dispatch';
+import { inSeconds, ticks } from '../ecs/core/units';
 import { world } from '../ecs/core/world';
 import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems/boss';
 import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
@@ -11,7 +12,7 @@ import {
   stuckFollowSystem, throwSystem,
 } from '../ecs/systems/weapons';
 
-export const DT = 1 / 60;
+export const DT = inSeconds(ticks(1));
 
 // The order is written down here, not implied by imports. docs/ARCHITECTURE.md mirrors it.
 export function tick(): void {
