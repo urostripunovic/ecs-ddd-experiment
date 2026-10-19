@@ -1,6 +1,7 @@
 import { C, Collider, Health, Hurt, LastHit, Projectile, Team, Transform, Velocity } from '../components';
 import { buf, targetBuf } from '../core/buffers';
 import { send } from '../core/outbox';
+import type { Seconds } from '../core/units';
 import { add, despawn, entityAt, handleAt, mask, query, remove, toHandle } from '../core/world';
 import { stopScript } from './boss';
 import { hurt } from './damage';
@@ -15,7 +16,7 @@ const UNHITTABLE = mask(C.Dead, C.Airborne);
 const GONE = mask(C.Slam, C.Airborne, C.Invulnerable);
 
 // reads Projectile, Transform, Team, Collider | writes Health, Hurt, LastHit, despawns Projectile
-export function projectileSystem(dt: number): void {
+export function projectileSystem(dt: Seconds): void {
   const targets = query(targetBuf, TARGETS, UNHITTABLE);
   const n = query(buf, PROJECTILES);
   for (let i = 0; i < n; i++) {

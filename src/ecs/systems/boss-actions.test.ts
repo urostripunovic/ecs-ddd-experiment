@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BossAction, BossPhase, C, Health, Knockback, RunStatus, RunView, Pressure, resetComponents, Shake, Slam, TeamId,
+  BossAction, BossPhase, C, Health, Knockback, RunStatus, RunView, Pressure, resetRunState, Shake, Slam, TeamId,
   Transform,
 } from '../components';
 import { buf } from '../core/buffers';
+import { hp, inSeconds, seconds, ticks } from '../core/units';
 import { has, query, resetWorld, toHandle, world, type EntityId } from '../core/world';
+import { PILLAR_RADIUS } from '../arenas';
+import { WARDEN } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
 import { Action, chainGap, DEFAULT_GAP, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
@@ -14,7 +17,7 @@ import { bodyCollisionSystem } from './collision';
 import { projectileSystem } from './combat';
 import { movementSystem, snapshotSystem } from './motion';
 
-const DT = 1 / 60;
+const DT = inSeconds(ticks(1));
 type Chain = { from: ActionKind; to: ActionKind; gap: number };
 
 let p: EntityId;
@@ -22,12 +25,12 @@ let b: EntityId;
 
 function arena(phase: number): void {
   resetWorld();
-  resetComponents();
+  resetRunState();
   resetScripts();
   RunView.status = RunStatus.Fighting;
-  for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, 1.4);
+  for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
   p = spawnPlayer(0, 12);
-  b = spawnBoss(0, -8, 100_000); // never dies, so the choreography keeps running
+  b = spawnBoss({ ...WARDEN, hp: hp(100_000) }, 0, -8); // never dies, so the choreography keeps running
   BossPhase.phase[b] = phase;
   Pressure.evadeReadyAt[b] = 1e9; // evading is tested on its own below
 }
@@ -64,6 +67,18 @@ function run(ticks: number, playerKeepsAway: boolean) {
   }
   return { chains, shotsWhileAirborne };
 }
+
+describe('spawning a boss', () => {
+  it('starts its pressure mark at its own hp, and holds off evading for its grace period', () => {
+    resetWorld();
+    resetRunState();
+    world.tick = 500;
+    const e = spawnBoss({ ...WARDEN, hp: hp(345) }, 0, 0);
+    expect(Health.hp[e]).toBe(345);
+    expect(Pressure.hpMark[e]).toBe(345);
+    expect(Pressure.evadeReadyAt[e]).toBe(500 + WARDEN.evadeGrace);
+  });
+});
 
 describe('chain gaps', () => {
   it('phase 1 chains nothing: every action waits the default gap', () => {
@@ -106,10 +121,10 @@ describe('boss choreography', () => {
     // Run until it takes off (it jumps at range on its second ranged turn).
     for (let i = 0; i < 4000 && !has(b, C.Airborne); i++) run(1, true);
     expect(has(b, C.Airborne)).toBe(true);
-    const hp = Health.hp[b];
-    const bullet = spawnProjectile(Transform.x[b], Transform.z[b], 0, 1, 0, TeamId.Player, toHandle(p), 25, 1, 0);
+    const before = Health.hp[b];
+    const bullet = spawnProjectile(Transform.x[b], Transform.z[b], 0, 1, 0, TeamId.Player, toHandle(p), hp(25), seconds(1), 0);
     projectileSystem(DT);
-    expect(Health.hp[b]).toBe(hp);
+    expect(Health.hp[b]).toBe(before);
     expect(world.alive[bullet]).toBe(1); // flew on, not spent on the boss
   });
 });
@@ -127,9 +142,9 @@ describe('roar', () => {
     expect(Knockback.until[p]).toBeGreaterThan(world.tick);
     expect(Knockback.z[p]).toBeGreaterThan(0); // away from the boss
 
-    const hp = Health.hp[b];
+    const before = Health.hp[b];
     hurt(b, 100, toHandle(p));
-    expect(Health.hp[b]).toBe(hp);
+    expect(Health.hp[b]).toBe(before);
 
     run(ROAR_HOLD, false);
     expect(controlsLocked()).toBe(false);

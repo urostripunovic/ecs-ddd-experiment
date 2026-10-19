@@ -7,6 +7,7 @@ import {
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
 import { random, randomRange } from '../core/rng';
+import { after, inTicks, seconds, ticks, times, type Seconds, type Ticks } from '../core/units';
 import {
   add, despawn, entityAt, handleAt, has, indexOf, isLive, mask, NO_HANDLE, query, remove, toHandle, world,
   type EntityId,
@@ -35,13 +36,14 @@ const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform);
 const BOSSES = mask(C.Boss, C.Transform);
 
 const PICKUP_RADIUS = 1.3;
-const DROP_LOCK_TICKS = 45;  // long enough to walk off what you just dropped
-const RELEASE_LOCK_TICKS = 20;
+const DROP_LOCK_TICKS = ticks(45);  // long enough to walk off what you just dropped
+const RELEASE_LOCK_TICKS = ticks(20);
 const RELEASE_PUSH = 1.0; // knocked clear of the boss, so you don't have to stand inside its slam to grab it
-const SWING_TICKS = 10;
+const SWING_TICKS = ticks(10);
 const BULLET_SPEED = 30;
 const THROWN_RADIUS = 0.45;
-const DROP_EVERY_TICKS = 7 * 60;
+const DROP_EVERY_TICKS = inTicks(seconds(7));
+const BULLET_LIFE = seconds(1.5);
 const MAX_ON_GROUND = 4;
 
 const fighting = () => RunView.status === RunStatus.Fighting;
@@ -65,12 +67,12 @@ export function equip(w: EntityId, item: EntityId): void {
 
 // The one place an item comes to rest, so no item ever ends up inside a pillar
 // or outside the arena, however it got there.
-function putOnGround(item: EntityId, x: number, z: number, lockTicks: number): void {
+function putOnGround(item: EntityId, x: number, z: number, lock: Ticks): void {
   remove(item, NOT_GROUNDED);
   add(item, C.Grounded);
   Velocity.x[item] = Velocity.z[item] = 0;
   Team.id[item] = TeamId.Neutral;
-  Item.pickupAt[item] = world.tick + lockTicks;
+  Item.pickupAt[item] = after(lock);
 
   const limit = Arena.half - 0.6;
   x = Math.max(-limit, Math.min(limit, x));
@@ -208,7 +210,7 @@ function meleeHit(w: EntityId, def: WeaponDef): boolean {
 }
 
 // reads PlayerInput, RunView, Wielder, held item | writes Wielder, Ammo, Durability, Health; spawns bullets
-export function attackSystem(dt: number): void {
+export function attackSystem(dt: Seconds): void {
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const w = entityAt(buf, i);
@@ -236,7 +238,7 @@ export function attackSystem(dt: number): void {
       spawnProjectile(
         Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
         PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
-        Team.id[w], toHandle(w), def.dmg * dmgMul(w), 1.5, ShapeKind.Bullet,
+        Team.id[w], toHandle(w), times(def.dmg, dmgMul(w)), BULLET_LIFE, ShapeKind.Bullet,
       );
       continue;
     }
@@ -288,8 +290,8 @@ export function flightSystem(): void {
 }
 
 function applyBuff(w: EntityId, kind: number): void {
-  if (kind === BuffKind.Haste) Buffs.hasteUntil[w] = world.tick + BUFF_TICKS;
-  else if (kind === BuffKind.Fury) Buffs.furyUntil[w] = world.tick + BUFF_TICKS;
+  if (kind === BuffKind.Haste) Buffs.hasteUntil[w] = after(BUFF_TICKS);
+  else if (kind === BuffKind.Fury) Buffs.furyUntil[w] = after(BUFF_TICKS);
 }
 
 // reads Grounded items, PlayerInput.interactPresses, Wielder | writes Wielder, Buffs, item state
@@ -330,7 +332,7 @@ export function pickupSystem(): void {
 }
 
 // reads Held items, Durability, RunView | writes Durability; breaks worn-out items wherever they are
-export function durabilitySystem(dt: number): void {
+export function durabilitySystem(dt: Seconds): void {
   // Time stops wearing things once the fight is over, so the end screen shows what you finished with.
   const held = fighting() ? query(buf, HELD_ITEMS) : 0;
   for (let i = 0; i < held; i++) {
@@ -389,7 +391,7 @@ export function stockSystem(): void {
 
   for (let kind = 1; kind < WEAPON_STOCK.length; kind++) {
     if (stockCounts[kind] >= WEAPON_STOCK[kind]) { Stock.respawnAt[kind] = 0; continue; }
-    if (Stock.respawnAt[kind] === 0) { Stock.respawnAt[kind] = world.tick + RESPAWN_TICKS; continue; }
+    if (Stock.respawnAt[kind] === 0) { Stock.respawnAt[kind] = after(RESPAWN_TICKS); continue; }
     if (world.tick < Stock.respawnAt[kind]) continue;
     // No clear spot this tick (rare): try again next tick rather than spawn somewhere bad.
     if (!randomClearSpot(spot)) continue;

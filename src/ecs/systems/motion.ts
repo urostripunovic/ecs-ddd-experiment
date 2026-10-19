@@ -1,6 +1,7 @@
 // The header line of each system is its design doc: reads -> writes.
 import { C, Knockback, PlayerInput, Transform, Velocity } from '../components';
 import { buf } from '../core/buffers';
+import type { Seconds } from '../core/units';
 import { entityAt, mask, query, world } from '../core/world';
 import { controlsLocked } from './cutscene';
 import { speedMul } from './status';
@@ -36,7 +37,7 @@ export function inputSystem(): void {
 }
 
 // reads Velocity | writes Transform
-export function movementSystem(dt: number): void {
+export function movementSystem(dt: Seconds): void {
   const n = query(buf, MOVERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);

@@ -1,5 +1,6 @@
 // Arena layouts as data. The run (domain) decides which arena you're in; what
 // that arena looks like is simulation detail, so it lives here.
+import { meters } from './core/units';
 
 export type ArenaLayout = {
   readonly pillars: readonly (readonly [number, number])[];
@@ -11,8 +12,8 @@ export type ArenaLayout = {
   readonly weaponSpots: readonly (readonly [number, number])[];
 };
 
-export const PILLAR_RADIUS = 1.4;
-export const PILLAR_HEIGHT = 3.2;
+export const PILLAR_RADIUS = meters(1.4);
+export const PILLAR_HEIGHT = meters(3.2);
 
 // Indexed by arena number - 1.
 export const ARENAS: readonly ArenaLayout[] = [

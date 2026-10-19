@@ -2,14 +2,17 @@ import { BossPhase, C, Health, RunStatus, RunView, Pressure, Slam, Slowed, Trans
 import { buf, scriptBuf } from '../core/buffers';
 import { send } from '../core/outbox';
 import type { Script } from '../core/script';
+import { after, inTicks, seconds, share, shareOf } from '../core/units';
 import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
 import { phaseOne, phaseTwo } from './boss-scripts';
 import { releaseStuck } from './weapons';
 
 // Sensor config, not a rule: the domain decides what crossing it means.
-export const PHASE_TWO_AT = 0.5; // share of max hp
-const SLAM_SLOW_TICKS = 60;
+export const PHASE_TWO_AT = share(0.5);
+const SLAM_SLOW = inTicks(seconds(1));
+// Damage is sampled over this window, so a burst of hits reads as pressure but chip damage doesn't.
+const PRESSURE_WINDOW = inTicks(seconds(1));
 const SLAM_SLOW_FACTOR = 0.5;
 
 const PHASE_SCRIPTS = [null, phaseOne, phaseTwo] as const;
@@ -35,8 +38,7 @@ export function bossPhaseSystem(): void {
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    // Sampled once a second, so a burst of hits reads as pressure but chip damage doesn't.
-    if (world.tick - Pressure.markedAt[e] >= 60) {
+    if (world.tick - Pressure.markedAt[e] >= PRESSURE_WINDOW) {
       Pressure.recentLoss[e] = Pressure.hpMark[e] - Health.hp[e];
       Pressure.hpMark[e] = Health.hp[e];
       Pressure.markedAt[e] = world.tick;
@@ -71,7 +73,7 @@ export function slamSystem(): void {
       if (dx * dx + dz * dz > r * r) continue;
       hurt(p, Slam.dmg[e], toHandle(e));
       // The only writer of Slowed: a buff can change speed too, but through its own field.
-      Slowed.until[p] = world.tick + SLAM_SLOW_TICKS;
+      Slowed.until[p] = after(SLAM_SLOW);
       Slowed.factor[p] = SLAM_SLOW_FACTOR;
     }
   }
@@ -83,7 +85,7 @@ export function bossThresholdSystem(): void {
   const n = query(buf, BOSSES, GONE_OR_WAITING);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    if (BossPhase.phase[e] !== 1 || Health.hp[e] > Health.max[e] * PHASE_TWO_AT) continue;
+    if (BossPhase.phase[e] !== 1 || shareOf(Health.hp[e], Health.max[e]) > PHASE_TWO_AT) continue;
     add(e, C.PhasePending);
     send('BossThresholdCrossed', toHandle(e), NO_HANDLE, PHASE_TWO_AT);
   }

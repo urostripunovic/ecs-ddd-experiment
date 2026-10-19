@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  Ammo, Buffs, C, Collider, Durability, Health, Item, RunStatus, RunView, PlayerInput, resetComponents, Slowed,
+  Ammo, Buffs, C, Collider, Durability, Health, Item, RunStatus, RunView, PlayerInput, resetRunState, Slowed,
   Transform, Wielder,
 } from '../components';
 import { seedRng } from '../core/rng';
+import { hp, inSeconds, seconds, ticks } from '../core/units';
 import { add, has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
+import { PILLAR_RADIUS } from '../arenas';
+import { WARDEN } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
 import { CHARGE_MAX_TICKS, ChargeZone, throwCharge } from '../weapons/charge';
 import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind } from '../weapons/defs';
@@ -16,7 +19,8 @@ import {
   releaseStuck, stockSystem, stuckFollowSystem, throwSystem,
 } from './weapons';
 
-const DT = 1 / 60;
+const DT = inSeconds(ticks(1));
+const boss = (hitPoints: number) => ({ ...WARDEN, hp: hp(hitPoints) });
 // 44 of 60 ticks: inside the perfect zone (68-80% of the gauge).
 const PERFECT_TICKS = 44;
 const PERFECT = throwCharge(PERFECT_TICKS / CHARGE_MAX_TICKS);
@@ -50,10 +54,10 @@ let p: EntityId;
 let b: EntityId;
 beforeEach(() => {
   resetWorld();
-  resetComponents();
+  resetRunState();
   RunView.status = RunStatus.Fighting;
   p = spawnPlayer(0, 0);
-  b = spawnBoss(0, -6, 1000);
+  b = spawnBoss(boss(1000), 0, -6);
 });
 
 describe('pickup', () => {
@@ -114,7 +118,7 @@ describe('durability', () => {
     const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
     equip(p, sword);
     RunView.status = RunStatus.Lost;
-    durabilitySystem(1);
+    durabilitySystem(seconds(1));
     expect(Durability.value[sword]).toBe(100);
   });
 
@@ -174,7 +178,7 @@ describe('throwing', () => {
   });
 
   it('a weapon thrown at a pillar lands beside it, never inside', () => {
-    const pillar = spawnPillar(4, 0, 1.4);
+    const pillar = spawnPillar(4, 0, PILLAR_RADIUS);
     const spear = spawnWeapon(WeaponKind.Spear, 0, 0);
     equip(p, spear);
     Object.assign(PlayerInput, { aimX: 1, aimZ: 0 });
@@ -246,7 +250,7 @@ describe('stock', () => {
     return n;
   };
   const stockArena = () => {
-    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, 1.4);
+    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
     seedRng(3);
     spawnWeapon(WeaponKind.Gun, 0, 12);
     spawnWeapon(WeaponKind.Spear, 4, 9);
@@ -291,11 +295,11 @@ describe('fists', () => {
 describe('drops', () => {
   const dropAt = (seed: number) => {
     resetWorld();
-    resetComponents();
+    resetRunState();
     RunView.status = RunStatus.Fighting;
-    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, 1.4);
+    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
     spawnPlayer(0, 12);
-    spawnBoss(0, -8, 1000);
+    spawnBoss(boss(1000), 0, -8);
     seedRng(seed);
     world.tick = 7 * 60;
     const before = world.nextFresh;

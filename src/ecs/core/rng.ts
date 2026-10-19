@@ -6,6 +6,13 @@ export function seedRng(seed: number): void {
   state.s = seed >>> 0 || 1;
 }
 
+// The RNG's position lives for the whole run, so arena 2's drops depend on
+// what arena 1 drew. Read and restored only to compare or save a run.
+export const rngState = () => state.s;
+export function restoreRng(s: number): void {
+  state.s = s;
+}
+
 // Uniform in [0, 1).
 export function random(): number {
   state.s = (state.s + 0x6d2b79f5) >>> 0;

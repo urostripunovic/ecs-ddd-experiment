@@ -1,7 +1,9 @@
 // The throw gauge as one pure function, so tuning it never touches a system
 // and the HUD draws exactly the zones the simulation uses.
 
-export const CHARGE_MAX_TICKS = 60;
+import { inTicks, seconds } from '../core/units';
+
+export const CHARGE_MAX_TICKS = inTicks(seconds(1));
 export const PERFECT_FROM = 0.68;
 export const PERFECT_TO = 0.8;
 const MAX_DMG = 1.25;

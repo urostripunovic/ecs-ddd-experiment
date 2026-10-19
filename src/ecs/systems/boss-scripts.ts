@@ -7,6 +7,9 @@ import {
 } from '../components';
 import { helperBuf, scriptBuf } from '../core/buffers';
 import { waitTicks, type Script } from '../core/script';
+import {
+  after, hp, inSeconds, inTicks, meters, plus, seconds, share, shareOf, ticks, type Hp, type Meters, type Ticks,
+} from '../core/units';
 import { add, entityAt, mask, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { spawnProjectile } from '../prefabs';
 import {
@@ -22,13 +25,22 @@ const AIMED_SPEED = 16;
 // Beyond this the slam can't reach, so the boss answers from range instead.
 const SLAM_RANGE = 6.5;
 // A jump is a light hit: its threat is the slow and the repositioning, not the damage.
-const JUMP_DMG = 12;
-const JUMP_RADIUS = 3;
+const JUMP_DMG = hp(12);
+const JUMP_RADIUS = meters(3);
 const EVADE_DISTANCE = 8;
 // Losing more than this share of max hp in a second makes it jump clear,
 // at most once per cooldown, so it can't hide in the air.
-const EVADE_LOSS_SHARE = 0.06;
-const EVADE_COOLDOWN_TICKS = 8 * 60;
+const EVADE_LOSS = share(0.06);
+const EVADE_COOLDOWN = inTicks(seconds(8));
+// Below this share of max hp, phase 2 hurries in for the slam.
+const HURRY_BELOW = share(0.25);
+const ENEMY_BULLET_DMG = hp(10);
+const ENEMY_BULLET_LIFE = seconds(4);
+
+type SlamDef = { readonly windup: Ticks; readonly radius: Meters; readonly dmg: Hp };
+const PHASE_ONE_SLAM: SlamDef = { windup: ticks(42), radius: meters(4.5), dmg: hp(30) };
+// Faster and wider: phase 2 punishes standing close.
+const PHASE_TWO_SLAM: SlamDef = { windup: ticks(30), radius: meters(5.5), dmg: hp(30) };
 
 function findPlayer(): EntityId | -1 {
   return query(scriptBuf, LIVE_PLAYERS, C.Dead) > 0 ? entityAt(scriptBuf, 0) : -1;
@@ -39,8 +51,8 @@ function stop(boss: EntityId): void {
 }
 
 // Walks toward the player, stopping short so the slam has room to land.
-function* approach(boss: EntityId, ticks: number, speed: number): Script {
-  for (let i = 0; i < ticks; i++) {
+function* approach(boss: EntityId, length: Ticks, speed: number): Script {
+  for (let i = 0; i < length; i++) {
     const p = findPlayer();
     if (p !== -1) {
       const dx = Transform.x[p] - Transform.x[boss];
@@ -56,8 +68,8 @@ function* approach(boss: EntityId, ticks: number, speed: number): Script {
 }
 
 // Sidesteps relative to the player, so phase 2 reads as more evasive.
-function* strafe(boss: EntityId, ticks: number, speed: number, dir: 1 | -1): Script {
-  for (let i = 0; i < ticks; i++) {
+function* strafe(boss: EntityId, length: Ticks, speed: number, dir: 1 | -1): Script {
+  for (let i = 0; i < length; i++) {
     const p = findPlayer();
     if (p !== -1) {
       const dx = Transform.x[p] - Transform.x[boss];
@@ -71,7 +83,7 @@ function* strafe(boss: EntityId, ticks: number, speed: number, dir: 1 | -1): Scr
   stop(boss);
 }
 
-function startSlam(boss: EntityId, x: number, z: number, windup: number, radius: number, dmg: number): void {
+function startSlam(boss: EntityId, x: number, z: number, windup: Ticks, radius: Meters, dmg: Hp): void {
   Slam.timer[boss] = Slam.windup[boss] = windup;
   Slam.radius[boss] = radius;
   Slam.dmg[boss] = dmg;
@@ -81,18 +93,18 @@ function startSlam(boss: EntityId, x: number, z: number, windup: number, radius:
 }
 
 // The telegraph is the gameplay: slamSystem lands the hit when the timer runs out.
-function* slam(boss: EntityId, windup: number, radius: number, dmg: number): Script {
+function* slam(boss: EntityId, def: SlamDef): Script {
   yield* begin(boss, Action.Slam);
   stop(boss);
-  startSlam(boss, Transform.x[boss], Transform.z[boss], windup, radius, dmg);
-  yield* waitTicks(windup);
+  startSlam(boss, Transform.x[boss], Transform.z[boss], def.windup, def.radius, def.dmg);
+  yield* waitTicks(def.windup);
   finish(boss);
 }
 
 function shoot(boss: EntityId, angle: number, speed: number): void {
   spawnProjectile(
     Transform.x[boss], Transform.z[boss], Math.cos(angle), Math.sin(angle), speed,
-    TeamId.Enemy, toHandle(boss), 10, 4, ShapeKind.EnemyBullet,
+    TeamId.Enemy, toHandle(boss), ENEMY_BULLET_DMG, ENEMY_BULLET_LIFE, ShapeKind.EnemyBullet,
   );
 }
 
@@ -181,13 +193,13 @@ function* jump(boss: EntityId, mode: JumpMode): Script {
   landingSpot(boss, mode, spot);
   const tx = spot.x;
   const tz = spot.z;
-  const seconds = JUMP_AIR / 60;
-  Velocity.x[boss] = (tx - Transform.x[boss]) / seconds;
-  Velocity.z[boss] = (tz - Transform.z[boss]) / seconds;
+  const flight = inSeconds(JUMP_AIR);
+  Velocity.x[boss] = (tx - Transform.x[boss]) / flight;
+  Velocity.z[boss] = (tz - Transform.z[boss]) / flight;
   add(boss, C.Airborne);
   startSlam(boss, tx, tz, JUMP_AIR, JUMP_RADIUS, JUMP_DMG);
   Jump.airStart[boss] = world.tick;
-  Jump.landAt[boss] = world.tick + JUMP_AIR;
+  Jump.landAt[boss] = after(JUMP_AIR);
   yield* waitTicks(JUMP_AIR);
 
   remove(boss, C.Airborne);
@@ -202,7 +214,7 @@ function* jump(boss: EntityId, mode: JumpMode): Script {
 
 const ROAR_PUSH_RADIUS = 7;
 const ROAR_PUSH_SPEED = 9;
-const ROAR_PUSH_TICKS = 15;
+const ROAR_PUSH = ticks(15);
 
 // Clears space for phase 2's bursts: anyone close is shoved outward.
 function roarPush(boss: EntityId): void {
@@ -214,7 +226,7 @@ function roarPush(boss: EntityId): void {
   if (d > ROAR_PUSH_RADIUS) return;
   Knockback.x[p] = (d === 0 ? 0 : dx / d) * ROAR_PUSH_SPEED;
   Knockback.z[p] = (d === 0 ? 1 : dz / d) * ROAR_PUSH_SPEED;
-  Knockback.until[p] = world.tick + ROAR_PUSH_TICKS;
+  Knockback.until[p] = after(ROAR_PUSH);
 }
 
 // The cutscene that opens phase 2. Rears up first so the player sees it coming;
@@ -223,7 +235,7 @@ function* roar(boss: EntityId): Script {
   yield* begin(boss, Action.Roar);
   stop(boss);
   add(boss, C.Invulnerable);
-  startCutscene(ROAR_REAR + ROAR_HOLD);
+  startCutscene(plus(ROAR_REAR, ROAR_HOLD));
   yield* waitTicks(ROAR_REAR);
   Shake.trauma = 1;
   roarPush(boss);
@@ -235,14 +247,14 @@ function* roar(boss: EntityId): Script {
 // An entrance from a perch: the player watches it crouch up there and drop in,
 // and can't act until it lands, so the fight starts on equal terms.
 function* dropIn(boss: EntityId): Script {
-  startCutscene(JUMP_CROUCH + JUMP_AIR);
+  startCutscene(plus(JUMP_CROUCH, JUMP_AIR));
   yield* jump(boss, 'toward');
 }
 
 function shouldEvade(boss: EntityId): boolean {
   if (world.tick < Pressure.evadeReadyAt[boss]) return false;
-  if (Pressure.recentLoss[boss] <= Health.max[boss] * EVADE_LOSS_SHARE) return false;
-  Pressure.evadeReadyAt[boss] = world.tick + EVADE_COOLDOWN_TICKS;
+  if (shareOf(Pressure.recentLoss[boss], Health.max[boss]) <= EVADE_LOSS) return false;
+  Pressure.evadeReadyAt[boss] = after(EVADE_COOLDOWN);
   return true;
 }
 
@@ -259,13 +271,13 @@ export function* phaseOne(boss: EntityId): Script {
   let farTurns = 0;
   for (;;) {
     if (shouldEvade(boss)) yield* jump(boss, 'away');
-    yield* approach(boss, 70, 2.6);
+    yield* approach(boss, ticks(70), 2.6);
     if (distanceToPlayer(boss) > SLAM_RANGE) {
       if (farTurns++ % 2 === 0) yield* cone(boss, 3, 3, 0.22);
       else yield* jump(boss, 'at');
       continue;
     }
-    yield* slam(boss, 42, 4.5, 30);
+    yield* slam(boss, PHASE_ONE_SLAM);
   }
 }
 
@@ -281,16 +293,15 @@ export function* phaseTwo(boss: EntityId): Script {
       if (shouldEvade(boss)) yield* jump(boss, 'away');
       yield* burst(boss, 18, offset);
       offset += Math.PI / 18;
-      yield* strafe(boss, 12, 4, dir);
+      yield* strafe(boss, ticks(12), 4, dir);
       yield* cone(boss, 1, 5, 0.16);
-      yield* strafe(boss, 13, 4, dir);
+      yield* strafe(boss, ticks(13), 4, dir);
     }
     dir = dir === 1 ? -1 : 1;
     yield* cone(boss, 1, 5, 0.16);
     yield* jump(boss, 'at');
-    // Low hp makes it hurry in for the slam.
-    const urgency = Health.hp[boss] < Health.max[boss] * 0.25 ? 1.4 : 1;
-    yield* approach(boss, 50, 3.2 * urgency);
-    yield* slam(boss, 30, 5.5, 30);
+    const urgency = shareOf(Health.hp[boss], Health.max[boss]) < HURRY_BELOW ? 1.4 : 1;
+    yield* approach(boss, ticks(50), 3.2 * urgency);
+    yield* slam(boss, PHASE_TWO_SLAM);
   }
 }

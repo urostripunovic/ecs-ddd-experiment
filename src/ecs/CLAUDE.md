@@ -9,3 +9,5 @@ The real-time simulation. Imports nothing from `domain/`, `bridge/`, `app/` or t
 - Systems only `send()` to the outbox. They never call the domain and never write domain-owned components (`BossPhase.phase`, `RunView`); projectors in `bridge/` do.
 - Coroutines in `systems/boss-scripts.ts` are choreography inside one phase. Nothing that must survive a save goes in a coroutine.
 - Never keep an `EntityId` across ticks; store a `Handle`. "Nobody" is `NO_HANDLE`, not 0.
+- Every component and singleton is listed in exactly one of `ARENA_STATE`, `RUN_STATE` or `CONSTANTS`. Adding one means choosing its lifetime.
+- Numbers with a unit are branded at the edges (`core/units.ts`): definitions, constructors and signatures. Make deadlines with `after()`, never `world.tick + n`; turn seconds into ticks with `inTicks(seconds(n))`, never `* 60`.

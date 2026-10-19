@@ -2,6 +2,8 @@ import {
   Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, PlayerInput, Pressure, Projectile, Shape, ShapeKind,
   Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
+import type { BossDef } from './bosses/defs';
+import { after, type Hp, type Meters, type Seconds } from './core/units';
 import { add, mask, NO_HANDLE, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
 
@@ -43,22 +45,22 @@ export function spawnPlayer(x: number, z: number): EntityId {
   return e;
 }
 
-export function spawnBoss(x: number, z: number, hp: number): EntityId {
+export function spawnBoss(def: BossDef, x: number, z: number): EntityId {
   const e = spawn();
   add(e, BOSS);
   place(e, x, z);
-  Health.hp[e] = Health.max[e] = hp;
+  Health.hp[e] = Health.max[e] = def.hp;
   Team.id[e] = TeamId.Enemy;
-  Collider.radius[e] = 1.3;
+  Collider.radius[e] = def.radius;
   Shape.kind[e] = ShapeKind.Boss;
-  Pressure.hpMark[e] = hp;
+  // From the boss's actual hp, so changing how hp is set can't desync the two.
+  Pressure.hpMark[e] = Health.hp[e];
   Pressure.markedAt[e] = world.tick;
-  // No evading in the opening seconds, while the player is still finding range.
-  Pressure.evadeReadyAt[e] = world.tick + 4 * 60;
+  Pressure.evadeReadyAt[e] = after(def.evadeGrace);
   return e;
 }
 
-export function spawnPillar(x: number, z: number, radius: number): EntityId {
+export function spawnPillar(x: number, z: number, radius: Meters): EntityId {
   const e = spawn();
   add(e, PILLAR);
   place(e, x, z);
@@ -69,7 +71,7 @@ export function spawnPillar(x: number, z: number, radius: number): EntityId {
 
 export function spawnProjectile(
   x: number, z: number, dirX: number, dirZ: number, speed: number,
-  team: number, owner: Handle, dmg: number, life: number, kind: number,
+  team: number, owner: Handle, dmg: Hp, life: Seconds, kind: number,
 ): EntityId {
   const e = spawn();
   add(e, PROJECTILE);

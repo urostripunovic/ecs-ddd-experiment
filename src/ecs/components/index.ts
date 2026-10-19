@@ -1,7 +1,9 @@
 // Components: data only, structure of arrays, indexed by EntityId.
 import { MAX } from '../core/world';
 
-export { C } from './tags';
+import { C } from './tags';
+
+export { C };
 
 // px/py/pz hold the position at the start of the tick, so rendering can
 // interpolate between two ticks instead of snapping at 60 Hz.
@@ -113,27 +115,50 @@ export const Shake = { trauma: 0 };
 // Per weapon kind, the tick its replacement appears; 0 = nothing missing.
 export const Stock = { respawnAt: new Uint32Array(4) };
 
-const perEntity = [
-  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, BuffPickup, Buffs, Slowed, Knockback,
-  StuckIn, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape,
-];
+// Every component and singleton says how long it lives, here and nowhere else.
+// A new arena wipes ARENA_STATE; RUN_STATE carries on, on purpose; CONSTANTS
+// never change. scope.test.ts fails if anything exported here is in no list or
+// in two, so a new singleton can't silently leak from one arena into the next.
+export const ARENA_STATE = {
+  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
+  Slowed, Knockback, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
+  Stock,
+};
+// The input counters must keep counting (a new player starts caught up with
+// them), and RunView is the run's projection, rewritten by every build.
+export const RUN_STATE = { PlayerInput, RunView };
+export const CONSTANTS = { C, TeamId, ShapeKind, RunStatus, Arena };
 
-// Between arenas: every entity's data goes, but the input counters and the
-// run view stay, because the run carries on.
-export function resetEntityComponents(): void {
-  for (const group of perEntity) for (const arr of Object.values(group)) arr.fill(0);
-  Stock.respawnAt.fill(0);
-  Cutscene.until = 0;
-  Shake.trauma = 0;
+type Group = Record<string, unknown>;
+
+// The values each group starts with, taken before anything runs, so a reset
+// restores exactly what a fresh load would have.
+function initialValues(groups: Record<string, Group>): Map<Group, Group> {
+  const out = new Map<Group, Group>();
+  for (const g of Object.values(groups)) {
+    const plain: Group = {};
+    for (const [k, v] of Object.entries(g)) if (!ArrayBuffer.isView(v)) plain[k] = v;
+    out.set(g, plain);
+  }
+  return out;
+}
+const ARENA_INITIAL = initialValues(ARENA_STATE);
+const RUN_INITIAL = initialValues(RUN_STATE);
+
+function reset(initial: Map<Group, Group>): void {
+  for (const [g, plain] of initial) {
+    for (const v of Object.values(g)) if (ArrayBuffer.isView(v)) (v as Uint8Array).fill(0);
+    Object.assign(g, plain);
+  }
 }
 
-export function resetComponents(): void {
-  resetEntityComponents();
-  Object.assign(PlayerInput, {
-    moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
-    throwHeld: false, throwReleases: 0, interactPresses: 0,
-  });
-  RunView.status = RunStatus.Fighting;
-  RunView.endedAt = 0;
-  RunView.tunnelOpen = false;
+// Between arenas.
+export function resetArenaState(): void {
+  reset(ARENA_INITIAL);
+}
+
+// A new run.
+export function resetRunState(): void {
+  reset(ARENA_INITIAL);
+  reset(RUN_INITIAL);
 }
