@@ -7,7 +7,10 @@ import { add, entityAt, mask, query, toHandle, type EntityId } from '../core/wor
 import { spawnProjectile } from '../prefabs';
 
 const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform, C.Health);
-const ENEMY_BULLET_SPEED = 11;
+const BURST_SPEED = 12;
+const AIMED_SPEED = 16;
+// Beyond this the slam can't reach, so the boss answers with aimed fire instead.
+const SLAM_RANGE = 6.5;
 
 function findPlayer(): EntityId | -1 {
   return query(scriptBuf, LIVE_PLAYERS, C.Dead) > 0 ? entityAt(scriptBuf, 0) : -1;
@@ -60,41 +63,64 @@ function* slam(boss: EntityId, windup: number, radius: number, dmg: number): Scr
   yield* waitTicks(windup);
 }
 
-function burst(boss: EntityId, count: number, offset: number): void {
-  const owner = toHandle(boss);
-  for (let i = 0; i < count; i++) {
-    const a = offset + (i / count) * Math.PI * 2;
-    spawnProjectile(
-      Transform.x[boss], Transform.z[boss], Math.cos(a), Math.sin(a), ENEMY_BULLET_SPEED,
-      TeamId.Enemy, owner, 10, 4, ShapeKind.EnemyBullet,
-    );
-  }
+function shoot(boss: EntityId, angle: number, speed: number): void {
+  spawnProjectile(
+    Transform.x[boss], Transform.z[boss], Math.cos(angle), Math.sin(angle), speed,
+    TeamId.Enemy, toHandle(boss), 10, 4, ShapeKind.EnemyBullet,
+  );
 }
 
-// Phase 1: lumbers toward the player and slams.
+function burst(boss: EntityId, count: number, offset: number): void {
+  for (let i = 0; i < count; i++) shoot(boss, offset + (i / count) * Math.PI * 2, BURST_SPEED);
+}
+
+// A narrow fan at the player: the answer to keeping your distance.
+function fan(boss: EntityId, count: number, spread: number): void {
+  const p = findPlayer();
+  if (p === -1) return;
+  const at = Math.atan2(Transform.z[p] - Transform.z[boss], Transform.x[p] - Transform.x[boss]);
+  for (let i = 0; i < count; i++) shoot(boss, at + (i - (count - 1) / 2) * spread, AIMED_SPEED);
+}
+
+function distanceToPlayer(boss: EntityId): number {
+  const p = findPlayer();
+  return p === -1 ? 0 : Math.hypot(Transform.x[p] - Transform.x[boss], Transform.z[p] - Transform.z[boss]);
+}
+
+// Phase 1: lumbers toward the player and slams; fires a volley if kept at range.
 export function* phaseOne(boss: EntityId): Script {
   for (;;) {
-    yield* approach(boss, 90, 2.4);
-    yield* slam(boss, 45, 4.5, 30);
-    yield* waitTicks(30);
+    yield* approach(boss, 70, 2.6);
+    if (distanceToPlayer(boss) > SLAM_RANGE) {
+      stop(boss);
+      for (let i = 0; i < 3; i++) {
+        fan(boss, 3, 0.22);
+        yield* waitTicks(14);
+      }
+      continue;
+    }
+    yield* slam(boss, 42, 4.5, 30);
+    yield* waitTicks(25);
   }
 }
 
-// Phase 2: radial bursts between strafes, and a faster slam.
+// Phase 2: radial bursts and aimed fans between strafes, and a faster, wider slam.
 export function* phaseTwo(boss: EntityId): Script {
   let offset = 0;
   let dir: 1 | -1 = 1;
   for (;;) {
     for (let i = 0; i < 3; i++) {
-      burst(boss, 14, offset);
-      offset += Math.PI / 14;
-      yield* strafe(boss, 25, 4, dir);
+      burst(boss, 18, offset);
+      offset += Math.PI / 18;
+      yield* strafe(boss, 12, 4, dir);
+      fan(boss, 5, 0.16);
+      yield* strafe(boss, 13, 4, dir);
     }
     dir = dir === 1 ? -1 : 1;
     // Low hp makes it hurry in for the slam.
     const urgency = Health.hp[boss] < Health.max[boss] * 0.25 ? 1.4 : 1;
     yield* approach(boss, 50, 3.2 * urgency);
-    yield* slam(boss, 32, 5, 30);
+    yield* slam(boss, 30, 5.5, 30);
     yield* waitTicks(20);
   }
 }
