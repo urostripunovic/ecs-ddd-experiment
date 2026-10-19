@@ -1,0 +1,74 @@
+// Reads components and the dev tick log; writes only DOM, and only on change.
+import { DEV, readTickLog } from '../../bridge/tick-log';
+import { BossPhase, Health, MatchStatus, MatchView, Weapon } from '../../ecs/components';
+import { indexOf, type Handle } from '../../ecs/core/world';
+
+const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '') => {
+  const n = document.createElement(tag);
+  n.className = cls;
+  n.innerHTML = html;
+  return n;
+};
+
+export function createHud(root: HTMLElement) {
+  const boss = el('div', 'hud boss', `
+    <div class="boss-name"><span>The Warden</span><span data-phase></span></div>
+    <div class="bar"><div data-boss-hp></div></div>`);
+  const player = el('div', 'hud player', `
+    <div class="bar"><div data-player-hp></div></div>
+    <div class="row"><span>HP <b data-hp></b></span><span>AMMO <b data-ammo></b></span></div>`);
+  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space fire<br>R reload · Enter restart · ` tick log');
+  const log = el('pre', 'hud log');
+  const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p>Press Enter to restart</p></div>');
+  log.hidden = true;
+  banner.hidden = true;
+  root.append(boss, player, help, log, banner);
+
+  const q = (n: HTMLElement, sel: string) => n.querySelector<HTMLElement>(sel)!;
+  const bossHp = q(boss, '[data-boss-hp]');
+  const phase = q(boss, '[data-phase]');
+  const playerHp = q(player, '[data-player-hp]');
+  const hpText = q(player, '[data-hp]');
+  const ammoText = q(player, '[data-ammo]');
+  const title = q(banner, '[data-title]');
+
+  // Skips DOM writes when nothing changed, so the HUD costs nothing at rest.
+  const last = new Map<HTMLElement, string>();
+  const set = (n: HTMLElement, key: 'text' | 'scale', v: string) => {
+    if (last.get(n) === v) return;
+    last.set(n, v);
+    if (key === 'text') n.textContent = v;
+    else n.style.transform = `scaleX(${v})`;
+  };
+  let logShown = -1;
+
+  return {
+    toggleLog(): void {
+      log.hidden = !log.hidden;
+      logShown = -1;
+    },
+    update(h: { player: Handle; boss: Handle }): void {
+      const b = indexOf(h.boss);
+      const p = indexOf(h.player);
+      set(bossHp, 'scale', (Health.hp[b] / Health.max[b]).toFixed(3));
+      set(phase, 'text', `phase ${BossPhase.phase[b]}`);
+      set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
+      set(hpText, 'text', String(Math.ceil(Health.hp[p])));
+      set(ammoText, 'text', Weapon.reload[p] > 0 ? 'reloading' : `${Weapon.ammo[p]}/${Weapon.mag[p]}`);
+
+      const over = MatchView.status !== MatchStatus.Fighting;
+      banner.hidden = !over;
+      if (over) set(title, 'text', MatchView.status === MatchStatus.Won ? 'VICTORY' : 'DEFEATED');
+
+      if (!log.hidden && !DEV) {
+        set(log, 'text', 'tick log is dev-only: run npm run dev');
+      } else if (!log.hidden) {
+        const lines = readTickLog(14);
+        if (lines.length !== logShown || lines.length === 14) {
+          log.textContent = lines.length ? lines.join('\n') : 'tick log: nothing crossed the bridge yet';
+          logShown = lines.length;
+        }
+      }
+    },
+  };
+}
