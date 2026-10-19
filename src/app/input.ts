@@ -16,6 +16,7 @@ export function createInput(target: HTMLElement) {
     // Counted at the event, not sampled per frame, so a tap shorter than a frame still throws.
     if (ev.repeat) return;
     if (ev.code === 'KeyE') PlayerInput.interactPresses++;
+    if (ev.code === 'ShiftLeft' || ev.code === 'ShiftRight') PlayerInput.dodgePresses++;
   });
   window.addEventListener('keyup', (ev) => {
     keys.delete(ev.code);

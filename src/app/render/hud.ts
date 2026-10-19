@@ -35,7 +35,7 @@ export function createHud(root: HTMLElement) {
     <div class="bar"><div data-player-hp></div></div>
     <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
     <div class="row status" data-status></div>`);
-  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space attack<br>Q / right-click throw · E swap · R reload<br>Enter restart · ` tick log');
+  const help = el('div', 'hud help', 'WASD move · mouse aim · click/space attack · Shift dodge<br>Q / right-click throw · E swap · R reload<br>Enter restart · ` tick log');
   // The perfect zone is placed from the same constants the simulation uses, so what you see is what you get.
   const gauge = el('div', 'hud gauge', `
     <div class="gauge-fill" data-fill></div>

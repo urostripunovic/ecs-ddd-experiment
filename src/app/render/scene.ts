@@ -7,6 +7,7 @@ import {
 } from '../../ecs/components';
 import { TUNNEL } from '../../ecs/arenas';
 import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
+import { dodging } from '../../ecs/systems/status';
 import { bossPose } from './boss-pose';
 import { follow, type Follow } from './camera';
 import { handleAt, has, indexOf, isLive, MAX, NO_HANDLE, world, type EntityId, type Handle } from '../../ecs/core/world';
@@ -336,13 +337,18 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         if (kind === ShapeKind.Boss && BossPhase.phase[e] === 2) color = COLOR.bossEnraged;
         if (dead) color = COLOR.dead;
         mat.color.setHex(color);
-        mat.emissive.setHex(Hurt.flash[e] > 0 && !dead ? 0x777777 : 0x000000);
+        // A dodge glows for exactly its invulnerable ticks, so you can learn the timing by eye.
+        const glow = kind === ShapeKind.Player && dodging(e as EntityId) ? 0x3a6a8a : 0x000000;
+        mat.emissive.setHex(Hurt.flash[e] > 0 && !dead ? 0x777777 : glow);
       }
 
       if (kind === ShapeKind.Player) {
         v.rotation.y = Math.atan2(-PlayerInput.aimX, -PlayerInput.aimZ);
         v.rotation.z = dead ? Math.PI / 2 : 0;
         v.position.y = dead ? 0.42 : 0;
+        // Ducked and stretched along the dash.
+        const ducked = dodging(e as EntityId);
+        v.scale.set(ducked ? 1.15 : 1, ducked ? 0.6 : 1, ducked ? 1.15 : 1);
       } else if (kind === ShapeKind.Boss) {
         const slamming = has(e as EntityId, C.Slam);
         const winding = slamming ? 1 - Slam.timer[e] / Slam.windup[e] : 0;

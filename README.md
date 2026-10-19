@@ -18,6 +18,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 | WASD / arrows | move |
 | mouse | aim |
 | left click / space | attack (shoot, swing, thrust or punch) |
+| Shift | dodge: a short dash, invulnerable while it lasts, through the boss but not pillars |
 | Q / right click (hold, release) | charge and throw what you hold |
 | E | swap with the weapon at your feet |
 | R | reload |
@@ -29,6 +30,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 - **Phase 1:** The Warden walks toward you and slams. The red ring shows where it will land, and the fill shows when. Kept at range, it alternates an aimed cone (the red wedge) with a jump onto you.
 - **Phase 2** (at 50% hp, decided by the domain) opens with a roar: the screen shakes, you're shoved back if close, and you can't act until it ends. Then radial bursts and cones between strafes, then a cone that rolls straight into a jump, then a faster slam.
 - While it's in the air, nothing hits it. Hurt it fast enough and it jumps away, at most once every 8 seconds.
+- Its jump landing slows you for a second; its stamp hits harder but doesn't slow. Dodge (Shift) through either: for the 0.2 s of the dash nothing hurts you, and you can roll through the Warden itself. 0.75 s cooldown.
 - A run is two arenas. Beat the Warden and the arena is cleared: nothing new spawns, the gate in the north wall sinks, and a dark tunnel opens. Walk into it and you come out in arena 2, with the hp and the weapon you had. There the Warden waits on a pillar and drops in.
 - Win by clearing arena 2; lose if you go down in either. The run (which arena, cleared or not, what you carried) is domain state.
 
@@ -44,7 +46,7 @@ The arena always holds one gun, one sword and one spear. You start with the gun;
 
 **Charged throws:** hold Q or right click and a gauge fills over a second. Release in the gold perfect zone for 125% damage and half the usual wear; hold past it for the same damage but double wear; tap for a weak, quick throw (40%). A throw that hits sticks in the boss and falls out at its next slam or landing. A throw that misses can't be picked up for a second or more.
 
-Haste (green) speeds you up and Fury (red) adds 50% damage, for 6 seconds each. The slam halves your speed for a second. All of it is ECS: nothing here is saved or rule-bound yet.
+Haste (green) speeds you up and Fury (red) adds 50% damage, for 6 seconds each. A jump landing halves your speed for a second. All of it is ECS: nothing here is saved or rule-bound yet.
 
 ## Layout
 
