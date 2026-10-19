@@ -52,6 +52,8 @@ There's no prototype modelling phase: the prototype is the model (examples table
 | A rules area that outgrew a page | `ddd-modelling` | `ddd-to-tickets` | `ddd-implementation` | `ddd-review-all` |
 | Menus, settings, builds | none | `to-tickets` | `implement` | `code-review` |
 
-**Improving the skills:** keep a `SKILL-NOTES.md` in each game repo, one line per incident: what happened, which rule, and whether the rule was missing, vague or ignored. Missing: add it. Vague: reword it. Ignored though clear: enforce it with a test, a lint rule or a type.
+**Improving the skills:** export the sessions and run Matt Pocock's `retro` over them now and then. It finds what nobody reports (failed commands, retried edits, tests that took three tries) and the friction lines each change ends with. Keep a short `SKILL-NOTES.md` for what you notice yourself while playing. For each pain point, find the rule that should have prevented it: missing → add it, vague → reword it, ignored though clear → enforce it with a test, a lint rule or a type.
+
+**Docs convention:** in `docs/`, backticks mean "this name exists in the code". `src/docs.test.ts` checks every backticked name, so write plain words in plain text.
 
 **Later:** per-language cards (brands, read-only projections, exhaustive switches, coroutines in Go, Java, Rust), written while porting, read only during implementation.

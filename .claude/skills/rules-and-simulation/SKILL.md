@@ -21,7 +21,7 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 4. **Write the failing test first**, and check it fails for the right reason.
 5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*.
 6. **Playtest.** A bot playing headless, with frames to look at. Feel and "it works but it's wrong" only show up here.
-7. **Compare** the prediction with what changed, and explain each miss.
+7. **Compare** the prediction with what changed, and explain each miss. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
 
@@ -68,6 +68,7 @@ Plain words here; the formal terms are in brackets.
 - **One writer per field.** Two effects on one value get two fields, combined by the reader.
 - **Inputs that must not be lost or doubled are counters**; sensors fire on the edge and latch until answered.
 - **Durations are deadlines** made with one helper (`after(ticks)`), never countdowns.
+- **A value that breaks a boundary check fails loudly in development and tests, and is logged, clamped and survived in a release build.** A player never loses a run to a bug report. How each language does it belongs with the implementation.
 - **Every piece of state declares its lifetime**: the level, the run, or forever. A new level wipes level state from that list, and a test fails if something is in no list.
 - **Units are types at the edges**: durations, moments, seconds, hit points, shares, distances, in definitions and signatures. The hot loops read plain numbers. A brand is a value object without the object. Constructors reject impossible values when they're made.
 - **Lifecycles are exclusive states with one function per transition** (`putOnGround()` is the only way onto the ground).
