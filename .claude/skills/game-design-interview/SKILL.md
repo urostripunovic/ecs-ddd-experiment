@@ -18,7 +18,7 @@ Code can't decide these; the game's designer does, and the answer differs betwee
 
 ## Where the answers go
 
-- **A rules decision** becomes a row in the area's examples table (next unused number), with the test that pins it.
+- **A rules decision** becomes a row in the area's examples table (next unused number), with the test that pins it and a status: accepted once the user has decided, experimental for a guess to try in play, open while the question waits.
 - **A simulation choice** (can you be hurt after a clear) lives in one place in the code, with a comment saying it's this game's choice and what changing it takes.
 - **The rules answer every state anyway**, so a simulation choice can change later without a rules change or a softlock.
 - **When an answer changes**, change its row and its test on purpose, in the same commit.

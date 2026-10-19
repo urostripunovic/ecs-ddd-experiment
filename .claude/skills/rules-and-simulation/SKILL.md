@@ -58,7 +58,8 @@ Plain words here; the formal terms are in brackets.
 - **Time arrives as a request; the tick is the only clock.**
 - **Things the rules keep get stable IDs.** Entity handles never enter the rules; something born in the simulation gets its ID when it first crosses.
 - **Every switch ends in an exhaustiveness check**, so a new kind breaks the build where it must be handled.
-- **A short, numbered examples table per area**: state, request, facts, the test that pins it. Rows are never renumbered; removed rows leave gaps. Decisions from the interview land here.
+- **A short, numbered examples table per area**: state, request, facts, status, the test that pins it. Status is accepted (decided and tested), experimental (a guess to try in play) or open (waiting for a decision), so the next agent can tell an intended rule from code that merely happens to behave that way. Rows are never renumbered; removed rows leave gaps. Decisions from the interview land here.
+- **States with different invariants are different types** (only a finished run has an end tick). Numbers from the simulation are checked once, by a constructor where they enter the rules, never field by field inside them.
 
 ## The simulation
 
@@ -94,7 +95,7 @@ A save holds the rules state, the RNG's position if loads must replay exactly, a
 3. **Simulation:** systems in isolation, plus long runs with property checks (4,000 ticks: every gap between actions, nothing fired mid-air).
 4. **Whole game:** determinism (same seed twice; uneven frame times against a steady rate), a **transition test** (play a level, move on, compare with the next level built fresh: any difference is a leak), and a bot playthrough with frames.
 
-Rules the compiler can't express (deadlines only through `after()`) get a source scan test; `@ts-expect-error` lines prove the types still reject what they should. A test must fail before the change; one that guards against future mistakes is checked by breaking the code on purpose once (copy the file aside first, and restore from the copy).
+The docs are part of the contract, so a **drift test** checks them against the code: every code name the architecture doc and glossary mention exists, every examples row has a status, and the tests the rows name exist. It can't prove the meaning matches; it makes the common drift loud. Rules the compiler can't express (deadlines only through `after()`) get a source scan test; `@ts-expect-error` lines prove the types still reject what they should. A test must fail before the change; one that guards against future mistakes is checked by breaking the code on purpose once (copy the file aside first, and restore from the copy).
 
 ## Where this goes wrong
 
