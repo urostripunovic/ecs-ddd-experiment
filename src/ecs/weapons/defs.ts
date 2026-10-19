@@ -52,6 +52,12 @@ export const WEAPONS: readonly WeaponDef[] = [
   },
 ];
 
+// How many of each kind the arena keeps in play, whatever state they are in
+// (held, lying, flying or stuck). Indexed by WeaponKind; fists are never stocked.
+// A broken one is replaced RESPAWN_TICKS later, somewhere clear.
+export const WEAPON_STOCK: readonly number[] = [0, 1, 1, 1];
+export const RESPAWN_TICKS = 5 * 60;
+
 export const BuffKind = { Haste: 1, Fury: 2 } as const;
 export const BUFF_TICKS = 6 * 60;
 export const HASTE_MUL = 1.35;

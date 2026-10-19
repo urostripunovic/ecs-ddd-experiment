@@ -93,6 +93,8 @@ export const PlayerInput = {
 export const MatchStatus = { Fighting: 0, Won: 1, Lost: 2 } as const;
 export const MatchView = { status: 0 as number, endedAt: 0 };
 export const Arena = { half: 20 };
+// Per weapon kind, the tick its replacement appears; 0 = nothing missing.
+export const Stock = { respawnAt: new Uint32Array(4) };
 
 const perEntity = [
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, BuffPickup, Buffs, Slowed,
@@ -106,4 +108,5 @@ export function resetComponents(): void {
   });
   MatchView.status = MatchStatus.Fighting;
   MatchView.endedAt = 0;
+  Stock.respawnAt.fill(0);
 }

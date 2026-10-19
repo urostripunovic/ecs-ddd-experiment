@@ -3,7 +3,7 @@
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
   Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, MatchStatus, MatchView, PlayerInput, ShapeKind,
-  StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
+  Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
 import { random, randomRange } from '../core/rng';
@@ -12,7 +12,9 @@ import {
   type EntityId,
 } from '../core/world';
 import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
-import { BUFF_TICKS, BuffKind, WEAPONS, WeaponKind, type WeaponDef } from '../weapons/defs';
+import {
+  BUFF_TICKS, BuffKind, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, type WeaponDef,
+} from '../weapons/defs';
 import { hurt } from './damage';
 import { dmgMul } from './status';
 
@@ -345,24 +347,53 @@ function clearSpot(x: number, z: number): boolean {
   return true;
 }
 
-// reads world.tick, rng, Grounded count | spawns weapons and buffs
-// Draws from the seeded RNG only, so the same seed gives the same drops.
+const spot = { x: 0, z: 0 };
+
+// Draws from the seeded RNG only, so the same seed gives the same spots.
+function randomClearSpot(out: { x: number; z: number }): boolean {
+  const limit = Arena.half - 2;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const x = randomRange(-limit, limit);
+    const z = randomRange(-limit, limit);
+    if (!clearSpot(x, z)) continue;
+    out.x = x;
+    out.z = z;
+    return true;
+  }
+  return false;
+}
+
+const stockCounts = new Int32Array(WEAPON_STOCK.length);
+
+// reads every Item (any state), Stock | writes Stock; spawns replacements
+// Keeps WEAPON_STOCK of each kind in play. A missing one is scheduled when it
+// is first noticed and appears RESPAWN_TICKS later, so breaking a blade costs
+// you time, never the weapon for good.
+export function stockSystem(): void {
+  if (!fighting()) return;
+  stockCounts.fill(0);
+  const n = query(helperBuf, C.Item);
+  for (let i = 0; i < n; i++) stockCounts[Item.kind[entityAt(helperBuf, i)]]++;
+
+  for (let kind = 1; kind < WEAPON_STOCK.length; kind++) {
+    if (stockCounts[kind] >= WEAPON_STOCK[kind]) { Stock.respawnAt[kind] = 0; continue; }
+    if (Stock.respawnAt[kind] === 0) { Stock.respawnAt[kind] = world.tick + RESPAWN_TICKS; continue; }
+    if (world.tick < Stock.respawnAt[kind]) continue;
+    // No clear spot this tick (rare): try again next tick rather than spawn somewhere bad.
+    if (!randomClearSpot(spot)) continue;
+    spawnWeapon(kind, spot.x, spot.z);
+    Stock.respawnAt[kind] = 0;
+  }
+}
+
+// reads world.tick, rng, Grounded count | spawns buffs
+// Weapons are kept stocked by stockSystem; this only scatters buffs.
 export function dropSystem(): void {
   if (!fighting() || world.tick === 0 || world.tick % DROP_EVERY_TICKS !== 0) return;
   if (query(helperBuf, GROUNDED) >= MAX_ON_GROUND) return;
   if (query(helperBuf, BOSSES, C.Dead) === 0) return;
 
   const roll = random();
-  const limit = Arena.half - 2;
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const x = randomRange(-limit, limit);
-    const z = randomRange(-limit, limit);
-    if (!clearSpot(x, z)) continue;
-    if (roll < 0.22) spawnWeapon(WeaponKind.Sword, x, z);
-    else if (roll < 0.44) spawnWeapon(WeaponKind.Spear, x, z);
-    else if (roll < 0.6) spawnWeapon(WeaponKind.Gun, x, z);
-    else if (roll < 0.8) spawnBuff(BuffKind.Haste, x, z);
-    else spawnBuff(BuffKind.Fury, x, z);
-    return;
-  }
+  if (!randomClearSpot(spot)) return;
+  spawnBuff(roll < 0.5 ? BuffKind.Haste : BuffKind.Fury, spot.x, spot.z);
 }

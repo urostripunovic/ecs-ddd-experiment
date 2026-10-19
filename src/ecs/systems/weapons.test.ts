@@ -6,13 +6,13 @@ import {
 import { seedRng } from '../core/rng';
 import { add, has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
-import { HASTE_MUL, WEAPONS, WeaponKind } from '../weapons/defs';
+import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind } from '../weapons/defs';
 import { bodyCollisionSystem } from './collision';
 import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import { speedMul } from './status';
 import {
   attackSystem, dropSystem, durabilitySystem, equip, flightSystem, heldFollowSystem, heldItem, pickupSystem,
-  releaseStuck, stuckFollowSystem, throwSystem,
+  releaseStuck, stockSystem, stuckFollowSystem, throwSystem,
 } from './weapons';
 
 const DT = 1 / 60;
@@ -182,6 +182,55 @@ describe('status', () => {
 
     world.tick += 60; // both deadlines pass; nothing had to count them down
     expect(speedMul(p)).toBe(1);
+  });
+});
+
+describe('stock', () => {
+  const count = (kind: number) => {
+    let n = 0;
+    for (let e = 0; e < world.nextFresh; e++) if (world.alive[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
+    return n;
+  };
+  const stockArena = () => {
+    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, 1.4);
+    seedRng(3);
+    spawnWeapon(WeaponKind.Gun, 0, 12);
+    spawnWeapon(WeaponKind.Spear, 4, 9);
+    return spawnWeapon(WeaponKind.Sword, -4, 9);
+  };
+
+  it('a broken sword comes back after the respawn delay, somewhere clear', () => {
+    const sword = stockArena();
+    stockSystem();
+    expect(count(WeaponKind.Sword)).toBe(1);
+
+    equip(p, sword);
+    Durability.value[sword] = 0;
+    durabilitySystem(DT);
+    expect(count(WeaponKind.Sword)).toBe(0);
+    expect(heldItem(p)).toBe(-1); // fists until then
+
+    for (let i = 0; i < RESPAWN_TICKS; i++) { stockSystem(); world.tick++; }
+    expect(count(WeaponKind.Sword)).toBe(0);
+    stockSystem();
+    expect(count(WeaponKind.Sword)).toBe(1);
+    expect(count(WeaponKind.Spear)).toBe(1);
+    expect(count(WeaponKind.Gun)).toBe(1);
+  });
+
+  it('never adds weapons while the stock is full', () => {
+    stockArena();
+    for (let i = 0; i < RESPAWN_TICKS * 3; i++) { stockSystem(); world.tick++; }
+    expect(count(WeaponKind.Sword) + count(WeaponKind.Spear) + count(WeaponKind.Gun)).toBe(3);
+  });
+});
+
+describe('fists', () => {
+  it('empty hands still fight, weakly', () => {
+    Transform.z[b] = -2.4;
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
+    attackSystem(DT);
+    expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Fists].dmg);
   });
 });
 
