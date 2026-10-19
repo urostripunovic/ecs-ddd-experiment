@@ -79,6 +79,25 @@ The run is the first area that grew because of a feature. Which arena you're in,
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
 
+## What lives how long
+
+A new arena is built from domain state plus a short, declared list of values that live for the whole run. Everything else is wiped.
+
+| Lives for | What | Declared in |
+| --- | --- | --- |
+| the arena | every per-entity component, `Cutscene`, `Shake`, `Stock`, boss coroutines, handle ↔ ID bindings | `ARENA_STATE` (`ecs/components`), `resetScripts`, `idMap.unbindHandles` |
+| the run | domain state (run, bosses), the tick, entity generations, the RNG's position, the input counters, `RunView`, the weapon ID counter | `RUN_STATE` (`ecs/components`), `world`, `ecs/core/rng`, `bridge/id-map` |
+| ever | tags, enums, the arena size | `CONSTANTS` (`ecs/components`) |
+| presentation only | where the camera looks; it snaps when the player is a new entity | `app/render/camera.ts` |
+
+Two tests hold this. `scope.test.ts` fails if a component or singleton is in no list, or in two. `app/transition.test.ts` plays arena 1 and walks into the tunnel, then builds arena 2 fresh from the same domain state and run values, and expects the same world. Handles are compared by slot, because generations are run-lifetime on purpose: they keep growing so stale handles stay stale.
+
+## Units
+
+Numbers that carry a unit are branded (`ecs/core/units.ts`): `Ticks` (a duration), `TickAt` (a moment), `Seconds` (dt-integrated countdowns), `Hp`, `Share` (0..1 of something) and `Meters`. Definitions tables, constructors and signatures use them (`waitTicks(Ticks)`, `startCutscene(Ticks)`, `spawnProjectile(…, dmg: Hp, life: Seconds, …)`, `dt: Seconds`); the per-tick loops read plain numbers from typed arrays. The constructors (`ticks`, `seconds`, `hp`, `share`, `meters`) reject impossible values when they're made, which for definitions is at module load.
+
+Deadlines are made only with `after(duration)`, and seconds become ticks only through `inTicks`/`inSeconds`. `units.test.ts` scans the source for both, and holds `@ts-expect-error` lines that stop compiling if a brand ever stops working.
+
 "Nothing spawns after the boss dies" needed no new rule: the stock and the buff drops already run only while fighting. The domain sets the mode (`Cleared`); the simulation reads it.
 
 ## What stays out of the domain (on purpose)

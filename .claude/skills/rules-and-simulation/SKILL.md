@@ -18,7 +18,7 @@ The simulation is the default. Most features never touch the rules, and that is 
 Do these, in order, and write the first two down where the reviewer will see them (the PR, or a message before you start).
 
 1. **Predict the footprint.** List the files you expect to change, per layer (rules, seam, simulation, app, docs), and which existing tests you expect to break and why. After the change, compare. A miss is fine; an unexplained miss is a review question.
-2. **List the invariants the change touches.** Things that must stay true, for example: "an item is in exactly one state", "one writer per field", "nothing spawns unless fighting", "a new level is built only from rules state". If a change touches an invariant, it gets a test.
+2. **List the invariants the change touches.** Things that must stay true, for example: "an item is in exactly one state", "one writer per field", "nothing spawns unless fighting", "a new level is built from rules state plus the declared run-lifetime values". If a change touches an invariant, it gets a test. Check each one against the code before writing it down: an invariant that is only true in your head is worse than none.
 3. **Write the failing test first** for the new behaviour, and check it fails for the right reason. A test that passes before the change proves nothing.
 4. **Build layer by layer**, one commit per layer: rules, seam, simulation, app, docs. Each commit message says *why*.
 5. **Playtest.** Watch it run (a bot playing headless is enough) and look at frames. Balance, feel and "it works but it's wrong" only show up here. Playtesting is part of the change, not after it.
@@ -70,7 +70,10 @@ Tests for the rules: given a state and a request, expect these facts. No simulat
 - **One writer per field.** When two things affect one value (a buff and a slow on speed), each gets its own field and the reader combines them. Otherwise one silently erases the other.
 - **Inputs that must not be lost or doubled are counters.** The input layer only increments; the simulation records what it has acted on.
 - **Sensors fire on the edge and latch** until answered: "started overlapping", not "is overlapping".
-- **Effects with a duration are deadlines** (`until: tick`), read where needed; nothing counts them down.
+- **Effects with a duration are deadlines** (`until: tick`), read where needed; nothing counts them down. Make them with one helper (`after(duration)`), so every deadline is measured from now.
+- **Every piece of state declares how long it lives:** the level, the run, or forever. A level change wipes level state from that list, so nothing has to remember to reset a new field, and a test fails if something is in no list.
+- **Numbers with a unit carry it in the type** where they are made and passed: definitions tables, constructors, function signatures. Durations, moments, seconds, hit points, shares of a whole, distances. The hot loops read plain numbers. A branded number is a value object without the object: no allocation, compared by value, unit checked by the compiler. Constructors reject impossible values (negative time, a share above 1) once, when the value is made.
+- **Per-kind numbers that appear together become a definition**, never positional arguments. `slam(boss, 42, 4.5, 30)` hides three units; `slam(boss, PHASE_ONE_SLAM)` names them. When the same value is written twice at spawn (max hp and a pressure mark), derive the second from the first.
 - **Lifecycles are exclusive states with one function per transition.** For example, an item is grounded, held, flying or stuck; `putOnGround()` is the only way onto the ground, so its rules (never inside a pillar) hold everywhere.
 - **Actions run one at a time, and the gaps between them are data.** A boss's attacks run through `begin()`/`finish()`; when the next may start is a table per phase, not waits scattered through scripts.
 - **Coroutines are for choreography that is never saved.** Anything that must survive a save is a state component.
@@ -84,7 +87,7 @@ Tests for the rules: given a state and a request, expect these facts. No simulat
 - **The outbox lives on the simulation side**, so the simulation never imports the seam; the seam drains it once per tick.
 - **The rules run once per tick, synchronously,** after the simulation and before rendering, so a decision is applied before anything is drawn.
 - **Projections write plain values** into components the simulation reads (`RunView`, `BossPhase`). They never send requests, so loops are bounded by the tick.
-- **A level is built only from rules state** [spawn projection], by one function used for the first level and every one after it. That's also what a save/load would use. Rebuilding the world waits until the rules step has finished.
+- **A level is built from rules state plus the declared run-lifetime values** [spawn projection], by one function used for the first level and every one after it. That's also what a save/load would use. Rebuilding the world waits until the rules step has finished. Some simulation state honestly lives for the whole run (the tick, the seeded RNG's position, input counters, handle generations); list it, rather than pretend nothing crosses.
 - **Identity mapping lives only here**: handle ↔ stable ID.
 - **A dev-only log records each chain**: request → fact → what was written. It answers "where did this come from?" without a debugger.
 - **Boundaries are enforced by a lint**, not by review: the rules import nothing; the simulation imports neither the rules nor the seam.
@@ -94,7 +97,11 @@ Tests for the rules: given a state and a request, expect these facts. No simulat
 1. **Rules:** state + request → facts.
 2. **Seam:** push a request in, assert the component values that come out.
 3. **Simulation:** one system or a slice of the tick in isolation, and long-run property checks. For example, run 4,000 ticks and check every gap between boss actions, or that nothing fires mid-air.
-4. **Whole game:** headless runs compared for determinism (twice with the same seed; uneven frame times against a steady rate), plus a bot playthrough with recorded frames for what only play reveals.
+4. **Whole game:** headless runs compared for determinism (twice with the same seed; uneven frame times against a steady rate); a **transition test** (play a level, move to the next, and compare with the next built fresh from the same rules state and run values: any difference is a leak); plus a bot playthrough with recorded frames for what only play reveals.
+
+Some rules can't be types: "deadlines only through `after()`", "seconds become ticks in one file". A test that scans the source enforces them, and `@ts-expect-error` lines prove the brands still reject what they should.
+
+When a test passes from the start because it guards against future mistakes, break the code on purpose once (misdeclare a field's lifetime) and watch it fail.
 
 A new test must fail before the change. Check thresholds against the right base (relative rules need relative tests), and count only what the test means (*my* bullet, not all bullets).
 
@@ -105,6 +112,7 @@ A new test must fail before the change. Check thresholds against the right base 
 - [ ] Invariants touched are listed, each with a test.
 - [ ] Every new request gets exactly one answer.
 - [ ] No field has two writers.
+- [ ] New state has a declared lifetime; new numbers with a unit are branded where they're defined.
 - [ ] One commit per layer; boundary lint passes.
 - [ ] Playtested, with frames or a short video, and anything the playtest found is fixed or noted.
 

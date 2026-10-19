@@ -40,3 +40,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Tunnel** | ECS | The corridor through the north wall, open only while the arena is cleared. Walking past its end sends `TunnelEntered`, latched by `TunnelPending` until the run answers. |
 | **Perch** | ECS | A pillar an arena's boss starts on top of (`Jump.fromHeight`); its first move is to drop in, during a short cutscene. |
 | **Spawn projection** | bridge | `buildArena(arena, loadout)`: the whole ECS world rebuilt from domain state. Arena 1 and every arena after it use the same path. |
+| **Lifetime** | ECS | How long a piece of state lives: the arena (`ARENA_STATE`, wiped by every build), the run (`RUN_STATE`, carried on purpose) or ever (`CONSTANTS`). |
+| `Ticks` / `TickAt` | ECS | A duration in ticks, and a moment (a value `world.tick` will reach). `after(Ticks)` is the only way to make a `TickAt`. |
+| `Seconds` | ECS | A duration in seconds, for countdowns integrated with `dt` (cooldowns, reloads, bullet life). Becomes ticks only through `inTicks`. |
+| `Hp`, `Share`, `Meters` | ECS | Hit points; a part of a whole (0..1, e.g. "half of max hp"); a distance or radius. Branded so the compiler keeps them apart in definitions and signatures. |
+| **Boss def** | ECS | `WARDEN` in `ecs/bosses/defs.ts`: what a boss spawns with (hp, radius, evade grace). `?bossHp` overrides its hp. |
