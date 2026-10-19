@@ -86,6 +86,7 @@ Plain words here; the formal terms are in brackets.
 - **A level is built from rules state by one function** [spawn projection], for the first level, every level after it, and any load. It builds from **every** rules state, not only the ones play reaches: a level loaded after its boss died has the boss down and the exit open. Rebuilding waits until the rules step ends. Simulation state that honestly lives for the whole run (the tick, the RNG's position, input counters, handle generations) is listed, not hidden.
 - **Identity mapping lives only here.** A dev-only log records each chain: request → fact → what was written.
 - **Boundaries are enforced by a lint**, not by review.
+- **Cheats and dev tools are requests or loads, never facts or projection writes.** Forcing simulation data is fine (the rules' sensors still watch it); reaching a rules state goes through the load path. Cheats are recorded as inputs, mark the run, and never ship (a test builds the release bundle and looks).
 
 A save holds the rules state, the RNG's position if loads must replay exactly, and any simulation state the design keeps. Loading is the spawn projection, never a second path.
 
@@ -105,6 +106,8 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - **Relative rules need relative tests** (a share of max hp, not a fixed number), and a test counts only what it means (*my* bullet, not every bullet).
 - **Layer commits may not each build** when a lower layer changes a signature: say so in the commit.
 - **The bot is code too.** When a playtest goes badly, check the bot before tuning the game.
+- **A scan that lists files at build time can go stale.** A cached transform keeps the old file list, so a new file is never scanned. Turn the cache off, and prove the scan by planting a violation in a new file.
+- **A dev tool that throws can stop the game loop.** Guard it so a bug in the tool can't freeze the game it inspects.
 
 ## Review checklist
 

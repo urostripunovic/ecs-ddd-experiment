@@ -24,6 +24,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 | R | reload |
 | Enter | restart |
 | <kbd>`</kbd> | dev tick log (command → event → component write) |
+| <kbd>G</kbd> | god menu, dev builds only: invulnerable, give weapons, kill the boss, jump to any arena state, pause and step, an entity inspector |
 
 ## The fight
 

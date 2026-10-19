@@ -45,3 +45,6 @@ The same idea can live at both levels under different names. Keep them apart.
 | `Seconds` | ECS | A duration in seconds, for countdowns integrated with `dt` (cooldowns, reloads, bullet life). Becomes ticks only through `inTicks`. |
 | `Hp`, `Share`, `Meters` | ECS | Hit points; a part of a whole (0..1, e.g. "half of max hp"); a distance or radius. Branded so the compiler keeps them apart in definitions and signatures. |
 | **Boss def** | ECS | `WARDEN` in `ecs/bosses/defs.ts`: what a boss spawns with (hp, radius, evade grace). `?bossHp` overrides its hp. |
+| **God menu** | app (dev only) | <kbd>G</kbd> in dev builds. Debug cheats force simulation data; gameplay cheats go through the rules (sensors, or a loaded rules state). Never shipped. |
+| `DevCommand` | app | One cheat, typed. Applied at the start of a tick and recorded with it, so cheats replay like inputs. |
+| `GodMode` | ECS singleton | The god menu's flags (invulnerable, weapons kept, boss frozen) and `cheated`. Run lifetime; a restart clears it. |

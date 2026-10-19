@@ -19,6 +19,7 @@ A hand-written ECS runs the real-time simulation; a thin, pure DDD layer owns th
 
 Written down in `src/app/loop.ts`:
 
+0. Dev builds only: `applyDevCommands` applies the god menu's queued cheats, recorded with this tick
 1. `snapshotSystem`: copy position to previous position, for render interpolation
 2. `shakeSystem`: camera trauma decays (the wobble itself is drawn by the renderer)
 3. `inputSystem`: a new dodge press starts a dash (unless cooling down or in a cutscene); a dash sets the velocity outright; otherwise `PlayerInput` → velocity, scaled by haste and slow, plus knockback; zero during a cutscene
@@ -123,6 +124,17 @@ Numbers that carry a unit are branded (`ecs/core/units.ts`): `Ticks` (a duration
 Deadlines are made only with `after(duration)`, and seconds become ticks only through `inTicks`/`inSeconds`. `units.test.ts` scans the source for both, and holds `@ts-expect-error` lines that stop compiling if a brand ever stops working.
 
 "Nothing spawns after the boss dies" needed no new rule: the stock and the buff drops already run only while fighting. The domain sets the mode (`Cleared`); the simulation reads it.
+
+## Dev tools: the god menu
+
+<kbd>G</kbd> in `npm run dev` opens it. Every cheat is a `DevCommand`, one typed list shared by the menu, the playtest recorder and tests, applied at the start of a tick and recorded with it, so a replay with the same seed, inputs and cheats is the same run. Any cheat sets `GodMode.cheated`, shown as "CHEATS USED" until a restart.
+
+| Level | Cheats | How |
+| --- | --- | --- |
+| Debug: forces simulation data | invulnerable, weapons never run dry or wear, freeze boss, give a weapon, heal, the inspector's field edits | `GodMode` flags read by the systems, or a direct write; the rules' sensors still watch the result |
+| Gameplay: through the rules | damage or kill the boss, jump to arena 1, arena 1 cleared, arena 2, arena 2 in phase 2, won | The boss's hp changes and the threshold and death sensors run the normal chain; a jump builds a rules state and loads it with `loadRunState`, then checks `disagreements` |
+
+A cheat never injects a fact into the rules and never writes `RunView`: the world and the rules would disagree. The inspector is generated from `ARENA_STATE`, so a new component appears without touching the menu. Time controls (pause, step one tick, quarter speed) live in the frame driver (`timeControl`) and never change what a tick does. None of it ships: the menu loads only in dev, the systems' god-mode checks compile away in release, and `app/dev/release.test.ts` builds the release bundle and looks for cheat code.
 
 ## What stays out of the domain (on purpose)
 
