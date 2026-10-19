@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { RunViewWritable } from '../components/run-view';
 import { PILLAR_RADIUS } from '../arenas';
 import { WARDEN } from '../bosses/defs';
 import {
-  C, Cutscene, Health, PlayerInput, resetRunState, RunStatus, RunView, Slam, Slowed, Transform, Velocity,
+  C, Cutscene, Health, PlayerInput, resetRunState, RunStatus, Slam, Slowed, Transform, Velocity,
 } from '../components';
 import { hp, inSeconds, ticks } from '../core/units';
 import { add, resetWorld, world, type EntityId } from '../core/world';
@@ -41,7 +42,7 @@ function slamOnPlayer(slowFor: number): void {
 beforeEach(() => {
   resetWorld();
   resetRunState();
-  RunView.status = RunStatus.Fighting;
+  RunViewWritable.status = RunStatus.Fighting;
   p = spawnPlayer(0, 0);
   b = spawnBoss({ ...WARDEN, hp: hp(1000) }, 0, -10);
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RunViewWritable } from './run-view';
 import * as components from './index';
 import {
   ARENA_STATE, CONSTANTS, Cutscene, PlayerInput, resetArenaState, RUN_STATE, RunView, Shake, Stock, Transform,
@@ -21,7 +22,7 @@ describe('component lifetimes', () => {
     Shake.trauma = 1;
     Stock.respawnAt[1] = 900;
     PlayerInput.throwReleases = 4;
-    RunView.arena = 2;
+    RunViewWritable.arena = 2;
 
     resetArenaState();
 

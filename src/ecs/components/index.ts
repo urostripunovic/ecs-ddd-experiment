@@ -1,6 +1,7 @@
 // Components: data only, structure of arrays, indexed by EntityId.
 import { MAX } from '../core/world';
 
+import { RunViewWritable } from './run-view';
 import { C } from './tags';
 
 export { C };
@@ -110,11 +111,11 @@ export const PlayerInput = {
   moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
   throwHeld: false, throwReleases: 0, interactPresses: 0, dodgePresses: 0,
 };
-// A read model of the domain's run, written only by the run projector and the
-// spawn projection. Cleared: the boss is down, the tunnel may be open, and
+// A read model of the domain's run: read-only here, written only by the bridge
+// through run-view.ts. Cleared: the boss is down, the tunnel may be open, and
 // nothing spawns or hurts; the player still moves.
 export const RunStatus = { Fighting: 0, Won: 1, Lost: 2, Cleared: 3 } as const;
-export const RunView = { status: 0 as number, endedAt: 0, arena: 1, arenas: 1, tunnelOpen: false };
+export const RunView: Readonly<typeof RunViewWritable> = RunViewWritable;
 export const Arena = { half: 20 };
 // While a cutscene runs the player can't act; until is a tick deadline.
 export const Cutscene = { until: 0 };

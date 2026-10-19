@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { RunViewWritable } from '../components/run-view';
 import {
-  BossAction, BossPhase, C, Health, Knockback, RunStatus, RunView, Pressure, resetRunState, Shake, Slam, TeamId,
+  BossAction, BossPhase, C, Health, Knockback, RunStatus, Pressure, resetRunState, Shake, Slam, TeamId,
   Transform,
 } from '../components';
 import { buf } from '../core/buffers';
@@ -28,7 +29,7 @@ function arena(phase: number): void {
   resetWorld();
   resetRunState();
   resetScripts();
-  RunView.status = RunStatus.Fighting;
+  RunViewWritable.status = RunStatus.Fighting;
   for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
   p = spawnPlayer(0, 12);
   b = spawnBoss({ ...WARDEN, hp: hp(100_000) }, 0, -8); // never dies, so the choreography keeps running

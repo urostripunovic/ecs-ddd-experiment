@@ -24,6 +24,13 @@ module.exports = {
       to: { path: ['^src/app/', 'node_modules/three'] },
     },
     {
+      name: 'only-bridge-writes-run-view',
+      comment: 'RunView is the rules\' decision; systems read it and send requests to change it.',
+      severity: 'error',
+      from: { pathNot: ['^src/bridge/', '^src/ecs/components/index\\.ts$', '\\.test\\.ts$'] },
+      to: { path: '^src/ecs/components/run-view\\.ts$' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       from: {},

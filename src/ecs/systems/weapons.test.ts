@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { RunViewWritable } from '../components/run-view';
 import {
-  Ammo, Buffs, C, Collider, Durability, Health, Item, RunStatus, RunView, PlayerInput, resetRunState, Slowed,
+  Ammo, Buffs, C, Collider, Durability, Health, Item, RunStatus, PlayerInput, resetRunState, Slowed,
   Transform, Wielder,
 } from '../components';
 import { seedRng } from '../core/rng';
@@ -55,7 +56,7 @@ let b: EntityId;
 beforeEach(() => {
   resetWorld();
   resetRunState();
-  RunView.status = RunStatus.Fighting;
+  RunViewWritable.status = RunStatus.Fighting;
   p = spawnPlayer(0, 0);
   b = spawnBoss(boss(1000), 0, -6);
 });
@@ -117,7 +118,7 @@ describe('durability', () => {
   it('stops wearing once the match is over', () => {
     const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
     equip(p, sword);
-    RunView.status = RunStatus.Lost;
+    RunViewWritable.status = RunStatus.Lost;
     durabilitySystem(seconds(1));
     expect(Durability.value[sword]).toBe(100);
   });
@@ -296,7 +297,7 @@ describe('drops', () => {
   const dropAt = (seed: number) => {
     resetWorld();
     resetRunState();
-    RunView.status = RunStatus.Fighting;
+    RunViewWritable.status = RunStatus.Fighting;
     for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
     spawnPlayer(0, 12);
     spawnBoss(boss(1000), 0, -8);
