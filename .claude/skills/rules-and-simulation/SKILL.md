@@ -23,6 +23,15 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 6. **Playtest.** A bot playing headless, with frames to look at. Feel and "it works but it's wrong" only show up here.
 7. **Compare** the prediction with what changed, and explain each miss.
 
+### With a ticket
+
+When a ticket from `game-to-tickets` drives the work (often through Matt Pocock's `implement`):
+
+- The ticket's footprint and invariants are steps 1 and 2: read the code, check them, and say where you disagree before building.
+- A ticket with open questions waits for `game-design-interview`. A trigger found mid-ticket is asked then, and its answer recorded before the ticket closes.
+- Step 4's loop can run through Matt Pocock's `tdd`; the test levels below say which tests a game change needs.
+- Steps 6 and 7 still apply: the ticket's playtest criterion, and its footprint compared with what changed.
+
 ## Where does it live? Ask what reacts
 
 | What reacts | Where it lives | Example |

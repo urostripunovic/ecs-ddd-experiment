@@ -7,4 +7,4 @@ Greybox three.js arena: hand-written ECS for the simulation, a thin pure DDD lay
 - A feature is usually one commit per layer: domain, bridge, ECS, app.
 - Before you finish: `npm run check` (typecheck, tests, zone boundaries) and `npm run build`.
 - Comments explain why, not what.
-- Skills in `.claude/skills/`: `rules-and-simulation` for the mechanics of any change, `game-design-interview` for the design decisions a change leaves open. Ask those; don't assume them.
+- Skills in `.claude/skills/` (see its README for the cycle): `rules-and-simulation` for the mechanics of any change, `game-design-interview` for the design decisions a change leaves open (ask, don't assume), `game-to-tickets` once the prototype is worth building on.

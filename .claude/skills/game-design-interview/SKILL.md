@@ -14,6 +14,7 @@ Code can't decide these; the game's designer does, and the answer differs betwee
 - **Find the case before asking.** Read the code, or reproduce it in a quick test, so the question is about something real.
 - **If the user is away**, take the proposal, build it, and say in one line which answer you assumed.
 - **If Matt Pocock's `grilling` skill is installed**, run the questions through it instead of a second interviewer.
+- **With tickets:** a ticket's open questions are asked before it's picked up, and it stays blocked until they're answered. A question found mid-ticket is asked then, and recorded before the ticket closes.
 
 ## Where the answers go
 
