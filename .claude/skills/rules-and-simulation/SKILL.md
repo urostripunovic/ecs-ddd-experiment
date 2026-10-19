@@ -17,7 +17,7 @@ The simulation is the default. Most features never touch the rules, and that is 
 
 Do these, in order, and write the first two down where the reviewer will see them (the PR, or a message before you start).
 
-1. **Predict the footprint.** List the files you expect to change, per layer (rules, seam, simulation, app, docs), and which existing tests you expect to break and why. After the change, compare. A miss is fine; an unexplained miss is a review question.
+1. **Predict the footprint, after reading the code you'll touch.** List the files you expect to change, per layer (rules, seam, simulation, app, docs), and which existing tests you expect to break and why. After the change, compare. A miss is fine; an unexplained miss is a review question. A guess made before reading is a different, worse number; if you must give one early, say it's a guess.
 2. **List the invariants the change touches.** Things that must stay true, for example: "an item is in exactly one state", "one writer per field", "nothing spawns unless fighting", "a new level is built from rules state plus the declared run-lifetime values". If a change touches an invariant, it gets a test. Check each one against the code before writing it down: an invariant that is only true in your head is worse than none.
 3. **Write the failing test first** for the new behaviour, and check it fails for the right reason. A test that passes before the change proves nothing.
 4. **Build layer by layer**, one commit per layer: rules, seam, simulation, app, docs. Each commit message says *why*.
@@ -104,6 +104,19 @@ Some rules can't be types: "deadlines only through `after()`", "seconds become t
 When a test passes from the start because it guards against future mistakes, break the code on purpose once (misdeclare a field's lifetime) and watch it fail.
 
 A new test must fail before the change. Check thresholds against the right base (relative rules need relative tests), and count only what the test means (*my* bullet, not all bullets).
+
+## Where this goes wrong
+
+Each of these happened at least once while building the reference game.
+
+- **Describing behaviour from memory.** Before moving or changing an effect ("make the jump slow you, not the roar"), find what causes it today and the test that pins it. If there is no test, write one first; the change is otherwise unverifiable.
+- **Claims about the type system.** A brand survives assignment and parameters, not arithmetic: the sum of two durations is a plain number until it reaches a typed parameter. Prove a claim with a `@ts-expect-error` line instead of asserting it.
+- **Typed arrays strip brands.** Re-brand a value read from one with the checking constructor where it's used (`ticks(Slam.slowFor[e])`), not with a cast.
+- **Constructor names collide with locals.** `const hp = Health.hp[b]` hides `hp()`. Name the local for what it means (`before`).
+- **Source-scanning tests start with a false positive.** Check the path format the scanner sees, and exclude legitimate matches (`world.tick++` is the clock, not a deadline).
+- **Edits by line number go stale** as soon as an import is added above. Edit by content.
+- **Layer commits can't each build** when a lower layer changes a signature the next one calls. Say so in the commit message, or keep the old signature for one commit.
+- **The bot is code too.** When a playtest goes badly, check whether the game or the bot failed before tuning the game.
 
 ## Review checklist
 

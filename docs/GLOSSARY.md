@@ -23,7 +23,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Wielder** | ECS | Something that holds one item. Empty hands (`NO_HANDLE`) fight with fists. |
 | **Durability** | ECS | Wear left on a sword or spear: drops per connecting swing, per throw hit, and over time while held. At 0 the item breaks. |
 | **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
-| **Slowed** | ECS | The slam's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. |
+| **Slowed** | ECS | A jump landing's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. How long a slam slows is its `slowFor`; the stamp's is 0. |
 | Press counters | app → ECS | `PlayerInput.throwReleases` and `interactPresses` only count up (written by the app); `Wielder.throwSeen` and `interactSeen` record what the ECS has acted on. One writer per field, no lost or doubled inputs. |
 | **Seed** | ECS | Fixes the RNG for drops, so a run replays exactly. `?seed=N` in the URL. |
 | **Action** | ECS | One boss attack: slam, cone, burst or jump. One at a time; `BossAction` holds the current one and the last one. |
@@ -36,7 +36,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Cutscene** | ECS | A tick deadline during which the player can't move, attack, throw or pick up (`controlsLocked()`). |
 | **Shake** | ECS → app | Camera trauma 0..1, decayed per tick in the simulation; the wobble is drawn by the renderer and never fed back. |
 | **Knockback** | ECS | A shove in m/s until a tick, in its own field; `inputSystem` adds it, staying the only writer of player velocity. |
-| **Invulnerable** | ECS | Hits flash but take no hp. The boss during its roar. |
+| **Invulnerable** | ECS | Hits flash but take no hp. The boss during its roar (a tag); the player while dodging (the `Dodge.until` deadline). `hurt()` combines both. |
+| **Dodge** | ECS | Shift: a 12-tick dash at a direction fixed when it starts, invulnerable throughout, passing through the boss but not pillars. A press counter like throwing; a press during the cooldown or a cutscene is dropped. |
 | **Tunnel** | ECS | The corridor through the north wall, open only while the arena is cleared. Walking past its end sends `TunnelEntered`, latched by `TunnelPending` until the run answers. |
 | **Perch** | ECS | A pillar an arena's boss starts on top of (`Jump.fromHeight`); its first move is to drop in, during a short cutscene. |
 | **Spawn projection** | bridge | `buildArena(arena, loadout)`: the whole ECS world rebuilt from domain state. Arena 1 and every arena after it use the same path. |

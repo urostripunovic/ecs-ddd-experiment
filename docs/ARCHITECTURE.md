@@ -21,10 +21,10 @@ Written down in `src/app/loop.ts`:
 
 1. `snapshotSystem`: copy position to previous position, for render interpolation
 2. `shakeSystem`: camera trauma decays (the wobble itself is drawn by the renderer)
-3. `inputSystem`: `PlayerInput` → player velocity, scaled by haste and slow, plus knockback; zero during a cutscene
+3. `inputSystem`: a new dodge press starts a dash (unless cooling down or in a cutscene); a dash sets the velocity outright; otherwise `PlayerInput` → velocity, scaled by haste and slow, plus knockback; zero during a cutscene
 4. `bossPhaseSystem`: sample the damage the boss took this second, then start or step the coroutine for its current `BossPhase`
 5. `movementSystem`
-6. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped)
+6. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped; a dodging player passes through the boss)
 7. `heldFollowSystem`: held items sit at their wielder
 8. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
 9. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
@@ -33,7 +33,7 @@ Written down in `src/app/loop.ts`:
 12. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
 13. `projectileCollisionSystem`: bullets stop on pillars and walls
 14. `projectileSystem`: bullets damage the other team, and fly under anything airborne
-15. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hits, and knocks stuck items loose
+15. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hurts if the slam says so (only jump landings do), and knocks stuck items loose
 16. `durabilitySystem`: held items decay over time; anything at 0 breaks
 17. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
 18. `hurtFlashSystem`
