@@ -112,7 +112,7 @@ export const PlayerInput = {
 };
 // A read model of the domain's run, written only by the run projector and the
 // spawn projection. Cleared: the boss is down, the tunnel may be open, and
-// nothing spawns; the player still moves.
+// nothing spawns or hurts; the player still moves.
 export const RunStatus = { Fighting: 0, Won: 1, Lost: 2, Cleared: 3 } as const;
 export const RunView = { status: 0 as number, endedAt: 0, arena: 1, arenas: 1, tunnelOpen: false };
 export const Arena = { half: 20 };
