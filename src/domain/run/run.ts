@@ -41,8 +41,12 @@ export const initialRun = (arenas: number): RunState =>
 export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
   switch (cmd.kind) {
     case 'PlayerDowned':
-      // First outcome wins: a trade on the same tick never flips a finished arena.
-      return s.status === 'Fighting' ? [{ kind: 'RunLost', player: cmd.player, tick: cmd.tick }] : NO_EVENTS;
+      // Lost while the run is still going, including in a cleared arena: whether
+      // you can be hurt there is the simulation's design choice, and the run must
+      // answer either way. Once won or lost, the first outcome stands.
+      return s.status === 'Fighting' || s.status === 'Cleared'
+        ? [{ kind: 'RunLost', player: cmd.player, tick: cmd.tick }]
+        : NO_EVENTS;
     case 'BossCleared':
       if (s.status !== 'Fighting') return NO_EVENTS;
       return s.arena < s.arenas

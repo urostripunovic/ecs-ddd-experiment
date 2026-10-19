@@ -47,9 +47,10 @@ describe('run', () => {
     expect(decide({ kind: 'BossCleared', boss: BOSS, tick: t(42) }, lost)).toHaveLength(0);
   });
 
-  // R8: the title card has shown, so the clear stands.
-  it('going down after the clear changes nothing: the clear stands', () => {
+  // R8: unreachable while the simulation stops damage after a clear, but answered
+  // anyway, so that design can change without leaving the run stuck.
+  it('going down after the clear still loses the run', () => {
     const cleared = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
-    expect(decide({ kind: 'PlayerDowned', player: PLAYER, tick: t(530) }, cleared)).toHaveLength(0);
+    expect(run(cleared, { kind: 'PlayerDowned', player: PLAYER, tick: t(530) })).toMatchObject({ status: 'Lost', endedAt: t(530) });
   });
 });
