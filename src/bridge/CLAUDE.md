@@ -4,7 +4,8 @@ The only folder that imports both `domain/` and `ecs/`. Never imports `app/` or 
 
 - One folder per bounded context, mirroring `domain/<context>/`: `commands.ts` (outbox slot → domain command), `projector.ts` (domain event → component writes), `flow.test.ts` (seam test: command in, component values out).
 - Projectors write components and never send commands. Any new command comes from the simulation on the next tick, so loops are bounded by the tick.
-- Cross-context reactions are process managers (e.g. `matchCommandFromBoss`), run by `dispatch.ts` with a fixed maximum depth.
+- Cross-context reactions are process managers (e.g. `runCommandFromBoss`), run by `dispatch.ts` with a fixed maximum depth.
 - Entity handles ↔ domain IDs only through `id-map.ts`. Check `isLive` before writing to a handle: the entity may have died this tick.
 - Every chain step goes through `logChain` so the dev tick log shows command → event → component write.
+- A projector never rebuilds the world itself; it records the request (`takePendingArena`), and `dispatch.ts` builds after the step.
 - The outbox itself lives in `ecs/core/outbox.ts` so `ecs/` never imports `bridge/`; `dispatch.ts` drains it.
