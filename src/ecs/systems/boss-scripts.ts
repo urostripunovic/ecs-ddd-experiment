@@ -24,9 +24,6 @@ const BURST_SPEED = 12;
 const AIMED_SPEED = 16;
 // Beyond this the slam can't reach, so the boss answers from range instead.
 const SLAM_RANGE = 6.5;
-// A jump is a light hit: its threat is the slow and the repositioning, not the damage.
-const JUMP_DMG = hp(12);
-const JUMP_RADIUS = meters(3);
 const EVADE_DISTANCE = 8;
 // Losing more than this share of max hp in a second makes it jump clear,
 // at most once per cooldown, so it can't hide in the air.
@@ -37,10 +34,15 @@ const HURRY_BELOW = share(0.25);
 const ENEMY_BULLET_DMG = hp(10);
 const ENEMY_BULLET_LIFE = seconds(4);
 
-type SlamDef = { readonly windup: Ticks; readonly radius: Meters; readonly dmg: Hp };
-const PHASE_ONE_SLAM: SlamDef = { windup: ticks(42), radius: meters(4.5), dmg: hp(30) };
+// slowFor: how long the hit slows whoever it lands on.
+type SlamDef = { readonly windup: Ticks; readonly radius: Meters; readonly dmg: Hp; readonly slowFor: Ticks };
+// The stamp hits hard but doesn't slow: its answer is to dodge through it.
+const PHASE_ONE_SLAM: SlamDef = { windup: ticks(42), radius: meters(4.5), dmg: hp(30), slowFor: ticks(0) };
 // Faster and wider: phase 2 punishes standing close.
-const PHASE_TWO_SLAM: SlamDef = { windup: ticks(30), radius: meters(5.5), dmg: hp(30) };
+const PHASE_TWO_SLAM: SlamDef = { windup: ticks(30), radius: meters(5.5), dmg: hp(30), slowFor: ticks(0) };
+// A jump is a light hit: its threat is the slow and the repositioning, not the damage.
+// The windup is the flight, so the telegraph fills while it's in the air.
+const JUMP_SLAM: SlamDef = { windup: JUMP_AIR, radius: meters(3), dmg: hp(12), slowFor: inTicks(seconds(1)) };
 
 function findPlayer(): EntityId | -1 {
   return query(scriptBuf, LIVE_PLAYERS, C.Dead) > 0 ? entityAt(scriptBuf, 0) : -1;
@@ -83,10 +85,11 @@ function* strafe(boss: EntityId, length: Ticks, speed: number, dir: 1 | -1): Scr
   stop(boss);
 }
 
-function startSlam(boss: EntityId, x: number, z: number, windup: Ticks, radius: Meters, dmg: Hp): void {
-  Slam.timer[boss] = Slam.windup[boss] = windup;
-  Slam.radius[boss] = radius;
-  Slam.dmg[boss] = dmg;
+function startSlam(boss: EntityId, x: number, z: number, def: SlamDef): void {
+  Slam.timer[boss] = Slam.windup[boss] = def.windup;
+  Slam.radius[boss] = def.radius;
+  Slam.dmg[boss] = def.dmg;
+  Slam.slowFor[boss] = def.slowFor;
   Slam.x[boss] = x;
   Slam.z[boss] = z;
   add(boss, C.Slam);
@@ -96,7 +99,7 @@ function startSlam(boss: EntityId, x: number, z: number, windup: Ticks, radius: 
 function* slam(boss: EntityId, def: SlamDef): Script {
   yield* begin(boss, Action.Slam);
   stop(boss);
-  startSlam(boss, Transform.x[boss], Transform.z[boss], def.windup, def.radius, def.dmg);
+  startSlam(boss, Transform.x[boss], Transform.z[boss], def);
   yield* waitTicks(def.windup);
   finish(boss);
 }
@@ -197,7 +200,7 @@ function* jump(boss: EntityId, mode: JumpMode): Script {
   Velocity.x[boss] = (tx - Transform.x[boss]) / flight;
   Velocity.z[boss] = (tz - Transform.z[boss]) / flight;
   add(boss, C.Airborne);
-  startSlam(boss, tx, tz, JUMP_AIR, JUMP_RADIUS, JUMP_DMG);
+  startSlam(boss, tx, tz, JUMP_SLAM);
   Jump.airStart[boss] = world.tick;
   Jump.landAt[boss] = after(JUMP_AIR);
   yield* waitTicks(JUMP_AIR);

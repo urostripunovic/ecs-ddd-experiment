@@ -51,6 +51,13 @@ export const BuffPickup = { kind: new Uint8Array(MAX) };
 // whoever needs the effect, and nothing has to decrement them.
 export const Buffs = { hasteUntil: new Uint32Array(MAX), furyUntil: new Uint32Array(MAX) };
 export const Slowed = { until: new Uint32Array(MAX), factor: new Float32Array(MAX) };
+// A dash. until: when it ends; readyAt: when the next may start; x/z: its
+// direction, fixed at the start. seen: the PlayerInput.dodgePresses this player
+// has acted on, so a press is never lost or doubled (see Wielder.throwSeen).
+export const Dodge = {
+  until: new Uint32Array(MAX), readyAt: new Uint32Array(MAX),
+  x: new Float32Array(MAX), z: new Float32Array(MAX), seen: new Int32Array(MAX),
+};
 // A shove in m/s until a tick. Its own field: inputSystem stays the only
 // writer of a player's velocity and adds this on top.
 export const Knockback = { x: new Float32Array(MAX), z: new Float32Array(MAX), until: new Uint32Array(MAX) };
@@ -72,6 +79,8 @@ export const Slam = {
   timer: new Uint16Array(MAX), windup: new Uint16Array(MAX),
   radius: new Float32Array(MAX), dmg: new Float32Array(MAX),
   x: new Float32Array(MAX), z: new Float32Array(MAX),
+  // Ticks the hit slows whoever it lands on; 0 = no slow.
+  slowFor: new Uint16Array(MAX),
 };
 // The one action a boss is doing (see systems/boss-actions.ts). last* is what
 // it did before, so the chain-gap table can decide when the next may start.
@@ -95,11 +104,11 @@ export const ShapeKind = {
 export const Shape = { kind: new Uint8Array(MAX) };
 
 // Singletons: one local player, one match, one arena.
-// throwReleases/interactPresses only ever count up (see Wielder.throwSeen).
+// throwReleases/interactPresses/dodgePresses only ever count up (see Wielder.throwSeen).
 // throwHeld charges the gauge; the release is what throws.
 export const PlayerInput = {
   moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
-  throwHeld: false, throwReleases: 0, interactPresses: 0,
+  throwHeld: false, throwReleases: 0, interactPresses: 0, dodgePresses: 0,
 };
 // A read model of the domain's run, written only by the run projector and the
 // spawn projection. Cleared: the boss is down, the tunnel may be open, and
@@ -121,7 +130,7 @@ export const Stock = { respawnAt: new Uint32Array(4) };
 // in two, so a new singleton can't silently leak from one arena into the next.
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
-  Slowed, Knockback, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
+  Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
   Stock,
 };
 // The input counters must keep counting (a new player starts caught up with

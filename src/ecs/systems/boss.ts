@@ -2,7 +2,7 @@ import { BossPhase, C, Health, RunStatus, RunView, Pressure, Slam, Slowed, Trans
 import { buf, scriptBuf } from '../core/buffers';
 import { send } from '../core/outbox';
 import type { Script } from '../core/script';
-import { after, inTicks, seconds, share, shareOf } from '../core/units';
+import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
 import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
 import { phaseOne, phaseTwo } from './boss-scripts';
@@ -10,7 +10,6 @@ import { releaseStuck } from './weapons';
 
 // Sensor config, not a rule: the domain decides what crossing it means.
 export const PHASE_TWO_AT = share(0.5);
-const SLAM_SLOW = inTicks(seconds(1));
 // Damage is sampled over this window, so a burst of hits reads as pressure but chip damage doesn't.
 const PRESSURE_WINDOW = inTicks(seconds(1));
 const SLAM_SLOW_FACTOR = 0.5;
@@ -53,7 +52,7 @@ export function bossPhaseSystem(): void {
   }
 }
 
-// reads Slam, Transform | writes Slam, Health and Slowed of players in range; shakes loose stuck items
+// reads Slam, Transform | writes Slam, Health and (if the slam slows) Slowed of players in range; shakes loose stuck items
 export function slamSystem(): void {
   const n = query(buf, SLAMMERS, C.Dead);
   for (let i = 0; i < n; i++) {
@@ -71,9 +70,9 @@ export function slamSystem(): void {
       const dz = Transform.z[p] - Slam.z[e];
       const r = Slam.radius[e];
       if (dx * dx + dz * dz > r * r) continue;
-      hurt(p, Slam.dmg[e], toHandle(e));
+      if (!hurt(p, Slam.dmg[e], toHandle(e)) || Slam.slowFor[e] === 0) continue;
       // The only writer of Slowed: a buff can change speed too, but through its own field.
-      Slowed.until[p] = after(SLAM_SLOW);
+      Slowed.until[p] = after(ticks(Slam.slowFor[e]));
       Slowed.factor[p] = SLAM_SLOW_FACTOR;
     }
   }

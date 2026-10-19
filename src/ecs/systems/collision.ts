@@ -2,6 +2,7 @@ import { TUNNEL } from '../arenas';
 import { Arena, C, Collider, RunView, Transform } from '../components';
 import { buf, solidBuf } from '../core/buffers';
 import { despawn, entityAt, has, mask, query } from '../core/world';
+import { dodging } from './status';
 
 const BODIES = mask(C.Transform, C.Velocity, C.Collider);
 // Mid-jump the boss passes over pillars and the player, instead of being shoved by them.
@@ -10,7 +11,7 @@ const SOLID_EXCLUDE = mask(C.Dead, C.Airborne);
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
 const PROJECTILES = mask(C.Transform, C.Projectile);
 
-// reads Collider, Solid, Arena, RunView.tunnelOpen | writes Transform
+// reads Collider, Solid, Arena, RunView.tunnelOpen, Dodge | writes Transform
 // Circles only: the arena is a greybox, and circle push-out never snags on corners.
 export function bodyCollisionSystem(): void {
   const solids = query(solidBuf, SOLIDS, SOLID_EXCLUDE);
@@ -21,7 +22,8 @@ export function bodyCollisionSystem(): void {
 
     for (let j = 0; j < solids; j++) {
       const s = entityAt(solidBuf, j);
-      if (s === e) continue;
+      // A dodge rolls through the boss, so its body can't pin you under a stamp. Pillars still stop it.
+      if (s === e || (has(s, C.Boss) && dodging(e))) continue;
       const dx = Transform.x[e] - Transform.x[s];
       const dz = Transform.z[e] - Transform.z[s];
       const min = r + Collider.radius[s];

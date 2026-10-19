@@ -1,5 +1,5 @@
 import {
-  Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, PlayerInput, Pressure, Projectile, Shape, ShapeKind,
+  Ammo, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, PlayerInput, Pressure, Projectile, Shape, ShapeKind,
   Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
 import type { BossDef } from './bosses/defs';
@@ -39,6 +39,7 @@ export function spawnPlayer(x: number, z: number): EntityId {
   // (a previous arena) aren't replayed as a throw the moment it spawns.
   Wielder.throwSeen[e] = PlayerInput.throwReleases;
   Wielder.interactSeen[e] = PlayerInput.interactPresses;
+  Dodge.seen[e] = PlayerInput.dodgePresses;
   Team.id[e] = TeamId.Player;
   Collider.radius[e] = 0.45;
   Shape.kind[e] = ShapeKind.Player;
