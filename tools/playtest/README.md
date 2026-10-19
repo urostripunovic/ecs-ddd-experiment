@@ -9,6 +9,12 @@ python3 tools/playtest/record.py /tmp/frames 45 "http://localhost:5173/?bossHp=9
 ffmpeg -framerate 30 -i /tmp/frames/f%04d.jpg -c:v libx264 -pix_fmt yuv420p playtest.mp4
 ```
 
+To start somewhere specific, pass dev commands (the same ones the god menu sends) as a fourth argument:
+
+```sh
+python3 tools/playtest/record.py /tmp/frames 30 "http://localhost:5173/" '[{"kind":"jump","to":"arena2Phase2"}]'
+```
+
 The recorder prints a status line every second (tick, run status, hp, held weapon, boss action), which is usually enough to see what went wrong before opening the frames.
 
 - `record.py` is generic apart from its `probe`, which reads this game's components; change the probe for another game.

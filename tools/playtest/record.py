@@ -4,6 +4,9 @@ from playwright.sync_api import sync_playwright
 
 out, seconds, fps = sys.argv[1], float(sys.argv[2]), 30
 url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:5173/"
+# Optional: dev commands to send before playing, e.g. '[{"kind":"jump","to":"arena2Phase2"}]',
+# so a playtest can start where the change is instead of playing up to it.
+start = json.loads(sys.argv[4]) if len(sys.argv) > 4 else []
 os.makedirs(out, exist_ok=True)
 bot = open(os.path.join(os.path.dirname(__file__), "bot.js")).read()
 probe = """async () => { const c = await import('/src/ecs/components/index.ts'); const w = await import('/src/ecs/core/world.ts');
@@ -26,6 +29,13 @@ with sync_playwright() as p:
     pg.clock.pause_at(pg.evaluate("Date.now()") + 50)
     pg.clock.run_for(500)
     cdp = pg.context.new_cdp_session(pg)
+    if start:
+        # The dev commands load on demand; wait for them without the page's (frozen) timers.
+        for _ in range(100):
+            if pg.evaluate("!!window.__dev"):
+                break
+            time.sleep(0.1)
+        pg.evaluate("cmds => cmds.forEach(c => window.__dev.queue(c))", start)
     pg.evaluate(bot)
     pg.keyboard.press("Backquote")
     t0 = time.time()
