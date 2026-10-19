@@ -4,10 +4,9 @@ The same idea can live at both levels under different names. Keep them apart.
 
 | Term | Level | Meaning |
 | --- | --- | --- |
-| **Phase** | domain (`domain/boss`) | Which stage of the fight the boss is in (1 or 2). Saved truth. Changes only through `evolve`. |
-| `BossPhase.phase` | ECS component | Projected copy of the phase. Written only by the boss projector. |
-| `BossPhase.running` | ECS component | Which phase's coroutine the ECS has started. 0 after a load, so choreography restarts. |
-| **Threshold crossed** | ECS → command | The boss's hp fell to the phase-2 share. A request; the domain decides what it means. |
+| **Phase** | ECS (`BossPhase.phase`) | Which stage of the fight the boss is in (1 or 2). Written only by `bossThresholdSystem`: phase 2 at half hp, once. Not a rule, because nothing outside the fight reacts to it. |
+| `BossPhase.running` | ECS component | Which phase's coroutine the ECS has started, so a new phase starts its choreography from the top. |
+| **Defeated** | domain (`domain/boss`) | The boss's lifecycle: alive, then defeated, once. The run reacts to it. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |

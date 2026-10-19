@@ -5,10 +5,12 @@ description: Design and change games (or any real-time system) built as a fast s
 
 # Rules and simulation
 
+The simulation is the world. The rules are fate. The bridge is how fate shows up in the world.
+
 A game built this way has two halves and one seam between them:
 
 - **The simulation** runs every tick: movement, collision, attacks, timers, animation state. Flat data, plain systems, a fixed tick order.
-- **The rules** decide what is *true* in a way that matters beyond the next tick: which level you're on, whether a fight is won, what you carry, anything a save would hold. Pure functions, no engine, no clock but the tick.
+- **The rules** decide what is *true* in a way that matters beyond the next tick: which level you're on, whether a fight is won, what you carry. Pure functions, no engine, no clock but the tick.
 - **The seam** (the bridge) turns what the simulation saw into requests to the rules, and the rules' decisions back into plain values the simulation reads.
 
 The simulation is the default. Most features never touch the rules, and that is a good sign.
@@ -33,8 +35,10 @@ For every new piece of state, ask: **what reacts to it?**
 | What reacts | Where it lives | Example |
 | --- | --- | --- |
 | Only the simulation's own maths | simulation | a speed buff, a slow, durability, ammo, a boss's attack pattern |
-| A rule, a save, or another area of the game | rules | which level you're on, a fight won or lost, what carries to the next level |
+| Another area's rules, or a decision a save must not get wrong | rules | which level you're on, a fight won or lost, what carries to the next level |
 | Both, at different levels | split, with different names | a suspicion meter (simulation) that, when full, raises an alert (rules) |
+
+Being saved is not a reaction. Simulation state serializes as well as rules state; a save only says the thing has its own lifetime. The test is whether something else depends on its *rules*.
 
 Start in the simulation. Move something into the rules only when a reaction appears. Moving in later is cheap; moving out is painful.
 
@@ -58,7 +62,7 @@ Plain words are used here; the formal terms are in brackets for people who know 
 - **A rules unit** [aggregate] is the state that must stay consistent together, changed only through two pure functions:
   - `decide(request, state) → facts`
   - `apply(state, fact) → state` [evolve]
-- **Requests and facts are named differently** [commands and events]. Requests are attempts or observations (`TunnelEntered`, `ThresholdCrossed`); facts are decided outcomes, in the past tense (`ArenaEntered`, `PhaseReached`). Only the rules produce facts.
+- **Requests and facts are named differently** [commands and events]. Requests are attempts or observations (`TunnelEntered`, `BossDowned`); facts are decided outcomes, in the past tense (`ArenaEntered`, `BossDefeated`). Only the rules produce facts.
 - **Every request that waits for an answer gets exactly one,** yes or no. A refusal is a fact (`TunnelRefused`), because something on the simulation side is usually waiting on it. "No facts" only means "already answered".
 - **One area reacts to another through a follow-up** [process manager]: a fact in one area becomes a request in another (`BossDefeated` → `BossCleared` for the run), never one area reaching into another's state.
 - **Time arrives as a request.** Deadlines are stored as ticks, never counted down. The only clock is the tick, never wall time.
@@ -92,7 +96,7 @@ Tests for the rules: given a state and a request, expect these facts, one per ex
 
 - **The outbox lives on the simulation side**, so the simulation never imports the seam; the seam drains it once per tick.
 - **The rules run once per tick, synchronously,** after the simulation and before rendering, so a decision is applied before anything is drawn.
-- **Projections write plain values** into components the simulation reads (`RunView`, `BossPhase`). They never send requests, so loops are bounded by the tick.
+- **Projections write plain values** into components the simulation reads (`RunView`). They never send requests, so loops are bounded by the tick. Only the seam writes them: the simulation owns the component, so the boundary lint can't see a system writing it, and a source scan test does. A system that wants the rules to change sends a request.
 - **A level is built from rules state plus the declared run-lifetime values** [spawn projection], by one function used for the first level and every one after it. That's also what a save/load would use. Rebuilding the world waits until the rules step has finished. Some simulation state honestly lives for the whole run (the tick, the seeded RNG's position, input counters, handle generations); list it, rather than pretend nothing crosses. Build from **every** rules state, not only the ones play reaches when entering a level: a level loaded after its boss died has the boss down and the exit open. Otherwise the first save feature resurrects the boss while the rules say it's dead.
 - **Identity mapping lives only here**: handle ↔ stable ID.
 - **A dev-only log records each chain**: request → fact → what was written. It answers "where did this come from?" without a debugger.
@@ -100,7 +104,7 @@ Tests for the rules: given a state and a request, expect these facts, one per ex
 
 ## Saves
 
-A save is the rules state, plus the RNG's position if a loaded run must replay exactly. Where the player restarts from (from scratch, a checkpoint on entering a level, or wherever they were) is a design choice that changes between games and while iterating. Make it in one place: which rules state the save takes, and when. Loading is the spawn projection, never a second path.
+A save holds the rules state, plus the RNG's position if a loaded run must replay exactly, and any simulation state the design wants to keep (a boss's phase mid-fight). Saving simulation state doesn't make it a rule. Where the player restarts from (from scratch, a checkpoint on entering a level, or wherever they were) is a design choice that changes between games and while iterating. Make it in one place: which rules state the save takes, and when. Loading is the spawn projection, never a second path.
 
 ## Tests, in four levels
 
@@ -126,6 +130,8 @@ Each of these happened at least once while building the reference game.
 - **Source-scanning tests start with a false positive.** Check the path format the scanner sees, and exclude legitimate matches (`world.tick++` is the clock, not a deadline).
 - **Edits by line number go stale** as soon as an import is added above. Edit by content.
 - **Layer commits can't each build** when a lower layer changes a signature the next one calls. Say so in the commit message, or keep the old signature for one commit.
+- **Restoring a deliberately broken file from git** throws away the uncommitted work in it. Copy the file aside before breaking it, and restore from the copy.
+- **Same-tick order is a decision.** Two deaths in one tick reach the rules in system and spawn order. If the outcome depends on that order, the game has a rule nobody chose. Choose it, and test both orders.
 - **The bot is code too.** When a playtest goes badly, check whether the game or the bot failed before tuning the game.
 
 ## Review checklist

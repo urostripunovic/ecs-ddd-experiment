@@ -6,7 +6,7 @@ A hand-written ECS runs the real-time simulation; a thin, pure DDD layer owns th
 
 | Zone | Owns | May import |
 | --- | --- | --- |
-| `src/domain/` | Rules and saved truth: boss phase and defeat; the run (arena, cleared, won, lost, what carries over) | nothing else in `src/` |
+| `src/domain/` | Rules: a boss's defeat; the run (arena, cleared, won, lost, what carries over) | nothing else in `src/` |
 | `src/ecs/` | Simulation: movement, collision, shooting, boss choreography, game feel | nothing else in `src/` |
 | `src/bridge/` | Outbox → commands, decide/evolve dispatch, projectors, id map, tick log, spawn projection | `domain/`, `ecs/` |
 | `src/app/` | Fixed-timestep loop, three.js rendering, input, HUD | everything |
@@ -38,7 +38,7 @@ Written down in `src/app/loop.ts`:
 17. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
 18. `hurtFlashSystem`
 19. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
-20. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
+20. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
 21. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
 22. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
 23. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
@@ -47,7 +47,6 @@ Written down in `src/app/loop.ts`:
 ## The chains in this slice
 
 ```
-BossThresholdCrossed(warden) → BossPhaseReached(2) → BossPhase=2, PhasePending cleared
 EntityDowned(boss)           → BossDefeated → (follow-up) BossCleared → ArenaCleared → RunView=Cleared, tunnel open
 TunnelEntered(player)        → ArenaEntered(2, loadout) → arena 2 built from the run's state (after the step)
 TunnelEntered, not cleared   → TunnelRefused → latch released
@@ -71,10 +70,12 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 | R6 | run | Fighting | `PlayerDowned` | `RunLost` | `run.test`: going down loses |
 | R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | `run.test`: a trade on the same tick |
 | R8 | run | Cleared | `PlayerDowned` | `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | `run.test`: going down after the clear; `transition.test`: nothing hurts you once cleared |
-| B1 | boss | phase 1 | `BossThresholdCrossed` | `BossPhaseReached(2)` | `boss.test`: enters phase 2 |
-| B2 | boss | phase 2 | `BossThresholdCrossed` | none: already answered | `boss.test`: ignores a duplicate |
-| B3 | boss | alive | `BossDowned` | `BossDefeated`, phase kept | `boss.test`: defeated once |
-| B4 | boss | defeated | `BossThresholdCrossed` | none | `boss.test`: no phase change after defeat |
+| R9 | run | Won, this tick | `PlayerDowned` | `RunLost`: if we die, we die. A trade loses whichever death was reported first | `run.test`: a trade with the last boss; `flow.test`: both outbox orders |
+| B1 | boss | (removed: the phase moved to the simulation) | | | |
+| B2 | boss | (removed) | | | |
+| B3 | boss | alive | `BossDowned` | `BossDefeated` | `boss.test`: defeated once |
+| B3b | boss | defeated | `BossDowned` | none: already answered | `boss.test`: defeated once |
+| B4 | boss | (removed) | | | |
 
 R8 was found by asking of each rule whether the simulation can make it wrong anyway: a bullet already in flight when the boss died could still down the player in a cleared arena, leaving the run neither lost nor going on. Two separate fixes: the rules now answer it (you lose), and, as a design choice for this game that may change, the simulation stops damage after a clear. Changing that choice is one line in `hurt()`.
 
@@ -96,7 +97,7 @@ How each action looks is `app/render/boss-pose.ts`, a pure function of the actio
 
 ## The run, and what moved into the domain
 
-The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas are what a save would hold, so they're domain state. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
+The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas have rules other parts depend on (entering the tunnel can be refused, the loadout carries over, the run is won or lost), so they're domain state. That a save would hold them is a hint about their lifetime, not the reason. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
 
@@ -111,7 +112,7 @@ A new arena is built from domain state plus a short, declared list of values tha
 | ever | tags, enums, the arena size | `CONSTANTS` (`ecs/components`) |
 | presentation only | where the camera looks; it snaps when the player is a new entity | `app/render/camera.ts` |
 
-**Saves.** There is no save feature: this demo is a boss rush that restarts from scratch. A save would be the run and boss states, plus the RNG's position if a loaded run must replay exactly. Where you restart from is a design choice made in one place: nothing (a boss rush), the run as it was on entering the arena (a checkpoint), or the current state (save anywhere). Building from any of them is already `buildArena`; `bridge/run/load.test.ts` builds a world from each state in the rules examples and checks it agrees with the rules, with the boss down in a cleared arena and the tunnel open.
+**Saves.** There is no save feature: this demo is a boss rush that restarts from scratch. A save would hold the run and boss states, plus the RNG's position if a loaded run must replay exactly. Simulation state serializes just as well (it's plain arrays), so a save mid-fight could keep the boss's phase too, without the phase becoming a rule. Where you restart from is a design choice made in one place: nothing (a boss rush), the run as it was on entering the arena (a checkpoint), or the current state (save anywhere). Building from any of them is already `buildArena`; `bridge/run/load.test.ts` builds a world from each state in the rules examples and checks it agrees with the rules, with the boss down in a cleared arena and the tunnel open.
 
 Two tests hold this. `scope.test.ts` fails if a component or singleton is in no list, or in two. `app/transition.test.ts` plays arena 1 and walks into the tunnel, then builds arena 2 fresh from the same domain state and run values, and expects the same world. Handles are compared by slot, because generations are run-lifetime on purpose: they keep growing so stale handles stay stale.
 
@@ -125,6 +126,8 @@ Deadlines are made only with `after(duration)`, and seconds become ticks only th
 
 ## What stays out of the domain (on purpose)
 
-ECS by default: a concept moves to `domain/` only when a rule, a save or another context reacts to it.
+ECS by default: a concept moves to `domain/` only when something outside the simulation depends on its rules: another area, or a decision a save must not get wrong.
 
-Hit points, bullets, slam timing and radius, ammo and reload, pillars, the boss's movement, the whole weapons slice (drops, pickup and swap, durability, throwing, stuck weapons, buffs, the slam slow) and the boss's actions, chain gaps, jumps and evading. They change every tick or only feed the simulation's own maths, so they are ECS. The phase is domain state (it would be saved), and the choreography inside it is an ECS coroutine that restarts from the top on load.
+Hit points, bullets, slam timing and radius, ammo and reload, pillars, the boss's movement, the whole weapons slice (drops, pickup and swap, durability, throwing, stuck weapons, buffs, the slam slow) and the boss's actions, chain gaps, jumps and evading. They change every tick or only feed the simulation's own maths, so they are ECS.
+
+**The boss's phase moved out of the domain.** It started there because the source doc used it as the example, and it never passed the "what reacts?" test: every reader is simulation or display (the choreography, the boss's colour, the HUD), and the rule ("phase 2 at half hp, once") always said yes. The domain keeps the boss's lifecycle, alive then defeated, because the run reacts to the defeat. If a checkpoint mid-fight or a story beat ever reacts to phase 2, it comes back.
