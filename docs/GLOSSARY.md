@@ -9,8 +9,9 @@ The same idea can live at both levels under different names. Keep them apart.
 | `BossPhase.running` | ECS component | Which phase's coroutine the ECS has started. 0 after a load, so choreography restarts. |
 | **Threshold crossed** | ECS → command | The boss's hp fell to the phase-2 share. A request; the domain decides what it means. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
-| **Match** | domain (`domain/match`) | Whether the fight is `Fighting`, `Won` or `Lost`. |
-| `MatchView` | ECS singleton | Projected copy of the match status that systems and the HUD read. |
+| **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
+| **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
+| `RunView` | ECS singleton | Projected copy of the run (status, arena, whether the tunnel is open) that systems and the HUD read. Written only by the run projector and the spawn projection. |
 | **Command** | bridge | Something the simulation asks the domain, e.g. `BossDowned`. Imperative or attempt. |
 | **Domain event** | domain | A fact the domain decided, e.g. `BossDefeated`. Past tense. |
 | **Projector** | bridge | Turns a domain event into component writes. Never sends commands. |
@@ -36,3 +37,6 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Shake** | ECS → app | Camera trauma 0..1, decayed per tick in the simulation; the wobble is drawn by the renderer and never fed back. |
 | **Knockback** | ECS | A shove in m/s until a tick, in its own field; `inputSystem` adds it, staying the only writer of player velocity. |
 | **Invulnerable** | ECS | Hits flash but take no hp. The boss during its roar. |
+| **Tunnel** | ECS | The corridor through the north wall, open only while the arena is cleared. Walking past its end sends `TunnelEntered`, latched by `TunnelPending` until the run answers. |
+| **Perch** | ECS | A pillar an arena's boss starts on top of (`Jump.fromHeight`); its first move is to drop in, during a short cutscene. |
+| **Spawn projection** | bridge | `buildArena(arena, loadout)`: the whole ECS world rebuilt from domain state. Arena 1 and every arena after it use the same path. |

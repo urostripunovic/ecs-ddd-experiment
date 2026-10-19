@@ -6,7 +6,7 @@ A hand-written ECS runs the real-time simulation; a thin, pure DDD layer owns th
 
 | Zone | Owns | May import |
 | --- | --- | --- |
-| `src/domain/` | Rules and saved truth: boss phase and defeat, match outcome | nothing else in `src/` |
+| `src/domain/` | Rules and saved truth: boss phase and defeat; the run (arena, cleared, won, lost, what carries over) | nothing else in `src/` |
 | `src/ecs/` | Simulation: movement, collision, shooting, boss choreography, game feel | nothing else in `src/` |
 | `src/bridge/` | Outbox → commands, decide/evolve dispatch, projectors, id map, tick log, spawn projection | `domain/`, `ecs/` |
 | `src/app/` | Fixed-timestep loop, three.js rendering, input, HUD | everything |
@@ -24,7 +24,7 @@ Written down in `src/app/loop.ts`:
 3. `inputSystem`: `PlayerInput` → player velocity, scaled by haste and slow, plus knockback; zero during a cutscene
 4. `bossPhaseSystem`: sample the damage the boss took this second, then start or step the coroutine for its current `BossPhase`
 5. `movementSystem`
-6. `bodyCollisionSystem`: circles against solids, clamp to the arena (an airborne boss is skipped)
+6. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped)
 7. `heldFollowSystem`: held items sit at their wielder
 8. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
 9. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
@@ -39,16 +39,20 @@ Written down in `src/app/loop.ts`:
 18. `hurtFlashSystem`
 19. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
 20. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
-21. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-22. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus process managers
-23. render (once per frame, interpolated between the last two ticks)
+21. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
+22. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+23. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
+24. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
 ```
 BossThresholdCrossed(warden) → BossPhaseReached(2) → BossPhase=2, PhasePending cleared
-EntityDowned(boss)           → BossDefeated → (process manager) BossCleared → MatchWon → MatchView=Won
-EntityDowned(player)         → PlayerDowned → MatchLost → MatchView=Lost
+EntityDowned(boss)           → BossDefeated → (follow-up) BossCleared → ArenaCleared → RunView=Cleared, tunnel open
+TunnelEntered(player)        → ArenaEntered(2, loadout) → arena 2 built from the run's state (after the step)
+TunnelEntered, not cleared   → TunnelRefused → latch released
+EntityDowned(boss), arena 2  → BossDefeated → BossCleared → RunWon → RunView=Won
+EntityDowned(player)         → PlayerDowned → RunLost → RunView=Lost
 ```
 
 In `npm run dev`, press <kbd>`</kbd> in game to watch these in the tick log.
@@ -68,6 +72,14 @@ The **roar** is a short cutscene: the boss rears up, then roars; the camera shak
 A jump is crouch, flight and a landing slam at a spot fixed at take-off. While airborne the boss can't be hit, by bullets, throws or blades. It jumps *away* when it loses more than 6% of its max hp in a second, at most once every 8 s. `boss-actions.test.ts` runs the choreography for thousands of ticks and checks every gap, that nothing fires mid-air, and that the phase 2 chain happens.
 
 How each action looks is `app/render/boss-pose.ts`, a pure function of the action and how far into it the boss is.
+
+## The run, and what moved into the domain
+
+The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas are what a save would hold, so they're domain state. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
+
+Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
+
+"Nothing spawns after the boss dies" needed no new rule: the stock and the buff drops already run only while fighting. The domain sets the mode (`Cleared`); the simulation reads it.
 
 ## What stays out of the domain (on purpose)
 
