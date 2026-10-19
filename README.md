@@ -31,7 +31,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 - **Phase 2** (at 50% hp, decided by the domain) opens with a roar: the screen shakes, you're shoved back if close, and you can't act until it ends. Then radial bursts and cones between strafes, then a cone that rolls straight into a jump, then a faster slam.
 - While it's in the air, nothing hits it. Hurt it fast enough and it jumps away, at most once every 8 seconds.
 - Its jump landing slows you for a second; its stamp hits harder but doesn't slow. Dodge (Shift) through either: for the 0.2 s of the dash nothing hurts you, and you can roll through the Warden itself. 0.75 s cooldown.
-- A run is two arenas. Beat the Warden and the arena is cleared: nothing new spawns, the gate in the north wall sinks, and a dark tunnel opens. Walk into it and you come out in arena 2, with the hp and the weapon you had. There the Warden waits on a pillar and drops in.
+- A run is two arenas. Beat the Warden and the arena is cleared: nothing new spawns, nothing can hurt you any more, the gate in the north wall sinks, and a dark tunnel opens. Walk into it and you come out in arena 2, with the hp and the weapon you had. There the Warden waits on a pillar and drops in.
 - Win by clearing arena 2; lose if you go down in either. The run (which arena, cleared or not, what you carried) is domain state.
 
 ## Weapons

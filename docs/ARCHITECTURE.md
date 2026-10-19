@@ -70,13 +70,13 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 | R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | `run.test`: clearing the last arena |
 | R6 | run | Fighting | `PlayerDowned` | `RunLost` | `run.test`: going down loses |
 | R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | `run.test`: a trade on the same tick |
-| R8 | run | Cleared | `PlayerDowned` | **none, and the player stays dead: the run is stuck.** Open: see below | none yet |
+| R8 | run | Cleared | `PlayerDowned` | none: the clear stands. The simulation also stops all damage outside `Fighting`, so it can't happen | `run.test`: going down after the clear; `transition.test`: nothing hurts you once cleared |
 | B1 | boss | phase 1 | `BossThresholdCrossed` | `BossPhaseReached(2)` | `boss.test`: enters phase 2 |
 | B2 | boss | phase 2 | `BossThresholdCrossed` | none: already answered | `boss.test`: ignores a duplicate |
 | B3 | boss | alive | `BossDowned` | `BossDefeated`, phase kept | `boss.test`: defeated once |
 | B4 | boss | defeated | `BossThresholdCrossed` | none | `boss.test`: no phase change after defeat |
 
-R8 was found by asking of each rule whether the simulation can make it wrong anyway: a bullet already in flight when the boss dies can still down the player in a cleared arena.
+R8 was found by asking of each rule whether the simulation can make it wrong anyway: a bullet already in flight when the boss died could still down the player in a cleared arena, leaving the run neither lost nor going on. The design answer: once the title card for a state change has shown, that change stands.
 
 ## Boss actions
 
