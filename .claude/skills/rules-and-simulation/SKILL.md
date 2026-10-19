@@ -93,15 +93,19 @@ Tests for the rules: given a state and a request, expect these facts, one per ex
 - **The outbox lives on the simulation side**, so the simulation never imports the seam; the seam drains it once per tick.
 - **The rules run once per tick, synchronously,** after the simulation and before rendering, so a decision is applied before anything is drawn.
 - **Projections write plain values** into components the simulation reads (`RunView`, `BossPhase`). They never send requests, so loops are bounded by the tick.
-- **A level is built from rules state plus the declared run-lifetime values** [spawn projection], by one function used for the first level and every one after it. That's also what a save/load would use. Rebuilding the world waits until the rules step has finished. Some simulation state honestly lives for the whole run (the tick, the seeded RNG's position, input counters, handle generations); list it, rather than pretend nothing crosses.
+- **A level is built from rules state plus the declared run-lifetime values** [spawn projection], by one function used for the first level and every one after it. That's also what a save/load would use. Rebuilding the world waits until the rules step has finished. Some simulation state honestly lives for the whole run (the tick, the seeded RNG's position, input counters, handle generations); list it, rather than pretend nothing crosses. Build from **every** rules state, not only the ones play reaches when entering a level: a level loaded after its boss died has the boss down and the exit open. Otherwise the first save feature resurrects the boss while the rules say it's dead.
 - **Identity mapping lives only here**: handle ↔ stable ID.
 - **A dev-only log records each chain**: request → fact → what was written. It answers "where did this come from?" without a debugger.
 - **Boundaries are enforced by a lint**, not by review: the rules import nothing; the simulation imports neither the rules nor the seam.
 
+## Saves
+
+A save is the rules state, plus the RNG's position if a loaded run must replay exactly. Where the player restarts from (from scratch, a checkpoint on entering a level, or wherever they were) is a design choice that changes between games and while iterating. Make it in one place: which rules state the save takes, and when. Loading is the spawn projection, never a second path.
+
 ## Tests, in four levels
 
 1. **Rules:** state + request → facts.
-2. **Seam:** push a request in, assert the component values that come out.
+2. **Seam:** push a request in, assert the component values that come out. And a **load test**: for each state in the examples tables, build a level from it, check the world agrees with the rules, and check nothing asks the rules anything on the first tick.
 3. **Simulation:** one system or a slice of the tick in isolation, and long-run property checks. For example, run 4,000 ticks and check every gap between boss actions, or that nothing fires mid-air.
 4. **Whole game:** headless runs compared for determinism (twice with the same seed; uneven frame times against a steady rate); a **transition test** (play a level, move to the next, and compare with the next built fresh from the same rules state and run values: any difference is a leak); plus a bot playthrough with recorded frames for what only play reveals.
 
@@ -139,4 +143,4 @@ Each of these happened at least once while building the reference game.
 
 - **Language mapping.** How to express flat arrays, coroutines (or a state component where there are none) and exhaustive switches in Go, Java, Rust or C#. For now the reference implementation is TypeScript.
 - Networked play: rolling back the rules alongside the simulation.
-- Saves: writing and loading rules state through the spawn projection.
+- Saves as a feature: versioning a save format, and migrating old saves when the rules change.

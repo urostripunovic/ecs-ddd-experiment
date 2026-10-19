@@ -111,6 +111,8 @@ A new arena is built from domain state plus a short, declared list of values tha
 | ever | tags, enums, the arena size | `CONSTANTS` (`ecs/components`) |
 | presentation only | where the camera looks; it snaps when the player is a new entity | `app/render/camera.ts` |
 
+**Saves.** There is no save feature: this demo is a boss rush that restarts from scratch. A save would be the run and boss states, plus the RNG's position if a loaded run must replay exactly. Where you restart from is a design choice made in one place: nothing (a boss rush), the run as it was on entering the arena (a checkpoint), or the current state (save anywhere). Building from any of them is already `buildArena`; `bridge/run/load.test.ts` builds a world from each state in the rules examples and checks it agrees with the rules, with the boss down in a cleared arena and the tunnel open.
+
 Two tests hold this. `scope.test.ts` fails if a component or singleton is in no list, or in two. `app/transition.test.ts` plays arena 1 and walks into the tunnel, then builds arena 2 fresh from the same domain state and run values, and expects the same world. Handles are compared by slot, because generations are run-lifetime on purpose: they keep growing so stale handles stay stale.
 
 ## Units
