@@ -1,6 +1,7 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
-import { Ammo, BossPhase, Durability, Health, MatchStatus, MatchView } from '../../ecs/components';
+import { Ammo, BossPhase, Durability, Health, MatchStatus, MatchView, Wielder } from '../../ecs/components';
+import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
 import { defOf, heldItem } from '../../ecs/systems/weapons';
@@ -35,11 +36,16 @@ export function createHud(root: HTMLElement) {
     <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
     <div class="row status" data-status></div>`);
   const help = el('div', 'hud help', 'WASD move · mouse aim · click/space attack<br>Q / right-click throw · E swap · R reload<br>Enter restart · ` tick log');
+  // The perfect zone is placed from the same constants the simulation uses, so what you see is what you get.
+  const gauge = el('div', 'hud gauge', `
+    <div class="gauge-fill" data-fill></div>
+    <div class="gauge-zone" style="left:${PERFECT_FROM * 100}%;width:${(PERFECT_TO - PERFECT_FROM) * 100}%"></div>`);
+  gauge.hidden = true;
   const log = el('pre', 'hud log');
   const banner = el('div', 'hud banner', '<div><h1 data-title></h1><p>Press Enter to restart</p></div>');
   log.hidden = true;
   banner.hidden = true;
-  root.append(boss, player, help, log, banner);
+  root.append(boss, player, help, gauge, log, banner);
 
   const q = (n: HTMLElement, sel: string) => n.querySelector<HTMLElement>(sel)!;
   const bossHp = q(boss, '[data-boss-hp]');
@@ -50,6 +56,9 @@ export function createHud(root: HTMLElement) {
   const weaponState = q(player, '[data-weapon-state]');
   const status = q(player, '[data-status]');
   const title = q(banner, '[data-title]');
+  const gaugeFill = q(gauge, '[data-fill]');
+  // Indexed by ChargeZone.
+  const ZONE_CLASS = ['building', 'perfect', 'over'];
 
   // Skips DOM writes when nothing changed, so the HUD costs nothing at rest.
   const last = new Map<HTMLElement, string>();
@@ -78,6 +87,13 @@ export function createHud(root: HTMLElement) {
       set(weaponText, 'text', def.name.toUpperCase());
       set(weaponState, 'text', weaponDetail(item, def.mag, def.durability));
       set(status, 'text', statusLine(p));
+
+      const fill = Wielder.charge[p] / CHARGE_MAX_TICKS;
+      gauge.hidden = fill === 0;
+      if (fill > 0) {
+        set(gaugeFill, 'scale', fill.toFixed(3));
+        gaugeFill.className = `gauge-fill ${ZONE_CLASS[throwCharge(fill).zone]}`;
+      }
 
       const over = MatchView.status !== MatchStatus.Fighting;
       banner.hidden = !over;

@@ -6,7 +6,7 @@ import type { ArenaView } from './render/scene';
 // The simulation never sees a DOM event.
 export function createInput(target: HTMLElement) {
   const keys = new Set<string>();
-  const mouse = { x: 0, y: 0, down: false, seen: false };
+  const mouse = { x: 0, y: 0, down: false, right: false, seen: false };
   const aim = { x: 0, z: 0 };
   const pressed = new Set<string>();
 
@@ -15,18 +15,25 @@ export function createInput(target: HTMLElement) {
     keys.add(ev.code);
     // Counted at the event, not sampled per frame, so a tap shorter than a frame still throws.
     if (ev.repeat) return;
-    if (ev.code === 'KeyQ') PlayerInput.throwPresses++;
     if (ev.code === 'KeyE') PlayerInput.interactPresses++;
   });
-  window.addEventListener('keyup', (ev) => keys.delete(ev.code));
+  window.addEventListener('keyup', (ev) => {
+    keys.delete(ev.code);
+    // Counted at the event: a tap shorter than a frame still throws (weakly).
+    if (ev.code === 'KeyQ') PlayerInput.throwReleases++;
+  });
   // Losing focus mid-press would otherwise leave the player running forever.
-  window.addEventListener('blur', () => { keys.clear(); mouse.down = false; });
+  // Clearing without counting a release cancels a charge instead of throwing it.
+  window.addEventListener('blur', () => { keys.clear(); mouse.down = false; mouse.right = false; });
   target.addEventListener('pointermove', (ev) => { mouse.x = ev.clientX; mouse.y = ev.clientY; mouse.seen = true; });
   target.addEventListener('pointerdown', (ev) => {
     if (ev.button === 0) mouse.down = true;
-    if (ev.button === 2) PlayerInput.throwPresses++;
+    if (ev.button === 2) mouse.right = true;
   });
-  window.addEventListener('pointerup', (ev) => { if (ev.button === 0) mouse.down = false; });
+  window.addEventListener('pointerup', (ev) => {
+    if (ev.button === 0) mouse.down = false;
+    if (ev.button === 2 && mouse.right) { mouse.right = false; PlayerInput.throwReleases++; }
+  });
   target.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
   const axis = (neg: string[], pos: string[]) =>
@@ -43,6 +50,7 @@ export function createInput(target: HTMLElement) {
       PlayerInput.moveZ = mz;
       PlayerInput.fire = mouse.down || keys.has('Space');
       PlayerInput.reload = keys.has('KeyR');
+      PlayerInput.throwHeld = keys.has('KeyQ') || mouse.right;
 
       if (mouse.seen && isLive(player) && view.aimPoint(mouse.x, mouse.y, aim)) {
         const e = indexOf(player);
