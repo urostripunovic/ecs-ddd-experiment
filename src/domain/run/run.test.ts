@@ -46,4 +46,10 @@ describe('run', () => {
     expect(lost).toMatchObject({ status: 'Lost', endedAt: t(42) });
     expect(decide({ kind: 'BossCleared', boss: BOSS, tick: t(42) }, lost)).toHaveLength(0);
   });
+
+  // R8: the title card has shown, so the clear stands.
+  it('going down after the clear changes nothing: the clear stands', () => {
+    const cleared = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
+    expect(decide({ kind: 'PlayerDowned', player: PLAYER, tick: t(530) }, cleared)).toHaveLength(0);
+  });
 });
