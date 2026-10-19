@@ -10,6 +10,8 @@ Turn the next stretch of a game (more arenas, bosses, weapons, a new area) into 
 
 Use Matt Pocock's `to-tickets` for work that isn't gameplay (menus, settings, builds, store pages) and this skill for gameplay. The template matches his, so his `implement` reads either kind.
 
+A rules area that was modelled with the ddd-skill kit (it has a context file in `docs/domain/`) is cut by `ddd-to-tickets` instead, from its approved model, and built with `ddd-implementation`. Run that first, and list its tickets as blockers here, so a feature waits for the rule it reads.
+
 ## Before you start: the gate
 
 Tickets are cut from a base worth keeping. Check each, and stop with the list of what fails:
@@ -33,7 +35,7 @@ A ticket is one commit per layer, or one small pull request: reviewable in one s
 
 1. **Feature:** a new mechanic through every layer it touches (a dodge, a charge attack, stealth suspicion). The first feature in an area is the tracer: it proves the layers before more of the same is built on them.
 2. **Content:** another instance of something that exists (an arena layout, a boss definition and its choreography, a weapon definition). Definitions tables and scripts; no new mechanics. If it needs one, it's a feature ticket first.
-3. **Rule:** a change to a rules area: new examples rows, their requests and facts, the seam test and the load test.
+3. **Rule:** a change to a rules area: new examples rows, their requests and facts, the seam test and the load test. For an area modelled in `docs/domain/`, `ddd-to-tickets` cuts these.
 4. **Tuning:** numbers only, judged by playtest. Its acceptance is a playtest criterion, not a unit test.
 5. **Tooling:** the bot, playtest scripts, scan tests, debug views.
 

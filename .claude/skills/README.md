@@ -1,6 +1,6 @@
 # Skills: from prototype to production
 
-Three skills for games built as a simulation (ECS) plus a thin rules module. They plug into Matt Pocock's skills (`grilling`, `to-tickets`, `implement`, `tdd`, `code-review`) and work without them.
+Three skills for games built as a simulation (ECS) plus a thin rules module. They plug into Matt Pocock's skills (`grilling`, `to-tickets`, `implement`, `tdd`, `code-review`) and the ddd-skill kit, and work without either.
 
 | Phase | Goal | Skills | What carries forward |
 | --- | --- | --- | --- |
@@ -16,7 +16,13 @@ The loop: playtests and surprises go back to the interview (a decision), to `gam
 - **`game-design-interview`**: the decisions that differ per game, asked when a change touches them and recorded in the examples tables.
 - **`game-to-tickets`**: the gate, then tickets with decisions, footprint, invariants and a playtest criterion. Run it by name, not automatically.
 
-There's no prototype modelling phase: the prototype is the model (examples tables, glossary, architecture doc). Only a rules side that outgrows a page gets a `ddd-modelling` pass.
+There's no prototype modelling phase: the prototype is the model (examples tables, glossary, architecture doc). Only a rules area that outgrows a page, or touches money, trades or long-lived saves, gets the ddd-skill kit: `ddd-modelling` (its examples table becomes the model's Examples), then `ddd-to-tickets`, `ddd-implementation` and `ddd-review-all` for that area alone. The simulation never goes through it.
+
+| Area | Model | Tickets | Build | Review |
+| --- | --- | --- | --- | --- |
+| Simulation and small rules areas | the prototype itself | `game-to-tickets` | `implement` + `tdd`, following `rules-and-simulation` | `code-review` + our checklist |
+| A rules area that outgrew a page | `ddd-modelling` | `ddd-to-tickets` | `ddd-implementation` | `ddd-review-all` |
+| Menus, settings, builds | none | `to-tickets` | `implement` | `code-review` |
 
 **Improving the skills:** keep a `SKILL-NOTES.md` in each game repo, one line per incident: what happened, which rule, and whether the rule was missing, vague or ignored. Missing: add it. Vague: reword it. Ignored though clear: enforce it with a test, a lint rule or a type.
 
