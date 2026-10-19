@@ -5,7 +5,8 @@ import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/c
 import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
 import {
-  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, throwSystem,
+  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, stuckFollowSystem,
+  throwSystem,
 } from '../ecs/systems/weapons';
 
 export const DT = 1 / 60;
@@ -18,6 +19,7 @@ export function tick(): void {
   movementSystem(DT);
   bodyCollisionSystem();
   heldFollowSystem();
+  stuckFollowSystem();
   throwSystem();
   attackSystem(DT);
   flightSystem();

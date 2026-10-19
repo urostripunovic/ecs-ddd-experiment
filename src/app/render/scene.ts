@@ -1,8 +1,11 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossPhase, C, Collider, Hurt, PlayerInput, Shape, ShapeKind, Slam, Transform, Velocity, Wielder,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, PlayerInput, Shape, ShapeKind, Slam, StuckIn, Transform, Velocity,
+  Wielder,
 } from '../../ecs/components';
+import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
+import { bossPose } from './boss-pose';
 import { handleAt, has, indexOf, isLive, MAX, world, type EntityId, type Handle } from '../../ecs/core/world';
 
 const COLOR = {
@@ -104,6 +107,8 @@ function build(kind: number): Visual {
       core.position.set(0, 2.0, 1.21);
       g.add(body, core);
       g.userData = { mat, base: COLOR.boss };
+      // Yaw first, then pitch, so leaning back and forth follows the way it faces.
+      g.rotation.order = 'YXZ';
       return cast(g);
     }
     case ShapeKind.Bullet: {
@@ -152,6 +157,18 @@ function buildArena(scene: THREE.Scene): void {
     wall.position.set(x, h / 2, z);
     scene.add(wall);
   }
+}
+
+// A flat wedge pointing down +x, turned toward the player while a cone winds up.
+const CONE_HALF_ANGLE = 0.4;
+const CONE_LENGTH = 11;
+function buildConeTelegraph(): THREE.Mesh {
+  const m = new THREE.Mesh(
+    new THREE.CircleGeometry(CONE_LENGTH, 24, -CONE_HALF_ANGLE, CONE_HALF_ANGLE * 2).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: COLOR.telegraph, transparent: true, opacity: 0, depthWrite: false }),
+  );
+  m.position.y = 0.025;
+  return m;
 }
 
 function buildTelegraph(): THREE.Group {
@@ -217,6 +234,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const visualKind = new Uint8Array(MAX);
   const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
   const telegraphs: (THREE.Group | null)[] = new Array(MAX).fill(null);
+  const cones: (THREE.Mesh | null)[] = new Array(MAX).fill(null);
   let highWater = 0;
 
   const release = (e: number) => {
@@ -225,6 +243,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     pools[visualKind[e]].push(v);
     visuals[e] = null;
     if (telegraphs[e]) telegraphs[e]!.visible = false;
+    if (cones[e]) cones[e]!.visible = false;
   };
 
   const acquire = (e: number, kind: number): Visual => {
@@ -286,13 +305,17 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         v.rotation.z = dead ? Math.PI / 2 : 0;
         v.position.y = dead ? 0.42 : 0;
       } else if (kind === ShapeKind.Boss) {
-        v.position.y = dead ? -0.9 : 0;
+        const slamming = has(e as EntityId, C.Slam);
+        const winding = slamming ? 1 - Slam.timer[e] / Slam.windup[e] : 0;
+        const elapsed = world.tick - BossAction.startedAt[e] + alpha;
+        const pose = bossPose(dead ? Action.Idle : BossAction.kind[e], elapsed, winding);
+        v.position.y = dead ? -0.9 : pose.height;
         v.rotation.z = dead ? 0.25 : 0;
+        v.rotation.x = pose.lean;
         if (!dead) faceFocus(v);
-        // Windup squash sells the slam before it lands.
-        const winding = has(e as EntityId, C.Slam) ? 1 - Slam.timer[e] / Slam.windup[e] : 0;
-        v.scale.set(1 + winding * 0.12, 1 - winding * 0.18, 1 + winding * 0.12);
-        drawTelegraph(e, v.position.x, v.position.z, winding);
+        v.scale.set(pose.sx, pose.sy, pose.sx);
+        drawTelegraph(e, winding);
+        drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < CONE_WINDUP, elapsed / CONE_WINDUP);
       } else if (kind === ShapeKind.Bullet) {
         // A tracer reads far better than a dot at this camera distance.
         v.rotation.y = Math.atan2(Velocity.x[e], Velocity.z[e]);
@@ -303,6 +326,12 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       } else if (kind === ShapeKind.Haste || kind === ShapeKind.Fury) {
         v.position.y = 0.8 + Math.sin(t * 3 + e) * 0.15;
         v.rotation.y = t * 2;
+      } else if (has(e as EntityId, C.Stuck)) {
+        // Lodged in the boss's side at chest height, pointing in.
+        const a = StuckIn.angle[e];
+        v.position.y = 1.6;
+        v.rotation.set(0.35, Math.atan2(Math.cos(a), Math.sin(a)), 0);
+        v.scale.setScalar(1);
       } else if (has(e as EntityId, C.Flying)) {
         v.position.y = HAND_HEIGHT;
         const yaw = Math.atan2(-Velocity.x[e], -Velocity.z[e]);
@@ -358,7 +387,8 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     v.rotation.y = Math.atan2(Transform.x[p] - v.position.x, Transform.z[p] - v.position.z);
   }
 
-  function drawTelegraph(e: number, x: number, z: number, progress: number): void {
+  // Drawn at the slam's own centre, so a jump shows where it will land the moment it takes off.
+  function drawTelegraph(e: number, progress: number): void {
     const active = has(e as EntityId, C.Slam);
     if (!active && !telegraphs[e]) return;
     const g = telegraphs[e] ?? (telegraphs[e] = buildTelegraph());
@@ -366,10 +396,26 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     g.visible = active;
     if (!active) return;
     const r = Slam.radius[e];
-    g.position.set(x, 0, z);
+    g.position.set(Slam.x[e], 0, Slam.z[e]);
     g.scale.set(r, 1, r);
     const fill = g.userData.fill as THREE.Mesh;
     fill.scale.setScalar(Math.max(0.001, progress));
+  }
+
+  function drawCone(e: number, active: boolean, progress: number): void {
+    if (!active && !cones[e]) return;
+    const m = cones[e] ?? (cones[e] = buildConeTelegraph());
+    if (!m.parent) scene.add(m);
+    m.visible = active;
+    const h = focus();
+    if (!active || !isLive(h)) return;
+    const p = indexOf(h);
+    const bx = visuals[e]!.position.x;
+    const bz = visuals[e]!.position.z;
+    m.position.x = bx;
+    m.position.z = bz;
+    m.rotation.y = -Math.atan2(Transform.z[p] - bz, Transform.x[p] - bx);
+    (m.material as THREE.MeshBasicMaterial).opacity = 0.08 + 0.3 * Math.min(1, progress);
   }
 
   function followCamera(alpha: number, dt: number): void {
