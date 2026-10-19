@@ -18,7 +18,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | `Handle` | ECS | Entity index + generation. Safe to store; goes stale when the slot is reused. |
 | `BossId`, `PlayerId` | domain | Stable IDs that would be saved. Mapped to handles only in `bridge/id-map.ts`. |
 | `Tick` | domain | The only clock. Never wall time. |
-| **Item** | ECS | A weapon entity, always in exactly one state: `Grounded`, `Held` or `Flying`. It keeps its ammo and wear in every state. |
+| **Item** | ECS | A weapon entity, always in exactly one state: `Grounded`, `Held`, `Flying` or `Stuck`. It keeps its ammo and wear in every state. |
 | **Wielder** | ECS | Something that holds one item. Empty hands (`NO_HANDLE`) fight with fists. |
 | **Durability** | ECS | Wear left on a sword or spear: drops per connecting swing, per throw hit, and over time while held. At 0 the item breaks. |
 | **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
@@ -30,3 +30,4 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Airborne** | ECS | Mid-jump. Bullets, thrown weapons and blades pass under; the boss isn't pushed by pillars or the player. |
 | **Evade** | ECS | A jump away from the player, triggered by heavy damage in the last second, at most once per 8 s. |
 | **Stuck** | ECS | The fourth item state: a thrown weapon lodged in its target. It drops when the target slams, lands a jump or dies. |
+| **Stock** | ECS | How many of each weapon kind the arena keeps in play, in any state (`WEAPON_STOCK`). A broken one is replaced `RESPAWN_TICKS` later in a random clear spot. |

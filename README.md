@@ -33,7 +33,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 
 ## Weapons
 
-You start with a gun; a sword and a spear lie nearby, and a weapon or buff drops every 7 seconds. Walk over a weapon with empty hands to take it, or press E to swap.
+The arena always holds one gun, one sword and one spear. You start with the gun; the others lie nearby. A blade that breaks comes back 5 seconds later somewhere random, and until you pick something up you fight with your fists (8 damage, short reach). A buff drops every 7 seconds. Walk over a weapon with empty hands to take it, or press E to swap.
 
 | Weapon | Attack | Durability | Thrown |
 | --- | --- | --- | --- |

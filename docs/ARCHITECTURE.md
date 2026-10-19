@@ -34,12 +34,13 @@ Written down in `src/app/loop.ts`:
 13. `projectileSystem`: bullets damage the other team, and fly under anything airborne
 14. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hits, and knocks stuck items loose
 15. `durabilitySystem`: held items decay over time; anything at 0 breaks
-16. `hurtFlashSystem`
-17. `dropSystem`: every 7 s, a seeded-random weapon or buff in a clear spot
-18. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
-19. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-20. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus process managers
-21. render (once per frame, interpolated between the last two ticks)
+16. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
+17. `hurtFlashSystem`
+18. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
+19. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
+20. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+21. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus process managers
+22. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
