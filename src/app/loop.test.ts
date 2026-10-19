@@ -22,8 +22,8 @@ describe('arena loop', () => {
     const boss = indexOf(idMap.handleOfBoss(BOSS_ID)!);
     const kinds = log.map((l) => l.split(': ')[1]);
 
+    // The phase is simulation, so it never appears in the rules' log.
     expect(kinds).toEqual([
-      'BossThresholdCrossed(warden) -> BossPhaseReached -> BossPhase(warden)=2',
       'BossDowned(warden) -> BossDefeated -> no component change',
       'BossCleared -> ArenaCleared -> RunView=Cleared, tunnel open',
     ]);
