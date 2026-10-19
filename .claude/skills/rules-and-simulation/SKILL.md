@@ -20,7 +20,7 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 3. **Ask what the change leaves open.** If it touches a trigger in `game-design-interview`, ask those questions before building.
 4. **Write the failing test first**, and check it fails for the right reason.
 5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*.
-6. **Playtest.** A bot playing headless, with frames to look at. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
+6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
 7. **Compare** the prediction with what changed, and explain each miss. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
