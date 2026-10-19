@@ -18,3 +18,10 @@ The same idea can live at both levels under different names. Keep them apart.
 | `Handle` | ECS | Entity index + generation. Safe to store; goes stale when the slot is reused. |
 | `BossId`, `PlayerId` | domain | Stable IDs that would be saved. Mapped to handles only in `bridge/id-map.ts`. |
 | `Tick` | domain | The only clock. Never wall time. |
+| **Item** | ECS | A weapon entity, always in exactly one state: `Grounded`, `Held` or `Flying`. It keeps its ammo and wear in every state. |
+| **Wielder** | ECS | Something that holds one item. Empty hands (`NO_HANDLE`) fight with fists. |
+| **Durability** | ECS | Wear left on a sword or spear: drops per connecting swing, per throw hit, and over time while held. At 0 the item breaks. |
+| **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
+| **Slowed** | ECS | The slam's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. |
+| Press counters | app → ECS | `PlayerInput.throwPresses` only counts up (written by the app); `Wielder.throwSeen` records what the ECS has acted on. One writer per field, no lost or doubled presses. |
+| **Seed** | ECS | Fixes the RNG for drops, so a run replays exactly. `?seed=N` in the URL. |

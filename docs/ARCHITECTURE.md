@@ -20,19 +20,25 @@ A hand-written ECS runs the real-time simulation; a thin, pure DDD layer owns th
 Written down in `src/app/loop.ts`:
 
 1. `snapshotSystem`: copy position to previous position, for render interpolation
-2. `inputSystem`: `PlayerInput` → player velocity
+2. `inputSystem`: `PlayerInput` → player velocity, scaled by haste and slow
 3. `bossPhaseSystem`: start or step the coroutine for the boss's current `BossPhase`
 4. `movementSystem`
 5. `bodyCollisionSystem`: circles against solids, clamp to the arena
-6. `fireSystem`: player weapon, magazine and reload; spawns bullets
-7. `projectileCollisionSystem`: bullets stop on pillars and walls
-8. `projectileSystem`: bullets damage the other team
-9. `slamSystem`: a slam lands when its telegraph runs out
-10. `hurtFlashSystem`
-11. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
-12. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-13. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus process managers
-14. render (once per frame, interpolated between the last two ticks)
+6. `heldFollowSystem`: held items sit at their wielder
+7. `throwSystem`: a new throw press turns the held item `Flying`
+8. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear
+9. `flightSystem`: thrown items hit, then land `Grounded` (never inside a pillar)
+10. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
+11. `projectileCollisionSystem`: bullets stop on pillars and walls
+12. `projectileSystem`: bullets damage the other team
+13. `slamSystem`: a slam lands when its telegraph runs out, and slows whoever it hits
+14. `durabilitySystem`: held items decay over time; anything at 0 breaks
+15. `hurtFlashSystem`
+16. `dropSystem`: every 7 s, a seeded-random weapon or buff in a clear spot
+17. `bossThresholdSystem`: hp crosses 50% → `BossThresholdCrossed` (latched by `PhasePending`)
+18. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+19. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus process managers
+20. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
@@ -46,4 +52,6 @@ In `npm run dev`, press <kbd>`</kbd> in game to watch these in the tick log.
 
 ## What stays out of the domain (on purpose)
 
-Hit points, bullets, slam timing and radius, ammo and reload, pillars, the boss's movement. They change every tick or only feed the simulation's own maths, so they are ECS. The phase is domain state (it would be saved), and the choreography inside it is an ECS coroutine that restarts from the top on load.
+ECS by default: a concept moves to `domain/` only when a rule, a save or another context reacts to it.
+
+Hit points, bullets, slam timing and radius, ammo and reload, pillars, the boss's movement, and the whole weapons slice: drops, pickup and swap, durability, throwing, buffs and the slam slow. They change every tick or only feed the simulation's own maths, so they are ECS. The phase is domain state (it would be saved), and the choreography inside it is an ECS coroutine that restarts from the top on load.

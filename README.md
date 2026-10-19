@@ -9,7 +9,7 @@ npm run check      # typecheck + tests + zone boundary lint
 npm run build      # production build in dist/
 ```
 
-Add `?bossHp=200` to the URL for a short fight while tuning.
+Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a different drop sequence.
 
 ## Controls
 
@@ -17,7 +17,9 @@ Add `?bossHp=200` to the URL for a short fight while tuning.
 | --- | --- |
 | WASD / arrows | move |
 | mouse | aim |
-| left click / space | fire |
+| left click / space | attack (shoot, swing, thrust or punch) |
+| Q / right click | throw what you hold |
+| E | swap with the weapon at your feet |
 | R | reload |
 | Enter | restart |
 | <kbd>`</kbd> | dev tick log (command → event → component write) |
@@ -27,6 +29,18 @@ Add `?bossHp=200` to the URL for a short fight while tuning.
 - **Phase 1:** The Warden walks toward you and slams. The red ring shows where it will land, and the fill shows when.
 - **Phase 2** (at 50% hp, decided by the domain): radial bullet bursts between strafes, then a faster slam.
 - Win when the boss goes down; lose when you do. The match outcome is domain state, reached through a process manager.
+
+## Weapons
+
+You start with a gun; a sword and a spear lie nearby, and a weapon or buff drops every 7 seconds. Walk over a weapon with empty hands to take it, or press E to swap.
+
+| Weapon | Attack | Durability | Thrown |
+| --- | --- | --- | --- |
+| Gun | 16-round magazine, 25 per shot | never wears | 20, keeps its ammo |
+| Sword | wide arc, 55 | wears per hit and over time | 60 |
+| Spear | long, narrow thrust, 60 | wears per hit and over time | 95 |
+
+Haste (green) speeds you up and Fury (red) adds 50% damage, for 6 seconds each. The slam halves your speed for a second. All of it is ECS: nothing here is saved or rule-bound yet.
 
 ## Layout
 
