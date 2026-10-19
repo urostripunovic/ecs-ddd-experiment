@@ -2,7 +2,7 @@
 // Equipping, wear and throwing are pure simulation: no rule or save reacts to
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
-  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, RunStatus, RunView, PlayerInput, ShapeKind,
+  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, GodMode, Item, RunStatus, RunView, PlayerInput, ShapeKind,
   Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
@@ -54,6 +54,18 @@ export function heldItem(w: EntityId): EntityId | -1 {
 }
 
 export const defOf = (item: EntityId | -1): WeaponDef => WEAPONS[item === -1 ? WeaponKind.Fists : Item.kind[item]];
+
+// The one place a weapon loses durability, so the dev menu's "keep weapons" holds everywhere.
+function wear(item: EntityId, amount: number): void {
+  if (!(import.meta.env.DEV && GodMode.keepWeapons)) Durability.value[item] -= amount;
+}
+
+// Dev menu: a fresh weapon of that kind in hand; whatever was held drops at your feet.
+export function giveWeapon(w: EntityId, kind: number): void {
+  const holding = heldItem(w);
+  if (holding !== -1) putOnGround(holding, Transform.x[w], Transform.z[w], DROP_LOCK_TICKS);
+  equip(w, spawnWeapon(kind, Transform.x[w], Transform.z[w]));
+}
 
 export function equip(w: EntityId, item: EntityId): void {
   remove(item, NOT_HELD);
@@ -231,7 +243,7 @@ export function attackSystem(dt: Seconds): void {
     Wielder.cooldown[w] = def.cooldown;
 
     if (def.attack === 'shoot' && item !== -1) {
-      Ammo.count[item]--;
+      if (!(import.meta.env.DEV && GodMode.keepWeapons)) Ammo.count[item]--;
       if (Ammo.count[item] === 0) Ammo.reload[item] = def.reloadTime;
       // Spawned at the muzzle, not the centre, so point-blank shots still read as leaving the gun.
       const muzzle = Collider.radius[w] + 0.35;
@@ -244,7 +256,7 @@ export function attackSystem(dt: Seconds): void {
     }
     Wielder.swing[w] = SWING_TICKS;
     // Wear once per swing that connects, not per target, so crowds don't shred a blade.
-    if (meleeHit(w, def) && item !== -1) Durability.value[item] -= def.wearPerHit;
+    if (meleeHit(w, def) && item !== -1) wear(item, def.wearPerHit);
   }
 }
 
@@ -269,7 +281,7 @@ export function flightSystem(): void {
       const dz = Transform.z[t] - z;
       if (dx * dx + dz * dz > r * r) continue;
       hurt(t, Thrown.dmg[f], handleAt(Thrown.by, f));
-      Durability.value[f] -= defOf(f).throwWear * Thrown.wearMul[f];
+      wear(f, defOf(f).throwWear * Thrown.wearMul[f]);
       struck = t;
     }
     if (struck !== -1) { stick(f, struck); continue; }
@@ -337,7 +349,7 @@ export function durabilitySystem(dt: Seconds): void {
   const held = fighting() ? query(buf, HELD_ITEMS) : 0;
   for (let i = 0; i < held; i++) {
     const it = entityAt(buf, i);
-    Durability.value[it] -= defOf(it).decayPerSec * dt;
+    wear(it, defOf(it).decayPerSec * dt);
   }
   const n = query(buf, C.Item);
   for (let i = 0; i < n; i++) {

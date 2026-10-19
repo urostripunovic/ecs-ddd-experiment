@@ -1,4 +1,4 @@
-import { BossPhase, C, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform } from '../components';
+import { BossPhase, C, GodMode, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform, Velocity } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
@@ -27,13 +27,15 @@ export function resetScripts(): void {
   runningScript.fill(null);
 }
 
-// reads BossPhase, RunView, Health | writes Pressure, BossPhase.running, and via the
+// reads BossPhase, RunView, Health, GodMode | writes Pressure, BossPhase.running, and via the
 // phase's script: Velocity, Slam, BossAction, Jump, Airborne
 export function bossPhaseSystem(): void {
   if (RunView.status !== RunStatus.Fighting) return;
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
+    // Frozen by the dev menu: stands still and starts nothing new.
+    if (import.meta.env.DEV && GodMode.freezeBoss) { Velocity.x[e] = Velocity.z[e] = 0; continue; }
     if (world.tick - Pressure.markedAt[e] >= PRESSURE_WINDOW) {
       Pressure.recentLoss[e] = Pressure.hpMark[e] - Health.hp[e];
       Pressure.hpMark[e] = Health.hp[e];

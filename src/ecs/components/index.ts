@@ -122,6 +122,10 @@ export const Cutscene = { until: 0 };
 // 0..1. The camera shakes by trauma squared; decays per tick so it lasts the
 // same at any frame rate. The wobble itself is the renderer's business.
 export const Shake = { trauma: 0 };
+// Dev-only cheats the simulation honours (see app/dev/commands.ts). Run lifetime,
+// so they survive entering the next arena; a restart clears them. cheated marks
+// a run any cheat touched, so a bug report says so.
+export const GodMode = { invulnerable: false, keepWeapons: false, freezeBoss: false, cheated: false };
 // Per weapon kind, the tick its replacement appears; 0 = nothing missing.
 export const Stock = { respawnAt: new Uint32Array(4) };
 
@@ -136,7 +140,7 @@ export const ARENA_STATE = {
 };
 // The input counters must keep counting (a new player starts caught up with
 // them), and RunView is the run's projection, rewritten by every build.
-export const RUN_STATE = { PlayerInput, RunView };
+export const RUN_STATE = { PlayerInput, RunView, GodMode };
 export const CONSTANTS = { C, TeamId, ShapeKind, RunStatus, Arena };
 
 type Group = Record<string, unknown>;

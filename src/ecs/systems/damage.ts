@@ -1,4 +1,4 @@
-import { C, Health, Hurt, LastHit, RunStatus, RunView } from '../components';
+import { C, GodMode, Health, Hurt, LastHit, RunStatus, RunView } from '../components';
 import { has, type EntityId, type Handle } from '../core/world';
 import { dodging } from './status';
 
@@ -16,6 +16,8 @@ export function hurt(target: EntityId, dmg: number, by: Handle): boolean {
   if (RunView.status !== RunStatus.Fighting) return false;
   // Two sources, two writers: the roar's tag and the dodge's deadline, combined only here.
   if (has(target, C.Invulnerable) || dodging(target)) return false;
+  // Dev builds only: release compiles this check away.
+  if (import.meta.env.DEV && GodMode.invulnerable && has(target, C.PlayerControlled)) return false;
   Health.hp[target] -= dmg;
   LastHit.by[target] = by;
   return true;
