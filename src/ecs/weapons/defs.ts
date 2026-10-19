@@ -23,13 +23,14 @@ export type WeaponDef = {
   readonly throwDmg: number;
   readonly throwTicks: number;  // flight time before it drops on its own
   readonly throwWear: number;
+  readonly throwLockTicks: number; // a missed throw can't be picked up again until this passes
 };
 
 const cosDeg = (deg: number) => Math.cos((deg * Math.PI) / 180);
 
 const base = {
   reach: 0, arcCos: 1, durability: 0, wearPerHit: 0, decayPerSec: 0,
-  mag: 0, reloadTime: 0, throwSpeed: 0, throwDmg: 0, throwTicks: 0, throwWear: 0,
+  mag: 0, reloadTime: 0, throwSpeed: 0, throwDmg: 0, throwTicks: 0, throwWear: 0, throwLockTicks: 0,
 };
 
 // Indexed by WeaponKind.
@@ -38,16 +39,16 @@ export const WEAPONS: readonly WeaponDef[] = [
   {
     ...base, name: 'Sword', attack: 'arc', dmg: 55, cooldown: 0.4, reach: 2.4, arcCos: cosDeg(55),
     durability: 100, wearPerHit: 7, decayPerSec: 0.6,
-    throwSpeed: 18, throwDmg: 60, throwTicks: 40, throwWear: 20,
+    throwSpeed: 18, throwDmg: 60, throwTicks: 40, throwWear: 35, throwLockTicks: 90,
   },
   {
     ...base, name: 'Spear', attack: 'arc', dmg: 60, cooldown: 0.5, reach: 3.4, arcCos: cosDeg(15),
     durability: 100, wearPerHit: 6, decayPerSec: 0.5,
-    throwSpeed: 26, throwDmg: 95, throwTicks: 45, throwWear: 25,
+    throwSpeed: 26, throwDmg: 95, throwTicks: 45, throwWear: 40, throwLockTicks: 90,
   },
   {
     ...base, name: 'Gun', attack: 'shoot', dmg: 25, cooldown: 1 / 8, mag: 16, reloadTime: 1.1,
-    throwSpeed: 16, throwDmg: 20, throwTicks: 35,
+    throwSpeed: 16, throwDmg: 20, throwTicks: 35, throwLockTicks: 60,
   },
 ];
 

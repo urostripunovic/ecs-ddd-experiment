@@ -3,14 +3,16 @@ import { buf, solidBuf } from '../core/buffers';
 import { despawn, entityAt, has, mask, query } from '../core/world';
 
 const BODIES = mask(C.Transform, C.Velocity, C.Collider);
-const BODY_EXCLUDE = mask(C.Projectile, C.Dead);
+// Mid-jump the boss passes over pillars and the player, instead of being shoved by them.
+const BODY_EXCLUDE = mask(C.Projectile, C.Dead, C.Airborne);
+const SOLID_EXCLUDE = mask(C.Dead, C.Airborne);
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
 const PROJECTILES = mask(C.Transform, C.Projectile);
 
 // reads Collider, Solid, Arena | writes Transform
 // Circles only: the arena is a greybox, and circle push-out never snags on corners.
 export function bodyCollisionSystem(): void {
-  const solids = query(solidBuf, SOLIDS, C.Dead);
+  const solids = query(solidBuf, SOLIDS, SOLID_EXCLUDE);
   const n = query(buf, BODIES, BODY_EXCLUDE);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);

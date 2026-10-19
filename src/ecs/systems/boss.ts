@@ -1,10 +1,11 @@
-import { BossPhase, C, Health, MatchStatus, MatchView, Slam, Slowed, Transform } from '../components';
+import { BossPhase, C, Health, MatchStatus, MatchView, Pressure, Slam, Slowed, Transform } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import { send } from '../core/outbox';
 import type { Script } from '../core/script';
 import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
 import { phaseOne, phaseTwo } from './boss-scripts';
+import { releaseStuck } from './weapons';
 
 // Sensor config, not a rule: the domain decides what crossing it means.
 export const PHASE_TWO_AT = 0.5; // share of max hp
@@ -27,12 +28,19 @@ export function resetScripts(): void {
   runningScript.fill(null);
 }
 
-// reads BossPhase, MatchView | writes BossPhase.running, Velocity, Slam (via the phase's script)
+// reads BossPhase, MatchView, Health | writes Pressure, BossPhase.running, and via the
+// phase's script: Velocity, Slam, BossAction, Jump, Airborne
 export function bossPhaseSystem(): void {
   if (MatchView.status !== MatchStatus.Fighting) return;
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
+    // Sampled once a second, so a burst of hits reads as pressure but chip damage doesn't.
+    if (world.tick - Pressure.markedAt[e] >= 60) {
+      Pressure.recentLoss[e] = Pressure.hpMark[e] - Health.hp[e];
+      Pressure.hpMark[e] = Health.hp[e];
+      Pressure.markedAt[e] = world.tick;
+    }
     const phase = BossPhase.phase[e];
     if (phase !== BossPhase.running[e]) {
       const start = PHASE_SCRIPTS[phase] ?? null;
@@ -43,7 +51,7 @@ export function bossPhaseSystem(): void {
   }
 }
 
-// reads Slam, Transform | writes Slam, Health and Slowed of players in range
+// reads Slam, Transform | writes Slam, Health and Slowed of players in range; shakes loose stuck items
 export function slamSystem(): void {
   const n = query(buf, SLAMMERS, C.Dead);
   for (let i = 0; i < n; i++) {
@@ -52,11 +60,13 @@ export function slamSystem(): void {
     if (Slam.timer[e] > 0) continue;
 
     remove(e, C.Slam);
+    // The impact knocks out whatever is lodged in the boss, which is how you get a thrown weapon back.
+    releaseStuck(e);
     const players = query(scriptBuf, LIVE_PLAYERS, C.Dead);
     for (let j = 0; j < players; j++) {
       const p = entityAt(scriptBuf, j);
-      const dx = Transform.x[p] - Transform.x[e];
-      const dz = Transform.z[p] - Transform.z[e];
+      const dx = Transform.x[p] - Slam.x[e];
+      const dz = Transform.z[p] - Slam.z[e];
       const r = Slam.radius[e];
       if (dx * dx + dz * dz > r * r) continue;
       hurt(p, Slam.dmg[e], toHandle(e));

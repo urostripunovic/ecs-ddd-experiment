@@ -10,10 +10,13 @@ const BULLET_RADIUS = 0.2;
 
 const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
 const PROJECTILES = mask(C.Projectile, C.Transform, C.Team);
+// Bullets fly under anything mid-jump.
+const UNHITTABLE = mask(C.Dead, C.Airborne);
+const GONE = mask(C.Slam, C.Airborne);
 
 // reads Projectile, Transform, Team, Collider | writes Health, Hurt, LastHit, despawns Projectile
 export function projectileSystem(dt: number): void {
-  const targets = query(targetBuf, TARGETS, C.Dead);
+  const targets = query(targetBuf, TARGETS, UNHITTABLE);
   const n = query(buf, PROJECTILES);
   for (let i = 0; i < n; i++) {
     const p = entityAt(buf, i);
@@ -54,7 +57,7 @@ export function deathSystem(): void {
     if (Health.hp[e] > 0) continue;
     Health.hp[e] = 0;
     add(e, C.Dead);
-    remove(e, C.Slam);
+    remove(e, GONE);
     stopScript(e);
     Velocity.x[e] = Velocity.z[e] = 0;
     send('EntityDowned', toHandle(e), handleAt(LastHit.by, e), 0);

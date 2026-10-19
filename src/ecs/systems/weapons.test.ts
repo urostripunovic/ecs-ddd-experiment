@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  Ammo, Buffs, C, Collider, Durability, Health, MatchStatus, MatchView, PlayerInput, resetComponents, Slowed,
+  Ammo, Buffs, C, Collider, Durability, Health, Item, MatchStatus, MatchView, PlayerInput, resetComponents, Slowed,
   Transform, Wielder,
 } from '../components';
 import { seedRng } from '../core/rng';
-import { has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
+import { add, has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
 import { HASTE_MUL, WEAPONS, WeaponKind } from '../weapons/defs';
 import { bodyCollisionSystem } from './collision';
@@ -12,7 +12,7 @@ import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import { speedMul } from './status';
 import {
   attackSystem, dropSystem, durabilitySystem, equip, flightSystem, heldFollowSystem, heldItem, pickupSystem,
-  throwSystem,
+  releaseStuck, stuckFollowSystem, throwSystem,
 } from './weapons';
 
 const DT = 1 / 60;
@@ -24,6 +24,7 @@ function step(): void {
   movementSystem(DT);
   bodyCollisionSystem();
   heldFollowSystem();
+  stuckFollowSystem();
   throwSystem();
   attackSystem(DT);
   flightSystem();
@@ -113,7 +114,7 @@ describe('durability', () => {
 });
 
 describe('throwing', () => {
-  it('a thrown gun hurts the boss, lands, and keeps its ammo', () => {
+  it('a thrown gun hurts the boss, sticks in it, and keeps its ammo', () => {
     const gun = spawnWeapon(WeaponKind.Gun, 0, 0);
     equip(p, gun);
     Ammo.count[gun] = 5;
@@ -123,10 +124,41 @@ describe('throwing', () => {
     expect(has(gun, C.Flying)).toBe(true);
     expect(heldItem(p)).toBe(-1);
 
-    for (let i = 0; i < 60 && !has(gun, C.Grounded); i++) step();
-    expect(has(gun, C.Grounded)).toBe(true);
+    for (let i = 0; i < 60 && !has(gun, C.Stuck); i++) step();
+    expect(has(gun, C.Stuck)).toBe(true);
     expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Gun].throwDmg);
+
+    // It rides along when the boss moves.
+    Transform.x[b] += 3;
+    step();
+    expect(Transform.x[gun]).toBeCloseTo(Transform.x[b], 1);
+
+    // A slam or a landing knocks it loose, just clear of the boss.
+    releaseStuck(b);
+    expect(has(gun, C.Grounded)).toBe(true);
     expect(Ammo.count[gun]).toBe(5);
+    const d = Math.hypot(Transform.x[gun] - Transform.x[b], Transform.z[gun] - Transform.z[b]);
+    expect(d).toBeGreaterThan(Collider.radius[b]);
+  });
+
+  it('a missed throw cannot be picked up again straight away', () => {
+    const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
+    equip(p, sword);
+    Object.assign(PlayerInput, { aimX: 1, aimZ: 0 });
+    PlayerInput.throwPresses++;
+    for (let i = 0; i < 80 && !has(sword, C.Grounded); i++) step();
+    expect(Item.pickupAt[sword] - world.tick).toBeGreaterThan(60);
+  });
+
+  it('a stuck weapon drops when its host dies', () => {
+    const spear = spawnWeapon(WeaponKind.Spear, 0, 0);
+    equip(p, spear);
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1 });
+    PlayerInput.throwPresses++;
+    for (let i = 0; i < 60 && !has(spear, C.Stuck); i++) step();
+    add(b, C.Dead);
+    stuckFollowSystem();
+    expect(has(spear, C.Grounded)).toBe(true);
   });
 
   it('a weapon thrown at a pillar lands beside it, never inside', () => {

@@ -1,9 +1,9 @@
-// Weapons are entities in exactly one state: Grounded, Held or Flying.
+// Weapons are entities in exactly one state: Grounded, Held, Flying or Stuck.
 // Equipping, wear and throwing are pure simulation: no rule or save reacts to
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
   Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, MatchStatus, MatchView, PlayerInput, ShapeKind,
-  Team, TeamId, Thrown, Transform, Velocity, Wielder,
+  StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
 import { random, randomRange } from '../core/rng';
@@ -20,16 +20,20 @@ const WIELDERS = mask(C.Wielder, C.Transform);
 const HELD_ITEMS = mask(C.Item, C.Held);
 const FLYING_ITEMS = mask(C.Item, C.Flying, C.Transform);
 const GROUNDED = mask(C.Grounded, C.Transform);
-const NOT_HELD = mask(C.Grounded, C.Flying);
-const NOT_GROUNDED = mask(C.Held, C.Flying);
+const STUCK_ITEMS = mask(C.Item, C.Stuck);
+const NOT_HELD = mask(C.Grounded, C.Flying, C.Stuck);
+const NOT_GROUNDED = mask(C.Held, C.Flying, C.Stuck);
 const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
+// Blades and throws pass under anything mid-jump.
+const UNHITTABLE = mask(C.Dead, C.Airborne);
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
 const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform);
 const BOSSES = mask(C.Boss, C.Transform);
 
 const PICKUP_RADIUS = 1.3;
 const DROP_LOCK_TICKS = 45;  // long enough to walk off what you just dropped
-const LAND_LOCK_TICKS = 20;
+const RELEASE_LOCK_TICKS = 20;
+const RELEASE_PUSH = 1.0; // knocked clear of the boss, so you don't have to stand inside its slam to grab it
 const SWING_TICKS = 10;
 const BULLET_SPEED = 30;
 const THROWN_RADIUS = 0.45;
@@ -92,6 +96,46 @@ function breakItem(item: EntityId): void {
   despawn(item);
 }
 
+// A thrown weapon that hits lodges in its target and rides along with it.
+function stick(item: EntityId, host: EntityId): void {
+  remove(item, C.Flying);
+  add(item, C.Stuck);
+  Velocity.x[item] = Velocity.z[item] = 0;
+  StuckIn.host[item] = toHandle(host);
+  StuckIn.angle[item] = Math.atan2(Transform.z[item] - Transform.z[host], Transform.x[item] - Transform.x[host]);
+}
+
+// Drops everything lodged in a host, just outside its body. Uses itemBuf, not
+// helperBuf, because putOnGround queries helperBuf inside this loop.
+export function releaseStuck(host: EntityId): void {
+  const h = toHandle(host);
+  const n = query(itemBuf, STUCK_ITEMS);
+  for (let i = 0; i < n; i++) {
+    const it = entityAt(itemBuf, i);
+    if (StuckIn.host[it] !== h) continue;
+    const a = StuckIn.angle[it];
+    const r = Collider.radius[host] + RELEASE_PUSH;
+    putOnGround(it, Transform.x[host] + Math.cos(a) * r, Transform.z[host] + Math.sin(a) * r, RELEASE_LOCK_TICKS);
+  }
+}
+
+// reads StuckIn, host Transform | writes Transform of stuck items; drops them if the host dies
+export function stuckFollowSystem(): void {
+  const n = query(buf, STUCK_ITEMS);
+  for (let i = 0; i < n; i++) {
+    const it = entityAt(buf, i);
+    const host = handleAt(StuckIn.host, it);
+    if (!isLive(host) || has(indexOf(host), C.Dead)) {
+      putOnGround(it, Transform.x[it], Transform.z[it], RELEASE_LOCK_TICKS);
+      continue;
+    }
+    const h = indexOf(host);
+    const r = Collider.radius[h];
+    Transform.x[it] = Transform.x[h] + Math.cos(StuckIn.angle[it]) * r;
+    Transform.z[it] = Transform.z[h] + Math.sin(StuckIn.angle[it]) * r;
+  }
+}
+
 // reads Wielder, Transform | writes Transform of held items
 // Held items sit at their wielder so a throw or a drop starts from the right place.
 export function heldFollowSystem(): void {
@@ -133,7 +177,7 @@ export function throwSystem(): void {
 // Every target in reach and inside the arc, so one sword swing can hit several.
 function meleeHit(w: EntityId, def: WeaponDef): boolean {
   let hit = false;
-  const targets = query(targetBuf, TARGETS, C.Dead);
+  const targets = query(targetBuf, TARGETS, UNHITTABLE);
   for (let j = 0; j < targets; j++) {
     const t = entityAt(targetBuf, j);
     if (Team.id[t] === Team.id[w]) continue;
@@ -189,8 +233,9 @@ export function attackSystem(dt: number): void {
 }
 
 // reads Thrown, Transform, Team, Collider | writes Health, Durability, item state
+// A hit lodges the weapon in the target; a miss lands it, locked for a while.
 export function flightSystem(): void {
-  const targets = query(targetBuf, TARGETS, C.Dead);
+  const targets = query(targetBuf, TARGETS, UNHITTABLE);
   const solids = query(solidBuf, SOLIDS, C.Dead);
   const n = query(buf, FLYING_ITEMS);
   for (let i = 0; i < n; i++) {
@@ -198,8 +243,9 @@ export function flightSystem(): void {
     const x = Transform.x[f];
     const z = Transform.z[f];
     let landed = false;
+    let struck: EntityId | -1 = -1;
 
-    for (let j = 0; j < targets && !landed; j++) {
+    for (let j = 0; j < targets && struck === -1; j++) {
       const t = entityAt(targetBuf, j);
       if (Team.id[t] === Team.id[f]) continue;
       const r = Collider.radius[t] + THROWN_RADIUS;
@@ -208,8 +254,9 @@ export function flightSystem(): void {
       if (dx * dx + dz * dz > r * r) continue;
       hurt(t, Thrown.dmg[f], handleAt(Thrown.by, f));
       Durability.value[f] -= defOf(f).throwWear;
-      landed = true;
+      struck = t;
     }
+    if (struck !== -1) { stick(f, struck); continue; }
     for (let j = 0; j < solids && !landed; j++) {
       const s = entityAt(solidBuf, j);
       if (has(s, C.Health)) continue;
@@ -222,7 +269,7 @@ export function flightSystem(): void {
     if (Thrown.ticksLeft[f] > 0) Thrown.ticksLeft[f]--;
     if (Thrown.ticksLeft[f] === 0) landed = true;
 
-    if (landed) putOnGround(f, x, z, LAND_LOCK_TICKS);
+    if (landed) putOnGround(f, x, z, defOf(f).throwLockTicks);
   }
 }
 

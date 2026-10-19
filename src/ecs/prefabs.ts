@@ -1,6 +1,6 @@
 import {
-  Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, Projectile, Shape, ShapeKind, Team, TeamId,
-  Transform, Velocity, Wielder,
+  Ammo, BuffPickup, C, Collider, Durability, Health, Item, LastHit, Pressure, Projectile, Shape, ShapeKind, Team,
+  TeamId, Transform, Velocity, Wielder,
 } from './components';
 import { add, mask, NO_HANDLE, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
@@ -47,6 +47,10 @@ export function spawnBoss(x: number, z: number, hp: number): EntityId {
   Team.id[e] = TeamId.Enemy;
   Collider.radius[e] = 1.3;
   Shape.kind[e] = ShapeKind.Boss;
+  Pressure.hpMark[e] = hp;
+  Pressure.markedAt[e] = world.tick;
+  // No evading in the opening seconds, while the player is still finding range.
+  Pressure.evadeReadyAt[e] = world.tick + 4 * 60;
   return e;
 }
 

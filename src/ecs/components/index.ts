@@ -37,6 +37,9 @@ export const Ammo = { count: new Uint16Array(MAX), reload: new Float32Array(MAX)
 // by is the thrower's Handle; dmg is fixed at release so a buff ending mid-flight doesn't change it.
 export const Thrown = { by: new Int32Array(MAX), dmg: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX) };
 
+// host is a Handle; angle is where around the host it went in, so it rides there.
+export const StuckIn = { host: new Int32Array(MAX), angle: new Float32Array(MAX) };
+
 export const BuffPickup = { kind: new Uint8Array(MAX) };
 // Tick deadlines rather than countdowns: written once on pickup, read by
 // whoever needs the effect, and nothing has to decrement them.
@@ -53,10 +56,26 @@ export const Collider = { radius: new Float32Array(MAX) };
 // running: which phase's coroutine the ECS has started; 0 after a load, so
 // the saved phase restarts its choreography from the beginning.
 export const BossPhase = { phase: new Uint8Array(MAX), running: new Uint8Array(MAX) };
-// timer counts down in ticks; the hit lands when it reaches 0.
+// timer counts down in ticks; the hit lands at x/z when it reaches 0. The
+// centre is stored rather than read from the boss, so a jump can telegraph
+// where it will land while the boss is still in the air.
 export const Slam = {
   timer: new Uint16Array(MAX), windup: new Uint16Array(MAX),
   radius: new Float32Array(MAX), dmg: new Float32Array(MAX),
+  x: new Float32Array(MAX), z: new Float32Array(MAX),
+};
+// The one action a boss is doing (see systems/boss-actions.ts). last* is what
+// it did before, so the chain-gap table can decide when the next may start.
+export const BossAction = {
+  kind: new Uint8Array(MAX), startedAt: new Uint32Array(MAX),
+  lastKind: new Uint8Array(MAX), lastEnd: new Uint32Array(MAX),
+};
+// Ticks of the current jump, for the renderer's arc.
+export const Jump = { airStart: new Uint32Array(MAX), landAt: new Uint32Array(MAX) };
+// How much hp the boss lost over the last second, and when it may evade again.
+export const Pressure = {
+  hpMark: new Float32Array(MAX), markedAt: new Uint32Array(MAX),
+  recentLoss: new Float32Array(MAX), evadeReadyAt: new Uint32Array(MAX),
 };
 
 export const ShapeKind = {
@@ -77,7 +96,7 @@ export const Arena = { half: 20 };
 
 const perEntity = [
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, BuffPickup, Buffs, Slowed,
-  Team, Projectile, Collider, BossPhase, Slam, Shape,
+  StuckIn, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape,
 ];
 
 export function resetComponents(): void {
