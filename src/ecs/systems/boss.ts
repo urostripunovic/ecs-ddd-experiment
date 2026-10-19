@@ -1,14 +1,12 @@
 import { BossPhase, C, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
-import { send } from '../core/outbox';
 import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
-import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, world, type EntityId } from '../core/world';
+import { entityAt, mask, MAX, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
 import { phaseOne, phaseTwo } from './boss-scripts';
 import { releaseStuck } from './weapons';
 
-// Sensor config, not a rule: the domain decides what crossing it means.
 export const PHASE_TWO_AT = share(0.5);
 // Damage is sampled over this window, so a burst of hits reads as pressure but chip damage doesn't.
 const PRESSURE_WINDOW = inTicks(seconds(1));
@@ -18,7 +16,6 @@ const PHASE_SCRIPTS = [null, phaseOne, phaseTwo] as const;
 const runningScript: (Script | null)[] = new Array(MAX).fill(null);
 
 const BOSSES = mask(C.Boss, C.Health);
-const GONE_OR_WAITING = mask(C.Dead, C.PhasePending);
 const SLAMMERS = mask(C.Slam, C.Transform);
 const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform, C.Health, C.Collider);
 
@@ -78,14 +75,14 @@ export function slamSystem(): void {
   }
 }
 
-// reads Health, BossPhase | writes PhasePending tag, sends BossThresholdCrossed
-// The latch tag stops the command repeating every tick until the domain answers.
+// reads Health, BossPhase | writes BossPhase.phase
+// The only writer of the phase. Phase 1 only moves forward, so healing never
+// takes a boss back. Nothing outside the fight reacts to the phase, so the
+// rules never hear of it.
 export function bossThresholdSystem(): void {
-  const n = query(buf, BOSSES, GONE_OR_WAITING);
+  const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    if (BossPhase.phase[e] !== 1 || shareOf(Health.hp[e], Health.max[e]) > PHASE_TWO_AT) continue;
-    add(e, C.PhasePending);
-    send('BossThresholdCrossed', toHandle(e), NO_HANDLE, PHASE_TWO_AT);
+    if (BossPhase.phase[e] === 1 && shareOf(Health.hp[e], Health.max[e]) <= PHASE_TWO_AT) BossPhase.phase[e] = 2;
   }
 }

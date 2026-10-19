@@ -68,9 +68,9 @@ export const TeamId = { Player: 0, Enemy: 1, Neutral: 2 } as const;
 export const Projectile = { owner: new Int32Array(MAX), dmg: new Float32Array(MAX), life: new Float32Array(MAX) };
 export const Collider = { radius: new Float32Array(MAX) };
 
-// phase: written only by the projector (domain-owned truth).
-// running: which phase's coroutine the ECS has started; 0 after a load, so
-// the saved phase restarts its choreography from the beginning.
+// phase: which stage of the fight, written only by bossThresholdSystem.
+// running: which phase's coroutine has been started, so a new phase starts its
+// choreography from the beginning.
 export const BossPhase = { phase: new Uint8Array(MAX), running: new Uint8Array(MAX) };
 // timer counts down in ticks; the hit lands at x/z when it reaches 0. The
 // centre is stored rather than read from the boss, so a jump can telegraph

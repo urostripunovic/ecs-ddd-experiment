@@ -15,7 +15,6 @@ export const C = {
   Shape: bit(10),
   Slam: bit(11),        // present only while a slam is winding up
   Dead: bit(12),        // tag
-  PhasePending: bit(13), // latch tag: a phase command is waiting for the domain
   Item: bit(14),         // a weapon; exactly one of Grounded, Held, Flying, Stuck at a time
   Grounded: bit(15),     // lying in the arena, can be picked up (items and buffs)
   Held: bit(16),

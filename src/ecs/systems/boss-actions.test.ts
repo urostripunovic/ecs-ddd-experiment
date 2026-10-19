@@ -12,7 +12,8 @@ import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs
 import { Action, chainGap, DEFAULT_GAP, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
-import { bossPhaseSystem, resetScripts, slamSystem } from './boss';
+import { bossPhaseSystem, bossThresholdSystem, resetScripts, slamSystem } from './boss';
+import { outbox } from '../core/outbox';
 import { bodyCollisionSystem } from './collision';
 import { projectileSystem } from './combat';
 import { movementSystem, snapshotSystem } from './motion';
@@ -77,6 +78,22 @@ describe('spawning a boss', () => {
     expect(Health.hp[e]).toBe(345);
     expect(Pressure.hpMark[e]).toBe(345);
     expect(Pressure.evadeReadyAt[e]).toBe(500 + WARDEN.evadeGrace);
+  });
+});
+
+describe('phases', () => {
+  it('phase 2 starts at half hp, once, without asking the rules', () => {
+    arena(1);
+    Health.hp[b] = Health.max[b] * 0.51;
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(1);
+    Health.hp[b] = Health.max[b] * 0.5;
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(2);
+    expect(outbox.count).toBe(0);
+    Health.hp[b] = Health.max[b];
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(2); // healing never takes it back
   });
 });
 
