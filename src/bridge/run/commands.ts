@@ -1,5 +1,5 @@
 import type { BossEvent } from '../../domain/boss/boss';
-import type { Loadout, RunCommand } from '../../domain/run/run';
+import { carriedWeapon, loadoutOf, type Loadout, type RunCommand } from '../../domain/run/run';
 import { assertNever, type Tick } from '../../domain/shared/types';
 import { Ammo, Durability, Health, Item, Wielder } from '../../ecs/components';
 import type { OutboxSlot } from '../../ecs/core/outbox';
@@ -8,16 +8,14 @@ import { idMap } from '../id-map';
 import { KIND_NAME } from './loadout';
 
 // What the player has on them, in the run's terms. Read on the tick the sensor
-// fired, before anything else can change it.
+// fired, before anything else can change it. This is where simulation numbers
+// enter the rules, so they go through the run's own constructors.
 function snapshotLoadout(p: EntityId): Loadout {
   const h = handleAt(Wielder.held, p);
   const kind = isLive(h) ? KIND_NAME[Item.kind[indexOf(h)]] : null;
-  if (!kind) return { hp: Health.hp[p], weapon: null };
+  if (!kind) return loadoutOf(Health.hp[p], null);
   const w = indexOf(h);
-  return {
-    hp: Health.hp[p],
-    weapon: { id: idMap.weaponIdOf(h), kind, durability: Durability.value[w], ammo: Ammo.count[w] },
-  };
+  return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w]));
 }
 
 // The run hears about the player directly from the simulation.

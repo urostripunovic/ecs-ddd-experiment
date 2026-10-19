@@ -113,7 +113,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   RunViewWritable.arena = arena;
   RunViewWritable.arenas = store.run.arenas;
   RunViewWritable.status = VIEW_STATUS[store.run.status];
-  RunViewWritable.endedAt = store.run.endedAt ?? 0;
+  RunViewWritable.endedAt = store.run.status === 'Won' || store.run.status === 'Lost' ? store.run.endedAt : 0;
   // The run projector opens it on ArenaCleared; a loaded clear must open it too.
   RunViewWritable.tunnelOpen = store.run.status === 'Cleared';
   handles.player = toHandle(p);
