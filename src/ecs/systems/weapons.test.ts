@@ -115,6 +115,15 @@ describe('durability', () => {
     expect(world.alive[spear]).toBe(0);
   });
 
+  it('only wears while held: on the ground, flying or stuck it waits to be picked up', () => {
+    const lying = spawnWeapon(WeaponKind.Sword, 5, 5);
+    durabilitySystem(seconds(30));
+    expect(Durability.value[lying]).toBe(100);
+    equip(p, lying);
+    durabilitySystem(seconds(1));
+    expect(Durability.value[lying]).toBeLessThan(100);
+  });
+
   it('stops wearing once the match is over', () => {
     const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
     equip(p, sword);
