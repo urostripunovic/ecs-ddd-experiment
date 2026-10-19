@@ -1,0 +1,321 @@
+// Weapons are entities in exactly one state: Grounded, Held or Flying.
+// Equipping, wear and throwing are pure simulation: no rule or save reacts to
+// them yet, so none of this crosses the bridge. Promote it when one does.
+import {
+  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, Item, MatchStatus, MatchView, PlayerInput, ShapeKind,
+  Team, TeamId, Thrown, Transform, Velocity, Wielder,
+} from '../components';
+import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
+import { random, randomRange } from '../core/rng';
+import {
+  add, despawn, entityAt, handleAt, has, indexOf, isLive, mask, NO_HANDLE, query, remove, toHandle, world,
+  type EntityId,
+} from '../core/world';
+import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
+import { BUFF_TICKS, BuffKind, WEAPONS, WeaponKind, type WeaponDef } from '../weapons/defs';
+import { hurt } from './damage';
+import { dmgMul } from './status';
+
+const WIELDERS = mask(C.Wielder, C.Transform);
+const HELD_ITEMS = mask(C.Item, C.Held);
+const FLYING_ITEMS = mask(C.Item, C.Flying, C.Transform);
+const GROUNDED = mask(C.Grounded, C.Transform);
+const NOT_HELD = mask(C.Grounded, C.Flying);
+const NOT_GROUNDED = mask(C.Held, C.Flying);
+const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
+const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
+const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform);
+const BOSSES = mask(C.Boss, C.Transform);
+
+const PICKUP_RADIUS = 1.3;
+const DROP_LOCK_TICKS = 45;  // long enough to walk off what you just dropped
+const LAND_LOCK_TICKS = 20;
+const SWING_TICKS = 10;
+const BULLET_SPEED = 30;
+const THROWN_RADIUS = 0.45;
+const DROP_EVERY_TICKS = 7 * 60;
+const MAX_ON_GROUND = 4;
+
+const fighting = () => MatchView.status === MatchStatus.Fighting;
+
+export function heldItem(w: EntityId): EntityId | -1 {
+  const h = handleAt(Wielder.held, w);
+  return isLive(h) ? indexOf(h) : -1;
+}
+
+export const defOf = (item: EntityId | -1): WeaponDef => WEAPONS[item === -1 ? WeaponKind.Fists : Item.kind[item]];
+
+export function equip(w: EntityId, item: EntityId): void {
+  remove(item, NOT_HELD);
+  add(item, C.Held);
+  Velocity.x[item] = Velocity.z[item] = 0;
+  Team.id[item] = Team.id[w];
+  Transform.x[item] = Transform.x[w];
+  Transform.z[item] = Transform.z[w];
+  Wielder.held[w] = toHandle(item);
+}
+
+// The one place an item comes to rest, so no item ever ends up inside a pillar
+// or outside the arena, however it got there.
+function putOnGround(item: EntityId, x: number, z: number, lockTicks: number): void {
+  remove(item, NOT_GROUNDED);
+  add(item, C.Grounded);
+  Velocity.x[item] = Velocity.z[item] = 0;
+  Team.id[item] = TeamId.Neutral;
+  Item.pickupAt[item] = world.tick + lockTicks;
+
+  const limit = Arena.half - 0.6;
+  x = Math.max(-limit, Math.min(limit, x));
+  z = Math.max(-limit, Math.min(limit, z));
+  const n = query(helperBuf, SOLIDS, C.Dead);
+  for (let i = 0; i < n; i++) {
+    const s = entityAt(helperBuf, i);
+    const dx = x - Transform.x[s];
+    const dz = z - Transform.z[s];
+    const min = Collider.radius[s] + 0.5;
+    const d = Math.hypot(dx, dz);
+    if (d >= min) continue;
+    x = Transform.x[s] + (d === 0 ? 0 : dx / d) * min;
+    z = Transform.z[s] + (d === 0 ? 1 : dz / d) * min;
+  }
+  Transform.x[item] = x;
+  Transform.z[item] = z;
+}
+
+function breakItem(item: EntityId): void {
+  const h = toHandle(item);
+  const n = query(helperBuf, C.Wielder);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(helperBuf, i);
+    if (Wielder.held[w] === h) Wielder.held[w] = NO_HANDLE;
+  }
+  despawn(item);
+}
+
+// reads Wielder, Transform | writes Transform of held items
+// Held items sit at their wielder so a throw or a drop starts from the right place.
+export function heldFollowSystem(): void {
+  const n = query(buf, WIELDERS);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(buf, i);
+    const item = heldItem(w);
+    if (item === -1) continue;
+    Transform.x[item] = Transform.x[w];
+    Transform.z[item] = Transform.z[w];
+  }
+}
+
+// reads PlayerInput.throwPresses, Wielder | writes Wielder, Thrown, Velocity, item state
+export function throwSystem(): void {
+  const n = query(buf, WIELDERS, C.Dead);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(buf, i);
+    if (PlayerInput.throwPresses === Wielder.throwSeen[w]) continue;
+    Wielder.throwSeen[w] = PlayerInput.throwPresses;
+    const item = heldItem(w);
+    if (!fighting() || item === -1) continue;
+
+    const def = defOf(item);
+    const start = Collider.radius[w] + 0.5;
+    remove(item, C.Held);
+    add(item, C.Flying);
+    Transform.x[item] = Transform.px[item] = Transform.x[w] + PlayerInput.aimX * start;
+    Transform.z[item] = Transform.pz[item] = Transform.z[w] + PlayerInput.aimZ * start;
+    Velocity.x[item] = PlayerInput.aimX * def.throwSpeed;
+    Velocity.z[item] = PlayerInput.aimZ * def.throwSpeed;
+    Thrown.by[item] = toHandle(w);
+    Thrown.dmg[item] = def.throwDmg * dmgMul(w);
+    Thrown.ticksLeft[item] = def.throwTicks;
+    Wielder.held[w] = NO_HANDLE;
+  }
+}
+
+// Every target in reach and inside the arc, so one sword swing can hit several.
+function meleeHit(w: EntityId, def: WeaponDef): boolean {
+  let hit = false;
+  const targets = query(targetBuf, TARGETS, C.Dead);
+  for (let j = 0; j < targets; j++) {
+    const t = entityAt(targetBuf, j);
+    if (Team.id[t] === Team.id[w]) continue;
+    const dx = Transform.x[t] - Transform.x[w];
+    const dz = Transform.z[t] - Transform.z[w];
+    const d = Math.hypot(dx, dz);
+    if (d > def.reach + Collider.radius[t]) continue;
+    // Measured to the target's centre; a target you are touching is always in the arc.
+    if (d > Collider.radius[t] && (dx * PlayerInput.aimX + dz * PlayerInput.aimZ) / d < def.arcCos) continue;
+    hurt(t, def.dmg * dmgMul(w), toHandle(w));
+    hit = true;
+  }
+  return hit;
+}
+
+// reads PlayerInput, MatchView, Wielder, held item | writes Wielder, Ammo, Durability, Health; spawns bullets
+export function attackSystem(dt: number): void {
+  const n = query(buf, WIELDERS, C.Dead);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(buf, i);
+    Wielder.cooldown[w] = Math.max(0, Wielder.cooldown[w] - dt);
+    if (Wielder.swing[w] > 0) Wielder.swing[w]--;
+    const item = heldItem(w);
+    const def = defOf(item);
+
+    if (def.attack === 'shoot' && item !== -1) {
+      if (Ammo.reload[item] > 0) {
+        Ammo.reload[item] -= dt;
+        if (Ammo.reload[item] <= 0) { Ammo.reload[item] = 0; Ammo.count[item] = def.mag; }
+        continue;
+      }
+      if (PlayerInput.reload && Ammo.count[item] < def.mag) { Ammo.reload[item] = def.reloadTime; continue; }
+    }
+    if (!fighting() || !PlayerInput.fire || Wielder.cooldown[w] > 0) continue;
+    Wielder.cooldown[w] = def.cooldown;
+
+    if (def.attack === 'shoot' && item !== -1) {
+      Ammo.count[item]--;
+      if (Ammo.count[item] === 0) Ammo.reload[item] = def.reloadTime;
+      // Spawned at the muzzle, not the centre, so point-blank shots still read as leaving the gun.
+      const muzzle = Collider.radius[w] + 0.35;
+      spawnProjectile(
+        Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
+        PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
+        Team.id[w], toHandle(w), def.dmg * dmgMul(w), 1.5, ShapeKind.Bullet,
+      );
+      continue;
+    }
+    Wielder.swing[w] = SWING_TICKS;
+    // Wear once per swing that connects, not per target, so crowds don't shred a blade.
+    if (meleeHit(w, def) && item !== -1) Durability.value[item] -= def.wearPerHit;
+  }
+}
+
+// reads Thrown, Transform, Team, Collider | writes Health, Durability, item state
+export function flightSystem(): void {
+  const targets = query(targetBuf, TARGETS, C.Dead);
+  const solids = query(solidBuf, SOLIDS, C.Dead);
+  const n = query(buf, FLYING_ITEMS);
+  for (let i = 0; i < n; i++) {
+    const f = entityAt(buf, i);
+    const x = Transform.x[f];
+    const z = Transform.z[f];
+    let landed = false;
+
+    for (let j = 0; j < targets && !landed; j++) {
+      const t = entityAt(targetBuf, j);
+      if (Team.id[t] === Team.id[f]) continue;
+      const r = Collider.radius[t] + THROWN_RADIUS;
+      const dx = Transform.x[t] - x;
+      const dz = Transform.z[t] - z;
+      if (dx * dx + dz * dz > r * r) continue;
+      hurt(t, Thrown.dmg[f], handleAt(Thrown.by, f));
+      Durability.value[f] -= defOf(f).throwWear;
+      landed = true;
+    }
+    for (let j = 0; j < solids && !landed; j++) {
+      const s = entityAt(solidBuf, j);
+      if (has(s, C.Health)) continue;
+      const r = Collider.radius[s] + 0.2;
+      const dx = x - Transform.x[s];
+      const dz = z - Transform.z[s];
+      if (dx * dx + dz * dz <= r * r) landed = true;
+    }
+    if (Math.abs(x) > Arena.half - 0.3 || Math.abs(z) > Arena.half - 0.3) landed = true;
+    if (Thrown.ticksLeft[f] > 0) Thrown.ticksLeft[f]--;
+    if (Thrown.ticksLeft[f] === 0) landed = true;
+
+    if (landed) putOnGround(f, x, z, LAND_LOCK_TICKS);
+  }
+}
+
+function applyBuff(w: EntityId, kind: number): void {
+  if (kind === BuffKind.Haste) Buffs.hasteUntil[w] = world.tick + BUFF_TICKS;
+  else if (kind === BuffKind.Fury) Buffs.furyUntil[w] = world.tick + BUFF_TICKS;
+}
+
+// reads Grounded items, PlayerInput.interactPresses, Wielder | writes Wielder, Buffs, item state
+// Empty hands pick up by walking over; full hands swap only on purpose (interact).
+export function pickupSystem(): void {
+  if (!fighting()) return;
+  const items = query(itemBuf, GROUNDED);
+  const n = query(buf, WIELDERS, C.Dead);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(buf, i);
+    const interact = PlayerInput.interactPresses !== Wielder.interactSeen[w];
+    Wielder.interactSeen[w] = PlayerInput.interactPresses;
+
+    let nearest: EntityId | -1 = -1;
+    let best = PICKUP_RADIUS * PICKUP_RADIUS;
+    for (let j = 0; j < items; j++) {
+      const it = entityAt(itemBuf, j);
+      // A buff consumed earlier in this loop is gone; an item picked up is no longer on the ground.
+      if (!world.alive[it] || !has(it, C.Grounded)) continue;
+      const dx = Transform.x[it] - Transform.x[w];
+      const dz = Transform.z[it] - Transform.z[w];
+      const d2 = dx * dx + dz * dz;
+      if (d2 > PICKUP_RADIUS * PICKUP_RADIUS) continue;
+      if (has(it, C.BuffPickup)) { applyBuff(w, BuffPickup.kind[it]); despawn(it); continue; }
+      if (world.tick < Item.pickupAt[it] || d2 >= best) continue;
+      nearest = it;
+      best = d2;
+    }
+    if (nearest === -1) continue;
+
+    const holding = heldItem(w);
+    if (holding === -1) equip(w, nearest);
+    else if (interact) {
+      putOnGround(holding, Transform.x[w], Transform.z[w], DROP_LOCK_TICKS);
+      equip(w, nearest);
+    }
+  }
+}
+
+// reads Held items, Durability, MatchView | writes Durability; breaks worn-out items wherever they are
+export function durabilitySystem(dt: number): void {
+  // Time stops wearing things once the fight is over, so the end screen shows what you finished with.
+  const held = fighting() ? query(buf, HELD_ITEMS) : 0;
+  for (let i = 0; i < held; i++) {
+    const it = entityAt(buf, i);
+    Durability.value[it] -= defOf(it).decayPerSec * dt;
+  }
+  const n = query(buf, C.Item);
+  for (let i = 0; i < n; i++) {
+    const it = entityAt(buf, i);
+    if (defOf(it).durability > 0 && Durability.value[it] <= 0) breakItem(it);
+  }
+}
+
+function clearSpot(x: number, z: number): boolean {
+  const solids = query(helperBuf, SOLIDS, C.Dead);
+  for (let i = 0; i < solids; i++) {
+    const s = entityAt(helperBuf, i);
+    const keepOut = Collider.radius[s] + (has(s, C.Boss) ? 3 : 1.2);
+    if (Math.hypot(x - Transform.x[s], z - Transform.z[s]) < keepOut) return false;
+  }
+  const players = query(helperBuf, LIVE_PLAYERS);
+  for (let i = 0; i < players; i++) {
+    const p = entityAt(helperBuf, i);
+    if (Math.hypot(x - Transform.x[p], z - Transform.z[p]) < 2.5) return false;
+  }
+  return true;
+}
+
+// reads world.tick, rng, Grounded count | spawns weapons and buffs
+// Draws from the seeded RNG only, so the same seed gives the same drops.
+export function dropSystem(): void {
+  if (!fighting() || world.tick === 0 || world.tick % DROP_EVERY_TICKS !== 0) return;
+  if (query(helperBuf, GROUNDED) >= MAX_ON_GROUND) return;
+  if (query(helperBuf, BOSSES, C.Dead) === 0) return;
+
+  const roll = random();
+  const limit = Arena.half - 2;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const x = randomRange(-limit, limit);
+    const z = randomRange(-limit, limit);
+    if (!clearSpot(x, z)) continue;
+    if (roll < 0.22) spawnWeapon(WeaponKind.Sword, x, z);
+    else if (roll < 0.44) spawnWeapon(WeaponKind.Spear, x, z);
+    else if (roll < 0.6) spawnWeapon(WeaponKind.Gun, x, z);
+    else if (roll < 0.8) spawnBuff(BuffKind.Haste, x, z);
+    else spawnBuff(BuffKind.Fury, x, z);
+    return;
+  }
+}

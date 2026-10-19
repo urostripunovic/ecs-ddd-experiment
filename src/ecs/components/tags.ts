@@ -5,7 +5,7 @@ export const C = {
   Transform: bit(0),
   Velocity: bit(1),
   Health: bit(2),
-  Weapon: bit(3),
+  Wielder: bit(3),       // can hold one item; empty hands fight with fists
   Team: bit(4),
   Projectile: bit(5),
   PlayerControlled: bit(6),
@@ -16,4 +16,9 @@ export const C = {
   Slam: bit(11),        // present only while a slam is winding up
   Dead: bit(12),        // tag
   PhasePending: bit(13), // latch tag: a phase command is waiting for the domain
+  Item: bit(14),         // a weapon; exactly one of Grounded, Held, Flying at a time
+  Grounded: bit(15),     // lying in the arena, can be picked up (items and buffs)
+  Held: bit(16),
+  Flying: bit(17),       // thrown
+  BuffPickup: bit(18),
 } as const;

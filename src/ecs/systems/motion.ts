@@ -2,6 +2,7 @@
 import { C, MatchStatus, MatchView, PlayerInput, Transform, Velocity } from '../components';
 import { buf } from '../core/buffers';
 import { entityAt, mask, query } from '../core/world';
+import { speedMul } from './status';
 
 export const PLAYER_SPEED = 6;
 
@@ -19,14 +20,15 @@ export function snapshotSystem(): void {
   }
 }
 
-// reads PlayerInput, MatchView | writes Velocity (player-controlled only)
+// reads PlayerInput, MatchView, Buffs, Slowed | writes Velocity (player-controlled only)
 export function inputSystem(): void {
   const active = MatchView.status === MatchStatus.Fighting;
   const n = query(buf, PLAYER_MOVERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    Velocity.x[e] = active ? PlayerInput.moveX * PLAYER_SPEED : 0;
-    Velocity.z[e] = active ? PlayerInput.moveZ * PLAYER_SPEED : 0;
+    const speed = active ? PLAYER_SPEED * speedMul(e) : 0;
+    Velocity.x[e] = PlayerInput.moveX * speed;
+    Velocity.z[e] = PlayerInput.moveZ * speed;
   }
 }
 

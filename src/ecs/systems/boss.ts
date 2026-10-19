@@ -1,13 +1,15 @@
-import { BossPhase, C, Health, MatchStatus, MatchView, Slam, Transform } from '../components';
+import { BossPhase, C, Health, MatchStatus, MatchView, Slam, Slowed, Transform } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import { send } from '../core/outbox';
 import type { Script } from '../core/script';
-import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, type EntityId } from '../core/world';
+import { add, entityAt, mask, MAX, NO_HANDLE, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
 import { phaseOne, phaseTwo } from './boss-scripts';
 
 // Sensor config, not a rule: the domain decides what crossing it means.
 export const PHASE_TWO_AT = 0.5; // share of max hp
+const SLAM_SLOW_TICKS = 60;
+const SLAM_SLOW_FACTOR = 0.5;
 
 const PHASE_SCRIPTS = [null, phaseOne, phaseTwo] as const;
 const runningScript: (Script | null)[] = new Array(MAX).fill(null);
@@ -41,7 +43,7 @@ export function bossPhaseSystem(): void {
   }
 }
 
-// reads Slam, Transform | writes Slam, Health of players in range
+// reads Slam, Transform | writes Slam, Health and Slowed of players in range
 export function slamSystem(): void {
   const n = query(buf, SLAMMERS, C.Dead);
   for (let i = 0; i < n; i++) {
@@ -56,7 +58,11 @@ export function slamSystem(): void {
       const dx = Transform.x[p] - Transform.x[e];
       const dz = Transform.z[p] - Transform.z[e];
       const r = Slam.radius[e];
-      if (dx * dx + dz * dz <= r * r) hurt(p, Slam.dmg[e], toHandle(e));
+      if (dx * dx + dz * dz > r * r) continue;
+      hurt(p, Slam.dmg[e], toHandle(e));
+      // The only writer of Slowed: a buff can change speed too, but through its own field.
+      Slowed.until[p] = world.tick + SLAM_SLOW_TICKS;
+      Slowed.factor[p] = SLAM_SLOW_FACTOR;
     }
   }
 }
