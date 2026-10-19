@@ -3,12 +3,10 @@
 // generated from ARENA_STATE, the declared component list, so a new component
 // shows up here without touching this file.
 import { handles } from '../../bridge/spawn';
-import { C, GodMode, Shape, ShapeKind } from '../../ecs/components';
+import { C, GodMode } from '../../ecs/components';
 import { has, isLive, MAX, toHandle, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { timeControl } from '../loop';
-import { inspect, lastJumpCheck, queueDev, type ArenaComponent, type DevCommand, type JumpTarget } from './commands';
-
-const SHAPE_NAME = Object.fromEntries(Object.entries(ShapeKind).map(([k, v]) => [v, k])) as Record<number, string>;
+import { inspect, lastJumpCheck, nameOf, queueDev, type ArenaComponent, type DevCommand, type JumpTarget } from './commands';
 const JUMPS: [JumpTarget, string][] = [
   ['arena1', 'arena 1'], ['arena1Cleared', 'arena 1 cleared'], ['arena2', 'arena 2'],
   ['arena2Phase2', 'arena 2, phase 2'], ['won', 'won'],
@@ -78,14 +76,23 @@ export function createGodMenu(root: HTMLElement) {
   const fields = q('[data-fields]');
   let selected: Handle = handles.player;
   entitySelect.addEventListener('change', () => { selected = Number(entitySelect.value) as Handle; renderFields(); });
+  // On the container and on press, not per button on click: the fields redraw a
+  // few times a second, and a button replaced between press and release never
+  // gets its click.
+  fields.addEventListener('pointerdown', (ev) => {
+    const go = (ev.target as HTMLElement).closest<HTMLButtonElement>('[data-go]');
+    if (!go || go.disabled) return;
+    selected = Number(go.dataset.go) as Handle;
+    renderEntities();
+    renderFields();
+  });
 
   function renderEntities(): void {
     const options: string[] = [];
     for (let e = 0; e < world.nextFresh && e < MAX; e++) {
       if (!world.alive[e] || !has(e as EntityId, C.Shape)) continue;
       const h = toHandle(e as EntityId);
-      const name = `${SHAPE_NAME[Shape.kind[e]] ?? '?'} #${e}`;
-      options.push(`<option value="${h}"${h === selected ? ' selected' : ''}>${name}</option>`);
+      options.push(`<option value="${h}"${h === selected ? ' selected' : ''}>${nameOf(h)}</option>`);
     }
     entitySelect.innerHTML = options.join('');
     if (!isLive(selected)) selected = handles.player;
@@ -94,8 +101,11 @@ export function createGodMenu(root: HTMLElement) {
   // Every numeric field of the selected entity that isn't zero, editable in place.
   function renderFields(): void {
     if (!isLive(selected)) { fields.textContent = 'gone'; return; }
-    const rows = inspect(selected).map(({ component, field, value }) =>
-      `<label>${component}.${field} <input data-c="${component}" data-f="${field}" value="${+value.toFixed(3)}"></label>`);
+    // A handle is shown as what it points at and isn't editable: a typed number
+    // would be a packed generation and slot, easy to get wrong and never useful.
+    const rows = inspect(selected).map(({ component, field, value, points }) => points === undefined
+      ? `<label>${component}.${field} <input data-c="${component}" data-f="${field}" value="${+value.toFixed(3)}"></label>`
+      : `<label>${component}.${field} <button data-go="${points}"${isLive(points) ? '' : ' disabled'}>${nameOf(points)}</button></label>`);
     fields.innerHTML = rows.join('') || '<span class="muted">all zero</span>';
     for (const input of fields.querySelectorAll<HTMLInputElement>('input')) {
       input.addEventListener('change', () => send({

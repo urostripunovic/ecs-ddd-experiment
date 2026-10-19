@@ -14,8 +14,8 @@ import { disagreements } from '../../bridge/run/agree';
 import { handles, loadRunState } from '../../bridge/spawn';
 import { store } from '../../bridge/store';
 import { logChain } from '../../bridge/tick-log';
-import { ARENA_STATE, C, GodMode, Health, Jump, LastHit } from '../../ecs/components';
-import { indexOf, isLive, MAX, remove, world, type Handle } from '../../ecs/core/world';
+import { ARENA_STATE, C, GodMode, Health, holdsHandles, Jump, LastHit, Shape, ShapeKind } from '../../ecs/components';
+import { indexOf, isLive, MAX, NO_HANDLE, remove, world, type Handle } from '../../ecs/core/world';
 import { giveWeapon } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
 
@@ -151,7 +151,22 @@ function jump(to: JumpTarget): void {
   if (lastCheck.length > 0) logChain(`cheat check: world and rules disagree: ${lastCheck.join('; ')}`);
 }
 
-export type Field = { readonly component: ArenaComponent; readonly field: string; readonly value: number };
+// points: set when the field holds a handle, so the menu can name the entity
+// and jump to it instead of showing the packed number.
+export type Field = {
+  readonly component: ArenaComponent; readonly field: string; readonly value: number; readonly points?: Handle;
+};
+
+const SHAPE_NAME = Object.fromEntries(Object.entries(ShapeKind).map(([k, v]) => [v, k])) as Record<number, string>;
+
+// How a handle reads in the menu and logs: "Gun #6", "none", or "gone #6" for one
+// whose entity has died (its slot may hold something else by now).
+export function nameOf(h: Handle): string {
+  if (h === NO_HANDLE) return 'none';
+  const e = indexOf(h);
+  if (!isLive(h)) return `gone #${e}`;
+  return `${SHAPE_NAME[Shape.kind[e]] ?? 'entity'} #${e}`;
+}
 
 // The inspector's view of one entity: every per-entity field that isn't zero,
 // read from the declared component list. Arrays not indexed by entity (the
@@ -164,7 +179,10 @@ export function inspect(h: Handle): Field[] {
     for (const [field, arr] of Object.entries(group as Record<string, unknown>)) {
       if (!ArrayBuffer.isView(arr) || (arr as Float32Array).length !== MAX) continue;
       const value = (arr as Float32Array)[e];
-      if (value !== 0) out.push({ component: component as ArenaComponent, field, value });
+      if (value === 0) continue;
+      out.push(holdsHandles(arr)
+        ? { component: component as ArenaComponent, field, value, points: value as Handle }
+        : { component: component as ArenaComponent, field, value });
     }
   }
   return out;

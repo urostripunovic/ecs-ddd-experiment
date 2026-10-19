@@ -6,10 +6,10 @@ import { readTickLog } from '../../bridge/tick-log';
 import {
   Ammo, BossPhase, C, GodMode, Health, Item, PlayerInput, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
-import { has, indexOf, isLive, world, type Handle } from '../../ecs/core/world';
+import { has, indexOf, isLive, NO_HANDLE, world, type Handle } from '../../ecs/core/world';
 import { WeaponKind } from '../../ecs/weapons/defs';
 import { createFrameDriver, tick, timeControl } from '../loop';
-import { clearDev, devHistory, inspect, queueDev, replayDev, type DevCommand } from './commands';
+import { clearDev, devHistory, inspect, nameOf, queueDev, replayDev, type DevCommand } from './commands';
 
 const player = () => indexOf(handles.player);
 const boss = () => indexOf(handles.boss);
@@ -62,6 +62,22 @@ describe('debug cheats: forced simulation data', () => {
     expect(fields).toContainEqual({ component: 'Health', field: 'hp', value: 100 });
     expect(fields.every((f) => typeof f.value === 'number' && !Number.isNaN(f.value))).toBe(true);
     expect(fields.some((f) => f.component === 'Stock')).toBe(false);
+  });
+
+  it('inspect: a field holding a handle names the entity it points at', () => {
+    const held = inspect(handles.player).find((f) => f.component === 'Wielder' && f.field === 'held');
+    expect(held?.points).toBe(Wielder.held[player()]);
+    expect(nameOf(held!.points!)).toBe(`Gun #${indexOf(held!.points!)}`);
+    expect(inspect(handles.player).find((f) => f.field === 'cooldown')?.points).toBeUndefined();
+  });
+
+  it('nameOf: nobody and a dead entity are said so, not shown as a number', () => {
+    expect(nameOf(NO_HANDLE)).toBe('none');
+    const gun = Wielder.held[player()] as Handle;
+    cheat({ kind: 'give', weapon: 'spear' });
+    expect(nameOf(gun)).toMatch(/^Gun #\d+$/); // dropped, still alive
+    startRun({ seed: 3 });
+    expect(nameOf(gun)).toMatch(/^gone #\d+$/);
   });
 
   it('set: the inspector writes one field of one entity', () => {
