@@ -1,5 +1,6 @@
-import { initialBoss } from '../domain/boss/boss';
-import type { Loadout, RunStatus as RunStatusName } from '../domain/run/run';
+import { initialBoss, type BossState } from '../domain/boss/boss';
+import type { Loadout, RunState, RunStatus as RunStatusName } from '../domain/run/run';
+import type { BossId } from '../domain/shared/types';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
 import { Ammo, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
@@ -53,6 +54,14 @@ export function startRun(opts: RunOptions = {}): RunHandles {
   seedRng(opts.seed ?? 1);
   buildArena(store.run.arena, store.run.loadout);
   return handles;
+}
+
+// Loading: replace the rules' state, then build the world from it by the same
+// path as every arena. Saves, the load test and the dev menu's jumps use it.
+export function loadRunState(run: RunState, bosses: ReadonlyMap<BossId, BossState>): void {
+  store.run = run;
+  store.bosses = new Map(bosses);
+  buildArena(run.arena, run.loadout);
 }
 
 // The spawn projection: the ECS world rebuilt purely from domain state. Arena 1

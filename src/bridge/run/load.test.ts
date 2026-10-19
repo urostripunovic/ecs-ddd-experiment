@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { BossState } from '../../domain/boss/boss';
 import type { RunState } from '../../domain/run/run';
 import type { BossId } from '../../domain/shared/types';
-import { Arena, C, RunStatus, RunView, Transform } from '../../ecs/components';
+import { Arena, Transform } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
-import { has, indexOf } from '../../ecs/core/world';
+import { indexOf } from '../../ecs/core/world';
 import { deathSystem } from '../../ecs/systems/combat';
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { domainStep } from '../dispatch';
-import { bossIdFor } from '../ids';
-import { buildArena, handles, startRun } from '../spawn';
+import { handles, loadRunState, startRun } from '../spawn';
+import { disagreements } from './agree';
 import { store } from '../store';
 import { readTickLog } from '../tick-log';
 
@@ -21,19 +21,12 @@ const save = (): Saved => structuredClone({ run: store.run, bosses: [...store.bo
 
 function load(saved: Saved): void {
   startRun();
-  store.run = structuredClone(saved.run);
-  store.bosses = new Map(structuredClone(saved.bosses));
-  buildArena(store.run.arena, store.run.loadout);
+  loadRunState(structuredClone(saved.run), new Map(structuredClone(saved.bosses)));
 }
-
-const VIEW = { Fighting: RunStatus.Fighting, Cleared: RunStatus.Cleared, Won: RunStatus.Won, Lost: RunStatus.Lost };
 
 function expectWorldAgrees(saved: Saved): void {
   const { run } = saved;
-  const boss = new Map(saved.bosses).get(bossIdFor(run.arena));
-  expect(RunView).toMatchObject({ arena: run.arena, status: VIEW[run.status], tunnelOpen: run.status === 'Cleared' });
-  expect(has(indexOf(handles.boss), C.Dead)).toBe(boss?.defeated ?? false);
-  expect(has(indexOf(handles.player), C.Dead)).toBe(run.status === 'Lost');
+  expect(disagreements()).toEqual([]);
 
   // Nothing in the rebuilt world disagrees enough to ask the rules anything.
   const log = readTickLog().length;
