@@ -1,7 +1,8 @@
 import { initialBoss } from '../domain/boss/boss';
 import type { Loadout, RunStatus as RunStatusName } from '../domain/run/run';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
-import { Ammo, C, Durability, Health, Jump, RunStatus, RunView, resetArenaState, resetRunState } from '../ecs/components';
+import { Ammo, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
+import { RunViewWritable } from '../ecs/components/run-view';
 import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
@@ -109,12 +110,12 @@ export function buildArena(arena: number, loadout: Loadout): void {
   idMap.bind(toHandle(b), { context: 'boss', id: bossId });
   if (store.run.status === 'Lost') downed(p);
 
-  RunView.arena = arena;
-  RunView.arenas = store.run.arenas;
-  RunView.status = VIEW_STATUS[store.run.status];
-  RunView.endedAt = store.run.endedAt ?? 0;
+  RunViewWritable.arena = arena;
+  RunViewWritable.arenas = store.run.arenas;
+  RunViewWritable.status = VIEW_STATUS[store.run.status];
+  RunViewWritable.endedAt = store.run.endedAt ?? 0;
   // The run projector opens it on ArenaCleared; a loaded clear must open it too.
-  RunView.tunnelOpen = store.run.status === 'Cleared';
+  RunViewWritable.tunnelOpen = store.run.status === 'Cleared';
   handles.player = toHandle(p);
   handles.boss = toHandle(b);
 }

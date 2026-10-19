@@ -1,6 +1,7 @@
 import type { Loadout, RunEvent } from '../../domain/run/run';
 import { assertNever } from '../../domain/shared/types';
-import { C, RunStatus, RunView } from '../../ecs/components';
+import { C, RunStatus } from '../../ecs/components';
+import { RunViewWritable } from '../../ecs/components/run-view';
 import { indexOf, isLive, remove } from '../../ecs/core/world';
 import { idMap } from '../id-map';
 import { PLAYER_ID } from '../ids';
@@ -19,16 +20,16 @@ export function takePendingArena(): { arena: number; loadout: Loadout } | null {
 export function projectRun(e: RunEvent): string {
   switch (e.kind) {
     case 'RunLost':
-      RunView.status = RunStatus.Lost;
-      RunView.endedAt = e.tick;
+      RunViewWritable.status = RunStatus.Lost;
+      RunViewWritable.endedAt = e.tick;
       return 'RunView=Lost';
     case 'ArenaCleared':
-      RunView.status = RunStatus.Cleared;
-      RunView.tunnelOpen = true;
+      RunViewWritable.status = RunStatus.Cleared;
+      RunViewWritable.tunnelOpen = true;
       return 'RunView=Cleared, tunnel open';
     case 'RunWon':
-      RunView.status = RunStatus.Won;
-      RunView.endedAt = e.tick;
+      RunViewWritable.status = RunStatus.Won;
+      RunViewWritable.endedAt = e.tick;
       return 'RunView=Won';
     case 'ArenaEntered':
       pendingArena = { arena: e.arena, loadout: e.loadout };

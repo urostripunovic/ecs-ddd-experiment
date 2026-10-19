@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
+import { RunStatus, RunView } from '../ecs/components';
+import { RunViewWritable } from '../ecs/components/run-view';
 
-// RunView is the rules' decision shown to the world: only the bridge writes it
-// (the run projector, and buildArena when it builds from rules state). The ECS
-// owns the component, so the zone lint can't see a system writing it; this can.
-// A system that wants the run to change sends a request instead.
-const sources = import.meta.glob<string>('../**/*.ts', { query: '?raw', import: 'default', eager: true });
-const outsideBridge = Object.entries(sources).filter(
-  ([path]) => !path.endsWith('.test.ts') && !path.startsWith('./') && !path.startsWith('../bridge/'),
-);
-const WRITES_RUN_VIEW = /\bRunView\.\w+\s*(?:[+\-*/]?=(?!=)|\+\+|--)|Object\.assign\(\s*RunView\b/;
-
+// RunView is the rules' decision shown to the world. Everyone may read it; only
+// the bridge may write it, through RunViewWritable, which the zone lint lets
+// only bridge/ (and tests) import. A system that wants the run to change sends
+// a request instead.
 describe('projection ownership', () => {
-  it('only the bridge writes RunView', () => {
-    const writers = outsideBridge.filter(([, src]) => WRITES_RUN_VIEW.test(src)).map(([path]) => path);
-    expect(writers).toEqual([]);
+  it('RunView is read-only to everyone else, and the same object the bridge writes', () => {
+    // @ts-expect-error read-only outside the bridge: this line must not compile
+    RunView.tunnelOpen = true;
+    RunViewWritable.status = RunStatus.Cleared;
+    expect(RunView.status).toBe(RunStatus.Cleared);
+    RunViewWritable.status = RunStatus.Fighting;
+    RunViewWritable.tunnelOpen = false;
   });
 });
