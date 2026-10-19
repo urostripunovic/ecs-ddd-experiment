@@ -10,8 +10,9 @@ const HURT_FLASH_TICKS = 6;
 export function hurt(target: EntityId, dmg: number, by: Handle): boolean {
   // Still flashes, so the player can see the hit arrived but was shrugged off.
   Hurt.flash[target] = HURT_FLASH_TICKS;
-  // Once the run has left Fighting, its title card has shown and that outcome
-  // stands: a bullet already in flight can't undo a clear.
+  // A design choice for this game, not a rule: after the clear, a bullet already
+  // in flight can't hurt you. Delete this line for a game where it should; the
+  // run already loses if you go down in a cleared arena (R8).
   if (RunView.status !== RunStatus.Fighting) return false;
   // Two sources, two writers: the roar's tag and the dodge's deadline, combined only here.
   if (has(target, C.Invulnerable) || dodging(target)) return false;
