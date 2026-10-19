@@ -4,6 +4,7 @@ export type Brand<T, B> = T & { readonly __brand: B };
 // Stable and saved, unlike ECS entity handles, which are recycled.
 export type BossId = Brand<string, 'BossId'>;
 export type PlayerId = Brand<string, 'PlayerId'>;
+export type WeaponId = Brand<string, 'WeaponId'>;
 
 // The domain's only clock. Never Date.now(): pausing, slow motion and tests all depend on it.
 export type Tick = Brand<number, 'Tick'>;
