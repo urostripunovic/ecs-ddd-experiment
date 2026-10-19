@@ -49,6 +49,9 @@ export const BuffPickup = { kind: new Uint8Array(MAX) };
 // whoever needs the effect, and nothing has to decrement them.
 export const Buffs = { hasteUntil: new Uint32Array(MAX), furyUntil: new Uint32Array(MAX) };
 export const Slowed = { until: new Uint32Array(MAX), factor: new Float32Array(MAX) };
+// A shove in m/s until a tick. Its own field: inputSystem stays the only
+// writer of a player's velocity and adds this on top.
+export const Knockback = { x: new Float32Array(MAX), z: new Float32Array(MAX), until: new Uint32Array(MAX) };
 
 export const Team = { id: new Uint8Array(MAX) };
 export const TeamId = { Player: 0, Enemy: 1, Neutral: 2 } as const;
@@ -99,11 +102,16 @@ export const PlayerInput = {
 export const MatchStatus = { Fighting: 0, Won: 1, Lost: 2 } as const;
 export const MatchView = { status: 0 as number, endedAt: 0 };
 export const Arena = { half: 20 };
+// While a cutscene runs the player can't act; until is a tick deadline.
+export const Cutscene = { until: 0 };
+// 0..1. The camera shakes by trauma squared; decays per tick so it lasts the
+// same at any frame rate. The wobble itself is the renderer's business.
+export const Shake = { trauma: 0 };
 // Per weapon kind, the tick its replacement appears; 0 = nothing missing.
 export const Stock = { respawnAt: new Uint32Array(4) };
 
 const perEntity = [
-  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, BuffPickup, Buffs, Slowed,
+  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, BuffPickup, Buffs, Slowed, Knockback,
   StuckIn, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape,
 ];
 
@@ -116,4 +124,6 @@ export function resetComponents(): void {
   MatchView.status = MatchStatus.Fighting;
   MatchView.endedAt = 0;
   Stock.respawnAt.fill(0);
+  Cutscene.until = 0;
+  Shake.trauma = 0;
 }

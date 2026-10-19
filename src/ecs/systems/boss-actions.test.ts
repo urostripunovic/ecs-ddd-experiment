@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  BossAction, BossPhase, C, Health, MatchStatus, MatchView, Pressure, resetComponents, Slam, TeamId, Transform,
+  BossAction, BossPhase, C, Health, Knockback, MatchStatus, MatchView, Pressure, resetComponents, Shake, Slam, TeamId,
+  Transform,
 } from '../components';
 import { buf } from '../core/buffers';
 import { has, query, resetWorld, toHandle, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
-import { Action, chainGap, DEFAULT_GAP, type ActionKind } from './boss-actions';
+import { Action, chainGap, DEFAULT_GAP, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
+import { controlsLocked } from './cutscene';
+import { hurt } from './damage';
 import { bossPhaseSystem, resetScripts, slamSystem } from './boss';
 import { bodyCollisionSystem } from './collision';
 import { projectileSystem } from './combat';
@@ -108,6 +111,29 @@ describe('boss choreography', () => {
     projectileSystem(DT);
     expect(Health.hp[b]).toBe(hp);
     expect(world.alive[bullet]).toBe(1); // flew on, not spent on the boss
+  });
+});
+
+describe('roar', () => {
+  it('phase 2 opens with a roar: controls locked, boss invulnerable, screen shaking, player shoved', () => {
+    arena(2);
+    Transform.z[p] = -4; // within shoving range of the boss at z = -8
+    run(ROAR_REAR + 2, false);
+
+    expect(BossAction.kind[b]).toBe(Action.Roar);
+    expect(controlsLocked()).toBe(true);
+    expect(has(b, C.Invulnerable)).toBe(true);
+    expect(Shake.trauma).toBeGreaterThan(0.9);
+    expect(Knockback.until[p]).toBeGreaterThan(world.tick);
+    expect(Knockback.z[p]).toBeGreaterThan(0); // away from the boss
+
+    const hp = Health.hp[b];
+    hurt(b, 100, toHandle(p));
+    expect(Health.hp[b]).toBe(hp);
+
+    run(ROAR_HOLD, false);
+    expect(controlsLocked()).toBe(false);
+    expect(has(b, C.Invulnerable)).toBe(false);
   });
 });
 

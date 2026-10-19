@@ -3,7 +3,7 @@
 // Every attack goes through begin()/finish() (boss-actions.ts), so attacks never
 // overlap and the chain gaps between them come from one table.
 import {
-  Arena, C, Collider, Health, Jump, Pressure, ShapeKind, Slam, TeamId, Transform, Velocity,
+  Arena, C, Collider, Health, Jump, Knockback, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity,
 } from '../components';
 import { helperBuf, scriptBuf } from '../core/buffers';
 import { waitTicks, type Script } from '../core/script';
@@ -11,7 +11,9 @@ import { add, entityAt, mask, query, remove, toHandle, world, type EntityId } fr
 import { spawnProjectile } from '../prefabs';
 import {
   Action, begin, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, finish, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER,
+  ROAR_HOLD, ROAR_REAR,
 } from './boss-actions';
+import { startCutscene } from './cutscene';
 
 const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform, C.Health);
 const PILLARS = mask(C.Transform, C.Collider, C.Solid);
@@ -187,6 +189,38 @@ function* jump(boss: EntityId, mode: 'at' | 'away'): Script {
   finish(boss);
 }
 
+const ROAR_PUSH_RADIUS = 7;
+const ROAR_PUSH_SPEED = 9;
+const ROAR_PUSH_TICKS = 15;
+
+// Clears space for phase 2's bursts: anyone close is shoved outward.
+function roarPush(boss: EntityId): void {
+  const p = findPlayer();
+  if (p === -1) return;
+  const dx = Transform.x[p] - Transform.x[boss];
+  const dz = Transform.z[p] - Transform.z[boss];
+  const d = Math.hypot(dx, dz);
+  if (d > ROAR_PUSH_RADIUS) return;
+  Knockback.x[p] = (d === 0 ? 0 : dx / d) * ROAR_PUSH_SPEED;
+  Knockback.z[p] = (d === 0 ? 1 : dz / d) * ROAR_PUSH_SPEED;
+  Knockback.until[p] = world.tick + ROAR_PUSH_TICKS;
+}
+
+// The cutscene that opens phase 2. Rears up first so the player sees it coming;
+// the shake and shove land on the roar itself. It can't be burst down mid-roar.
+function* roar(boss: EntityId): Script {
+  yield* begin(boss, Action.Roar);
+  stop(boss);
+  add(boss, C.Invulnerable);
+  startCutscene(ROAR_REAR + ROAR_HOLD);
+  yield* waitTicks(ROAR_REAR);
+  Shake.trauma = 1;
+  roarPush(boss);
+  yield* waitTicks(ROAR_HOLD);
+  remove(boss, C.Invulnerable);
+  finish(boss);
+}
+
 function shouldEvade(boss: EntityId): boolean {
   if (world.tick < Pressure.evadeReadyAt[boss]) return false;
   if (Pressure.recentLoss[boss] <= Health.max[boss] * EVADE_LOSS_SHARE) return false;
@@ -215,9 +249,11 @@ export function* phaseOne(boss: EntityId): Script {
   }
 }
 
-// Phase 2: bursts and cones between strafes, then its one chain: a cone that
+// Phase 2: opens with a roar; then bursts and cones between strafes, then its one chain: a cone that
 // rolls straight into loading a jump, before a faster, wider slam.
 export function* phaseTwo(boss: EntityId): Script {
+  // Loading a save in phase 2 replays the roar too: it's how the phase begins, not a saved event.
+  yield* roar(boss);
   let offset = 0;
   let dir: 1 | -1 = 1;
   for (;;) {

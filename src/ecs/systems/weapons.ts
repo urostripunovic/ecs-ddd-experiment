@@ -16,6 +16,7 @@ import {
   BUFF_TICKS, BuffKind, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, type WeaponDef,
 } from '../weapons/defs';
 import { CHARGE_MAX_TICKS, throwCharge } from '../weapons/charge';
+import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
 import { dmgMul } from './status';
 
@@ -162,7 +163,7 @@ export function throwSystem(): void {
     const released = PlayerInput.throwReleases !== Wielder.throwSeen[w];
     Wielder.throwSeen[w] = PlayerInput.throwReleases;
     const item = heldItem(w);
-    if (!fighting() || item === -1) { Wielder.charge[w] = 0; continue; }
+    if (controlsLocked() || item === -1) { Wielder.charge[w] = 0; continue; }
     if (!released) {
       if (PlayerInput.throwHeld && Wielder.charge[w] < CHARGE_MAX_TICKS) Wielder.charge[w]++;
       continue;
@@ -224,7 +225,7 @@ export function attackSystem(dt: number): void {
       }
       if (PlayerInput.reload && Ammo.count[item] < def.mag) { Ammo.reload[item] = def.reloadTime; continue; }
     }
-    if (!fighting() || !PlayerInput.fire || Wielder.cooldown[w] > 0) continue;
+    if (controlsLocked() || !PlayerInput.fire || Wielder.cooldown[w] > 0) continue;
     Wielder.cooldown[w] = def.cooldown;
 
     if (def.attack === 'shoot' && item !== -1) {
@@ -294,7 +295,7 @@ function applyBuff(w: EntityId, kind: number): void {
 // reads Grounded items, PlayerInput.interactPresses, Wielder | writes Wielder, Buffs, item state
 // Empty hands pick up by walking over; full hands swap only on purpose (interact).
 export function pickupSystem(): void {
-  if (!fighting()) return;
+  if (controlsLocked()) return;
   const items = query(itemBuf, GROUNDED);
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {

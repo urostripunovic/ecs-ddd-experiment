@@ -12,7 +12,7 @@ const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
 const PROJECTILES = mask(C.Projectile, C.Transform, C.Team);
 // Bullets fly under anything mid-jump.
 const UNHITTABLE = mask(C.Dead, C.Airborne);
-const GONE = mask(C.Slam, C.Airborne);
+const GONE = mask(C.Slam, C.Airborne, C.Invulnerable);
 
 // reads Projectile, Transform, Team, Collider | writes Health, Hurt, LastHit, despawns Projectile
 export function projectileSystem(dt: number): void {

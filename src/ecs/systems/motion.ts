@@ -1,7 +1,8 @@
 // The header line of each system is its design doc: reads -> writes.
-import { C, MatchStatus, MatchView, PlayerInput, Transform, Velocity } from '../components';
+import { C, Knockback, PlayerInput, Transform, Velocity } from '../components';
 import { buf } from '../core/buffers';
-import { entityAt, mask, query } from '../core/world';
+import { entityAt, mask, query, world } from '../core/world';
+import { controlsLocked } from './cutscene';
 import { speedMul } from './status';
 
 export const PLAYER_SPEED = 6;
@@ -20,15 +21,17 @@ export function snapshotSystem(): void {
   }
 }
 
-// reads PlayerInput, MatchView, Buffs, Slowed | writes Velocity (player-controlled only)
+// reads PlayerInput, MatchView, Cutscene, Buffs, Slowed, Knockback | writes Velocity (player-controlled only)
+// The only writer of a player's velocity: every other effect arrives as its own field.
 export function inputSystem(): void {
-  const active = MatchView.status === MatchStatus.Fighting;
+  const speedBase = controlsLocked() ? 0 : PLAYER_SPEED;
   const n = query(buf, PLAYER_MOVERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    const speed = active ? PLAYER_SPEED * speedMul(e) : 0;
-    Velocity.x[e] = PlayerInput.moveX * speed;
-    Velocity.z[e] = PlayerInput.moveZ * speed;
+    const speed = speedBase * speedMul(e);
+    const shoved = world.tick < Knockback.until[e];
+    Velocity.x[e] = PlayerInput.moveX * speed + (shoved ? Knockback.x[e] : 0);
+    Velocity.z[e] = PlayerInput.moveZ * speed + (shoved ? Knockback.z[e] : 0);
   }
 }
 

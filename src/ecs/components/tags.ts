@@ -23,4 +23,5 @@ export const C = {
   BuffPickup: bit(18),
   Airborne: bit(19),     // mid-jump: bullets, thrown weapons and blades pass underneath
   Stuck: bit(20),        // a thrown weapon lodged in its target; the fourth item state
+  Invulnerable: bit(21), // hits still land and flash, but take no hp (the roar)
 } as const;

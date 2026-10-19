@@ -6,9 +6,9 @@ import { BossAction, BossPhase } from '../components';
 import type { Script } from '../core/script';
 import { world, type EntityId } from '../core/world';
 
-export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4 } as const;
+export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5 } as const;
 export type ActionKind = (typeof Action)[keyof typeof Action];
-const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump'] as const;
+const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar'] as const;
 type Name = (typeof NAMES)[number];
 
 // Ticks from the end of one action to the start of the next. Anything not
@@ -46,3 +46,5 @@ export const BURST_WINDUP = 8;
 export const JUMP_CROUCH = 18;
 export const JUMP_AIR = 34;
 export const JUMP_RECOVER = 12;
+export const ROAR_REAR = 20;
+export const ROAR_HOLD = 55;
