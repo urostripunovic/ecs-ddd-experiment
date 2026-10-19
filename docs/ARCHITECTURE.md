@@ -26,9 +26,9 @@ Written down in `src/app/loop.ts`:
 5. `bodyCollisionSystem`: circles against solids, clamp to the arena (an airborne boss is skipped)
 6. `heldFollowSystem`: held items sit at their wielder
 7. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
-8. `throwSystem`: a new throw press turns the held item `Flying`
+8. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
 9. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear
-10. `flightSystem`: a hit lodges the item `Stuck` in the target; a miss lands it `Grounded`, locked for 1–1.5 s
+10. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s
 11. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
 12. `projectileCollisionSystem`: bullets stop on pillars and walls
 13. `projectileSystem`: bullets damage the other team, and fly under anything airborne

@@ -18,7 +18,7 @@ Add `?bossHp=200` to the URL for a short fight while tuning, and `?seed=7` for a
 | WASD / arrows | move |
 | mouse | aim |
 | left click / space | attack (shoot, swing, thrust or punch) |
-| Q / right click | throw what you hold |
+| Q / right click (hold, release) | charge and throw what you hold |
 | E | swap with the weapon at your feet |
 | R | reload |
 | Enter | restart |
@@ -41,7 +41,7 @@ The arena always holds one gun, one sword and one spear. You start with the gun;
 | Sword | wide arc, 55 | wears per hit and over time | 60 |
 | Spear | long, narrow thrust, 60 | wears per hit and over time | 95 |
 
-A throw that hits sticks in the boss and falls out at its next slam or landing. A throw that misses can't be picked up for a second or more.
+**Charged throws:** hold Q or right click and a gauge fills over a second. Release in the gold perfect zone for 125% damage and half the usual wear; hold past it for the same damage but double wear; tap for a weak, quick throw (40%). A throw that hits sticks in the boss and falls out at its next slam or landing. A throw that misses can't be picked up for a second or more.
 
 Haste (green) speeds you up and Fury (red) adds 50% damage, for 6 seconds each. The slam halves your speed for a second. All of it is ECS: nothing here is saved or rule-bound yet.
 

@@ -23,7 +23,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Durability** | ECS | Wear left on a sword or spear: drops per connecting swing, per throw hit, and over time while held. At 0 the item breaks. |
 | **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
 | **Slowed** | ECS | The slam's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. |
-| Press counters | app → ECS | `PlayerInput.throwPresses` only counts up (written by the app); `Wielder.throwSeen` records what the ECS has acted on. One writer per field, no lost or doubled presses. |
+| Press counters | app → ECS | `PlayerInput.throwReleases` and `interactPresses` only count up (written by the app); `Wielder.throwSeen` and `interactSeen` record what the ECS has acted on. One writer per field, no lost or doubled inputs. |
 | **Seed** | ECS | Fixes the RNG for drops, so a run replays exactly. `?seed=N` in the URL. |
 | **Action** | ECS | One boss attack: slam, cone, burst or jump. One at a time; `BossAction` holds the current one and the last one. |
 | **Chain gap** | ECS | Minimum ticks between the end of one action and the start of the next, from `CHAIN_GAPS` per phase. 10 unless listed. |
@@ -31,3 +31,4 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Evade** | ECS | A jump away from the player, triggered by heavy damage in the last second, at most once per 8 s. |
 | **Stuck** | ECS | The fourth item state: a thrown weapon lodged in its target. It drops when the target slams, lands a jump or dies. |
 | **Stock** | ECS | How many of each weapon kind the arena keeps in play, in any state (`WEAPON_STOCK`). A broken one is replaced `RESPAWN_TICKS` later in a random clear spot. |
+| **Charge** | ECS | Ticks a throw has been held (`Wielder.charge`, capped at 60). `throwCharge(fill)` turns it into damage, wear and speed multipliers and a zone: building, perfect (68–80%) or overcharged. |
