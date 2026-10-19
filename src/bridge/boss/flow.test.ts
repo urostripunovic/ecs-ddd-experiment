@@ -21,7 +21,7 @@ describe('boss flow', () => {
     expect(BossPhase.phase[b]).toBe(2);
     expect(has(b, C.PhasePending)).toBe(false);
     expect(store.bosses.get(BOSS_ID)?.phase).toBe(2);
-    expect(readTickLog()).toEqual(['tick 0: BossThresholdCrossed(warden) -> BossPhaseReached -> BossPhase[5]=2']);
+    expect(readTickLog()).toEqual(['tick 0: BossThresholdCrossed(warden) -> BossPhaseReached -> BossPhase(warden)=2']);
   });
 
   it('downing the boss wins the match through the cascade', () => {

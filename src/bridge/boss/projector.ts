@@ -14,7 +14,7 @@ export function projectBoss(e: BossEvent): string {
       const b = indexOf(h);
       BossPhase.phase[b] = e.phase;
       remove(b, C.PhasePending);
-      return `BossPhase[${b}]=${e.phase}`;
+      return `BossPhase(${e.boss})=${e.phase}`;
     }
     case 'BossDefeated':
       // The ECS already tagged it Dead; the rule consequence is the match's.
