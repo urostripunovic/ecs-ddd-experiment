@@ -15,6 +15,7 @@ import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
 import {
   BUFF_TICKS, BuffKind, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, type WeaponDef,
 } from '../weapons/defs';
+import { CHARGE_MAX_TICKS, throwCharge } from '../weapons/charge';
 import { hurt } from './damage';
 import { dmgMul } from './status';
 
@@ -151,26 +152,36 @@ export function heldFollowSystem(): void {
   }
 }
 
-// reads PlayerInput.throwPresses, Wielder | writes Wielder, Thrown, Velocity, item state
+// reads PlayerInput.throwHeld/throwReleases, Wielder | writes Wielder.charge, Thrown, Velocity, item state
+// Holding fills the gauge; the release throws with whatever it reached, so a
+// tap is a weak throw and timing the perfect zone is the skill.
 export function throwSystem(): void {
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const w = entityAt(buf, i);
-    if (PlayerInput.throwPresses === Wielder.throwSeen[w]) continue;
-    Wielder.throwSeen[w] = PlayerInput.throwPresses;
+    const released = PlayerInput.throwReleases !== Wielder.throwSeen[w];
+    Wielder.throwSeen[w] = PlayerInput.throwReleases;
     const item = heldItem(w);
-    if (!fighting() || item === -1) continue;
+    if (!fighting() || item === -1) { Wielder.charge[w] = 0; continue; }
+    if (!released) {
+      if (PlayerInput.throwHeld && Wielder.charge[w] < CHARGE_MAX_TICKS) Wielder.charge[w]++;
+      continue;
+    }
 
     const def = defOf(item);
+    const charge = throwCharge(Wielder.charge[w] / CHARGE_MAX_TICKS);
+    Wielder.charge[w] = 0;
     const start = Collider.radius[w] + 0.5;
+    const speed = def.throwSpeed * charge.speedMul;
     remove(item, C.Held);
     add(item, C.Flying);
     Transform.x[item] = Transform.px[item] = Transform.x[w] + PlayerInput.aimX * start;
     Transform.z[item] = Transform.pz[item] = Transform.z[w] + PlayerInput.aimZ * start;
-    Velocity.x[item] = PlayerInput.aimX * def.throwSpeed;
-    Velocity.z[item] = PlayerInput.aimZ * def.throwSpeed;
+    Velocity.x[item] = PlayerInput.aimX * speed;
+    Velocity.z[item] = PlayerInput.aimZ * speed;
     Thrown.by[item] = toHandle(w);
-    Thrown.dmg[item] = def.throwDmg * dmgMul(w);
+    Thrown.dmg[item] = def.throwDmg * dmgMul(w) * charge.dmgMul;
+    Thrown.wearMul[item] = charge.wearMul;
     Thrown.ticksLeft[item] = def.throwTicks;
     Wielder.held[w] = NO_HANDLE;
   }
@@ -255,7 +266,7 @@ export function flightSystem(): void {
       const dz = Transform.z[t] - z;
       if (dx * dx + dz * dz > r * r) continue;
       hurt(t, Thrown.dmg[f], handleAt(Thrown.by, f));
-      Durability.value[f] -= defOf(f).throwWear;
+      Durability.value[f] -= defOf(f).throwWear * Thrown.wearMul[f];
       struck = t;
     }
     if (struck !== -1) { stick(f, struck); continue; }

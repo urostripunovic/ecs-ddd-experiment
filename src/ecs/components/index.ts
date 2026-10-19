@@ -19,12 +19,13 @@ export const LastHit = { by: new Int32Array(MAX) };
 
 // held is a Handle (NO_HANDLE = fists). cooldown is seconds until the next attack;
 // swing is ticks of attack animation left, for the renderer.
-// throwSeen/interactSeen: the PlayerInput press counts this wielder has acted on.
-// The app only ever increments the counts and the ECS only writes the seen
-// values, so a press is never lost or doubled whatever the frame rate.
+// throwSeen/interactSeen: the PlayerInput release/press counts this wielder has
+// acted on. The app only ever increments the counts and the ECS only writes the
+// seen values, so an input is never lost or doubled whatever the frame rate.
+// charge: ticks the throw has been held, capped at CHARGE_MAX_TICKS.
 export const Wielder = {
   held: new Int32Array(MAX), cooldown: new Float32Array(MAX), swing: new Uint8Array(MAX),
-  throwSeen: new Int32Array(MAX), interactSeen: new Int32Array(MAX),
+  throwSeen: new Int32Array(MAX), interactSeen: new Int32Array(MAX), charge: new Uint8Array(MAX),
 };
 
 // Items are entities, so a thrown gun keeps its ammo and a dropped sword its wear.
@@ -34,8 +35,11 @@ export const Item = { kind: new Uint8Array(MAX), pickupAt: new Uint32Array(MAX) 
 export const Durability = { value: new Float32Array(MAX) };
 // reload is seconds left; the magazine refills when it reaches 0.
 export const Ammo = { count: new Uint16Array(MAX), reload: new Float32Array(MAX) };
-// by is the thrower's Handle; dmg is fixed at release so a buff ending mid-flight doesn't change it.
-export const Thrown = { by: new Int32Array(MAX), dmg: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX) };
+// by is the thrower's Handle; dmg and wearMul are fixed at release, so a buff
+// ending mid-flight doesn't change what the throw does.
+export const Thrown = {
+  by: new Int32Array(MAX), dmg: new Float32Array(MAX), wearMul: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX),
+};
 
 // host is a Handle; angle is where around the host it went in, so it rides there.
 export const StuckIn = { host: new Int32Array(MAX), angle: new Float32Array(MAX) };
@@ -85,9 +89,11 @@ export const ShapeKind = {
 export const Shape = { kind: new Uint8Array(MAX) };
 
 // Singletons: one local player, one match, one arena.
-// throwPresses/interactPresses only ever count up (see Wielder.throwSeen).
+// throwReleases/interactPresses only ever count up (see Wielder.throwSeen).
+// throwHeld charges the gauge; the release is what throws.
 export const PlayerInput = {
-  moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false, throwPresses: 0, interactPresses: 0,
+  moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
+  throwHeld: false, throwReleases: 0, interactPresses: 0,
 };
 // A read model of the domain's match state, written only by the match projector.
 export const MatchStatus = { Fighting: 0, Won: 1, Lost: 2 } as const;
@@ -104,7 +110,8 @@ const perEntity = [
 export function resetComponents(): void {
   for (const group of perEntity) for (const arr of Object.values(group)) arr.fill(0);
   Object.assign(PlayerInput, {
-    moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false, throwPresses: 0, interactPresses: 0,
+    moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
+    throwHeld: false, throwReleases: 0, interactPresses: 0,
   });
   MatchView.status = MatchStatus.Fighting;
   MatchView.endedAt = 0;

@@ -6,6 +6,7 @@ import {
 import { seedRng } from '../core/rng';
 import { add, has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
+import { CHARGE_MAX_TICKS, ChargeZone, throwCharge } from '../weapons/charge';
 import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind } from '../weapons/defs';
 import { bodyCollisionSystem } from './collision';
 import { inputSystem, movementSystem, snapshotSystem } from './motion';
@@ -16,6 +17,18 @@ import {
 } from './weapons';
 
 const DT = 1 / 60;
+// 44 of 60 ticks: inside the perfect zone (68-80% of the gauge).
+const PERFECT_TICKS = 44;
+const PERFECT = throwCharge(PERFECT_TICKS / CHARGE_MAX_TICKS);
+
+// Holds the throw for some ticks, then lets go, exactly as the input layer would.
+function throwAfter(holdTicks: number): void {
+  PlayerInput.throwHeld = true;
+  for (let i = 0; i < holdTicks; i++) step();
+  PlayerInput.throwHeld = false;
+  PlayerInput.throwReleases++;
+  step();
+}
 
 // The weapon slice of the real tick order, without the boss's choreography.
 function step(): void {
@@ -119,14 +132,13 @@ describe('throwing', () => {
     equip(p, gun);
     Ammo.count[gun] = 5;
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1 });
-    PlayerInput.throwPresses++;
-    step();
+    throwAfter(PERFECT_TICKS);
     expect(has(gun, C.Flying)).toBe(true);
     expect(heldItem(p)).toBe(-1);
 
     for (let i = 0; i < 60 && !has(gun, C.Stuck); i++) step();
     expect(has(gun, C.Stuck)).toBe(true);
-    expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Gun].throwDmg);
+    expect(Health.hp[b]).toBeCloseTo(1000 - WEAPONS[WeaponKind.Gun].throwDmg * PERFECT.dmgMul, 3);
 
     // It rides along when the boss moves.
     Transform.x[b] += 3;
@@ -145,7 +157,7 @@ describe('throwing', () => {
     const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
     equip(p, sword);
     Object.assign(PlayerInput, { aimX: 1, aimZ: 0 });
-    PlayerInput.throwPresses++;
+    throwAfter(PERFECT_TICKS);
     for (let i = 0; i < 80 && !has(sword, C.Grounded); i++) step();
     expect(Item.pickupAt[sword] - world.tick).toBeGreaterThan(60);
   });
@@ -154,7 +166,7 @@ describe('throwing', () => {
     const spear = spawnWeapon(WeaponKind.Spear, 0, 0);
     equip(p, spear);
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1 });
-    PlayerInput.throwPresses++;
+    throwAfter(PERFECT_TICKS);
     for (let i = 0; i < 60 && !has(spear, C.Stuck); i++) step();
     add(b, C.Dead);
     stuckFollowSystem();
@@ -166,10 +178,52 @@ describe('throwing', () => {
     const spear = spawnWeapon(WeaponKind.Spear, 0, 0);
     equip(p, spear);
     Object.assign(PlayerInput, { aimX: 1, aimZ: 0 });
-    PlayerInput.throwPresses++;
+    throwAfter(PERFECT_TICKS);
     for (let i = 0; i < 60 && !has(spear, C.Grounded); i++) step();
     const d = Math.hypot(Transform.x[spear] - Transform.x[pillar], Transform.z[spear] - Transform.z[pillar]);
     expect(d).toBeGreaterThanOrEqual(Collider.radius[pillar]);
+  });
+});
+
+describe('charged throw', () => {
+  it('the gauge: weak when tapped, strongest and gentlest in the perfect zone, strongest but harshest when overcharged', () => {
+    expect(throwCharge(0)).toMatchObject({ zone: ChargeZone.Building, dmgMul: 0.4, wearMul: 1 });
+    expect(throwCharge(0.74)).toMatchObject({ zone: ChargeZone.Perfect, dmgMul: 1.25, wearMul: 0.5 });
+    expect(throwCharge(1)).toMatchObject({ zone: ChargeZone.Overcharged, dmgMul: 1.25, wearMul: 2 });
+  });
+
+  // Wear is measured from release to impact, so decay while charging doesn't blur it.
+  const wearOnHit = (holdTicks: number) => {
+    const spear = spawnWeapon(WeaponKind.Spear, 0, 0);
+    equip(p, spear);
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1 });
+    throwAfter(holdTicks);
+    const atRelease = Durability.value[spear];
+    for (let i = 0; i < 60 && !has(spear, C.Stuck); i++) step();
+    return { wear: atRelease - Durability.value[spear], dmg: 1000 - Health.hp[b] };
+  };
+
+  it('a perfect throw hits hardest and barely wears the spear', () => {
+    const { wear, dmg } = wearOnHit(PERFECT_TICKS);
+    expect(dmg).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwDmg * 1.25, 3);
+    expect(wear).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwWear * 0.5, 3);
+  });
+
+  it('an overcharged throw hits just as hard but wears it four times as much', () => {
+    const { wear, dmg } = wearOnHit(CHARGE_MAX_TICKS + 20); // held past full: the gauge caps
+    expect(dmg).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwDmg * 1.25, 3);
+    expect(wear).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwWear * 2, 3);
+  });
+
+  it('a tap still throws, weakly', () => {
+    const { dmg } = wearOnHit(0);
+    expect(dmg).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwDmg * 0.4, 3);
+  });
+
+  it('empty hands charge nothing', () => {
+    PlayerInput.throwHeld = true;
+    for (let i = 0; i < 30; i++) step();
+    expect(Wielder.charge[p]).toBe(0);
   });
 });
 
