@@ -1,7 +1,7 @@
 import { initialBoss } from '../domain/boss/boss';
 import type { Loadout, RunStatus as RunStatusName } from '../domain/run/run';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
-import { Ammo, BossPhase, C, Durability, Health, Jump, RunStatus, RunView, resetArenaState, resetRunState } from '../ecs/components';
+import { Ammo, C, Durability, Health, Jump, RunStatus, RunView, resetArenaState, resetRunState } from '../ecs/components';
 import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
@@ -107,7 +107,6 @@ export function buildArena(arena: number, loadout: Loadout): void {
     Jump.fromHeight[b] = PILLAR_HEIGHT;
   }
   idMap.bind(toHandle(b), { context: 'boss', id: bossId });
-  BossPhase.phase[b] = bossState.phase;
   if (store.run.status === 'Lost') downed(p);
 
   RunView.arena = arena;

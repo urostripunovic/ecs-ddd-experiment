@@ -44,7 +44,6 @@ function run(first: Command): void {
 
 function handle(cmd: Command): void {
   switch (cmd.kind) {
-    case 'BossThresholdCrossed':
     case 'BossDowned':
       return handleBoss(cmd);
     case 'PlayerDowned':

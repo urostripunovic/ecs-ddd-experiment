@@ -29,7 +29,6 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
     case 'EntityDowned': return { kind: 'PlayerDowned', player: ref.id, tick };
     case 'TunnelEntered':
       return { kind: 'TunnelEntered', player: ref.id, loadout: snapshotLoadout(indexOf(slot.subject)), tick };
-    case 'BossThresholdCrossed': return null;
     default: return assertNever(slot.kind);
   }
 }
@@ -39,7 +38,6 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
 export function runCommandFromBoss(e: BossEvent): RunCommand | null {
   switch (e.kind) {
     case 'BossDefeated': return { kind: 'BossCleared', boss: e.boss, tick: e.tick };
-    case 'BossPhaseReached': return null;
-    default: return assertNever(e);
+    default: return assertNever(e.kind);
   }
 }

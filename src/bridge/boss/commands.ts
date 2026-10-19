@@ -10,8 +10,6 @@ export function toBossCommand(slot: OutboxSlot): BossCommand | null {
   if (ref?.context !== 'boss') return null;
   const tick = slot.tick as Tick;
   switch (slot.kind) {
-    case 'BossThresholdCrossed':
-      return { kind: 'BossThresholdCrossed', boss: ref.id, share: slot.value, tick };
     case 'EntityDowned': {
       const by = idMap.refOf(slot.other);
       return { kind: 'BossDowned', boss: ref.id, by: by?.context === 'player' ? by.id : null, tick };

@@ -86,7 +86,7 @@ describe('run flow', () => {
     // The same Warden, new to the rules, waiting on its perch.
     const b2 = indexOf(h.boss);
     expect(idMap.refOf(h.boss)).toEqual({ context: 'boss', id: bossIdFor(2) });
-    expect(store.bosses.get(bossIdFor(2))).toMatchObject({ phase: 1, defeated: false });
+    expect(store.bosses.get(bossIdFor(2))).toMatchObject({ defeated: false });
     expect(has(b2, C.Airborne)).toBe(true);
     expect(Jump.fromHeight[b2]).toBeGreaterThan(0);
   });
@@ -100,4 +100,21 @@ describe('run flow', () => {
     domainStep();
     expect(Wielder.throwSeen[indexOf(h.player)]).toBe(5);
   });
+
+  // R9: in the last arena, a trade loses whichever death the outbox holds first.
+  for (const bossFirst of [true, false]) {
+    it(`a trade with the last boss loses the run (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
+      send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
+      tunnelSystem();
+      domainStep();
+      expect(RunView.arena).toBe(2);
+      if (bossFirst) send('EntityDowned', h.boss, h.player, 0);
+      send('EntityDowned', h.player, h.boss, 0);
+      if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+      expect(RunView.status).toBe(RunStatus.Lost);
+    });
+  }
 });
