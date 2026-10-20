@@ -270,7 +270,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   // Visuals are pooled per shape and keyed by slot + generation, so a recycled
   // slot never inherits the previous occupant's mesh.
   const visuals: (Visual | null)[] = new Array(MAX).fill(null);
-  const visualGen = new Uint16Array(MAX);
+  // Same width as world.generation, or a slot past 65,535 reuses would never match
+  // and its mesh would be rebuilt every frame.
+  const visualGen = new Uint32Array(MAX);
   const visualKind = new Uint8Array(MAX);
   const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
   const telegraphs: (THREE.Group | null)[] = new Array(MAX).fill(null);

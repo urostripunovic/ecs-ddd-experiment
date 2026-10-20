@@ -11,6 +11,16 @@ export type ComponentMask = Brand<number, 'ComponentMask'>;
 
 export const MAX = 1024;
 
+// A handle is generation << SLOT_BITS | slot in one int32. The slot needs only
+// enough bits to hold MAX and one index past it (for NO_HANDLE); every other bit
+// goes to the generation, so a slot can be reused this many times before its
+// generations run out. 16/16 ran out after 65,536 bullets through one slot,
+// about two hours of a boss firing.
+const SLOT_BITS = 11;
+const SLOT_MASK = (1 << SLOT_BITS) - 1;
+export const GENERATIONS = 2 ** (32 - SLOT_BITS);
+if (MAX > SLOT_MASK) throw new Error('MAX needs more SLOT_BITS: NO_HANDLE must decode past it');
+
 export const bit = (n: number) => (1 << n) as ComponentMask;
 export const NONE = 0 as ComponentMask;
 // Allocates its argument array, so call it at module level, never per frame.
@@ -24,18 +34,20 @@ export const NO_HANDLE = -1 as Handle;
 export const world = {
   mask: new Uint32Array(MAX),
   alive: new Uint8Array(MAX),
-  generation: new Uint16Array(MAX),
+  generation: new Uint32Array(MAX),
   freeList: new Int32Array(MAX),
   freeCount: 0,
   nextFresh: 0,
   tick: 0,
 };
 
-export const toHandle = (e: EntityId) => ((world.generation[e] << 16) | e) as Handle;
-export const indexOf = (h: Handle) => (h & 0xffff) as EntityId;
+// Above half of GENERATIONS the int32 is negative; >>> reads the generation
+// back unsigned, so that's harmless.
+export const toHandle = (e: EntityId) => ((world.generation[e] << SLOT_BITS) | e) as Handle;
+export const indexOf = (h: Handle) => (h & SLOT_MASK) as EntityId;
 export const isLive = (h: Handle) => {
   const e = indexOf(h);
-  return e < MAX && world.alive[e] === 1 && world.generation[e] === h >>> 16;
+  return e < MAX && world.alive[e] === 1 && world.generation[e] === h >>> SLOT_BITS;
 };
 
 export function spawn(): EntityId {
