@@ -50,19 +50,32 @@ export const isLive = (h: Handle) => {
   return e < MAX && world.alive[e] === 1 && world.generation[e] === h >>> SLOT_BITS;
 };
 
+// A slot that has used up its generations is retired for the rest of the run:
+// one more reuse would wrap to generation 0 and wake up handles from long ago.
+// It costs one slot per 2 million reuses, and makes a wrap impossible rather
+// than unlikely.
+const retired = (e: number) => world.generation[e] >= GENERATIONS;
+
 export function spawn(): EntityId {
-  const e = (world.freeCount > 0 ? world.freeList[--world.freeCount] : world.nextFresh++) as EntityId;
+  let e: number;
+  if (world.freeCount > 0) {
+    e = world.freeList[--world.freeCount];
+  } else {
+    // Retired slots are never on the free list, but a reset makes every slot fresh again.
+    while (world.nextFresh < MAX && retired(world.nextFresh)) world.nextFresh++;
+    e = world.nextFresh++;
+  }
   if (e >= MAX) throw new Error('entity pool exhausted');
   world.alive[e] = 1;
   world.mask[e] = 0;
-  return e;
+  return e as EntityId;
 }
 
 export function despawn(e: EntityId): void {
   world.alive[e] = 0;
   world.mask[e] = 0;
   world.generation[e]++;
-  world.freeList[world.freeCount++] = e;
+  if (!retired(e)) world.freeList[world.freeCount++] = e;
 }
 
 export const add = (e: EntityId, m: ComponentMask) => { world.mask[e] |= m; };
@@ -89,7 +102,7 @@ export const handleAt = (arr: Int32Array, e: EntityId) => arr[e] as Handle;
 // of pointing at whatever reuses their slot. Moving to the next arena keeps the
 // tick, because the run's deadlines and the tick log are measured in it.
 export function resetWorld(keepTick = false): void {
-  for (let e = 0; e < world.nextFresh; e++) world.generation[e]++;
+  for (let e = 0; e < world.nextFresh; e++) if (!retired(e)) world.generation[e]++;
   world.mask.fill(0);
   world.alive.fill(0);
   world.freeCount = 0;

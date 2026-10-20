@@ -31,6 +31,23 @@ describe('handles', () => {
     expect(isLive(h)).toBe(true);
   });
 
+  it('retire a slot that used up its generations instead of wrapping', () => {
+    const e = spawn();
+    world.generation[e] = GENERATIONS - 1;
+    despawn(e);
+    expect(spawn()).not.toBe(e);
+  });
+
+  it('keep a retired slot retired across an arena reset', () => {
+    const e = spawn();
+    world.generation[e] = GENERATIONS - 1;
+    // The reset's generation bump is what retires it here.
+    resetWorld(true);
+    expect(spawn()).not.toBe(e);
+    resetWorld(true);
+    expect(spawn()).not.toBe(e);
+  });
+
   it('never treat NO_HANDLE as live, even with every slot alive', () => {
     for (let i = 0; i < MAX; i++) spawn();
     expect(indexOf(NO_HANDLE)).toBeGreaterThanOrEqual(MAX);
