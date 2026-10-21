@@ -25,25 +25,28 @@ Written down in `src/app/loop.ts`:
 3. `inputSystem`: a new dodge press starts a dash (unless cooling down or in a cutscene); a dash sets the velocity outright; otherwise `PlayerInput` → velocity, scaled by haste and slow, plus knockback; zero during a cutscene
 4. `bossPhaseSystem`: sample the damage the boss took this second, then start or step the coroutine for its current `BossPhase`
 5. `movementSystem`
-6. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped; a dodging player passes through the boss)
-7. `heldFollowSystem`: held items sit at their wielder
-8. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
-9. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
-10. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear
-11. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s
-12. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
-13. `projectileCollisionSystem`: bullets stop on pillars and walls
-14. `projectileSystem`: bullets damage the other team, and fly under anything airborne
-15. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hurts if the slam says so (only jump landings do), and knocks stuck items loose
-16. `durabilitySystem`: held items decay over time; anything at 0 breaks
-17. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
-18. `hurtFlashSystem`
-19. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
-20. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
-21. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
-22. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-23. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
-24. render (once per frame, interpolated between the last two ticks)
+6. `orbitSystem`: orbiting pillars move along their circle, faster while spiked (frozen during a cutscene)
+7. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped; a dodging player passes through the boss)
+8. `heldFollowSystem`: held items sit at their wielder
+9. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
+10. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
+11. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear
+12. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s
+13. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
+14. `projectileCollisionSystem`: bullets stop on pillars and walls
+15. `projectileSystem`: bullets damage the other team, and fly under anything airborne
+16. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hurts if the slam says so (only jump landings do), and knocks stuck items loose
+17. `spikeSystem`: a spiked pillar hurts and shoves a player touching it, once per touch (not through a dodge, not in a cutscene)
+18. `durabilitySystem`: held items decay over time; anything at 0 breaks
+19. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
+20. `hurtFlashSystem`
+21. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
+22. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
+23. `spikeGrowthSystem`: orbiting pillars are spiked exactly while a live boss is in phase 2 and the run is fighting
+24. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
+25. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+26. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
+27. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
@@ -82,17 +85,24 @@ R8 was found by asking of each rule whether the simulation can make it wrong any
 
 ## Boss actions
 
-Every boss attack (slam, cone, burst, jump, and the roar that opens phase 2) is an action, run one at a time through `begin()`/`finish()` in `ecs/systems/boss-actions.ts`, so two can never overlap. When the next action may start is the `CHAIN_GAPS` table, not waits inside the scripts:
+Every boss attack (slam, cone, burst, jump, the roar that opens phase 2, and the Unchained's ring and spiral) is an action, run one at a time through `begin()`/`finish()` in `ecs/systems/boss-actions.ts`, so two can never overlap. When the next action may start is the `CHAIN_GAPS` table, one per boss style, not waits inside the scripts:
 
-| Phase | From → to | Gap (ticks) |
-| --- | --- | --- |
-| 1 | anything → anything | 10 |
-| 2 | cone or burst → jump | 1 |
-| 2 | everything else, including jump → any shot | 10 |
+| Boss | Phase | From → to | Gap (ticks) |
+| --- | --- | --- | --- |
+| Warden | 1 | anything → anything | 10 |
+| Warden | 2 | cone or burst → jump | 1 |
+| Warden | 2 | everything else, including jump → any shot | 10 |
+| Unchained | 1 | ring → jump | 1 |
+| Unchained | 2 | cone, ring or spiral → jump | 1 |
+| Unchained | 1, 2 | everything else | 6 |
 
 The **roar** is a short cutscene: the boss rears up, then roars; the camera shakes, anyone within 7 m is shoved away, the player's controls are locked, and the boss takes no damage until it ends (hits still flash). The shake is drawn by the renderer and undone before mouse aim, so it never reaches the simulation.
 
 A jump is crouch, flight and a landing slam at a spot fixed at take-off. While airborne the boss can't be hit, by bullets, throws or blades. It jumps *away* when it loses more than 6% of its max hp in a second, at most once every 8 s. `boss-actions.test.ts` runs the choreography for thousands of ticks and checks every gap, that nothing fires mid-air, and that the phase 2 chain happens.
+
+**The gap ring** (the Unchained): a ring of bullets with three gaps, shown on the floor before each wave (`Pattern.gapAt`, the same number the bullets are fired from). Each wave turns the gaps by less than the overlap every wave still in the air needs, so there's always one spot safe from all of them and you survive by drifting with it. `patterns.test.ts` holds that, from the bullet speed and wave gap, and walks a player through three waves at walking speed. **The spiral**: three arms turning slowly; walk with a lane or dodge through an arm.
+
+**The Grinder** (arena 2): one fixed perch and four pillars orbiting the middle. In phase 2 they grow spikes, speed up, and hurt on touch. The spikes are derived from the boss's phase every tick, not set by the roar, so a world built straight into phase 2 has them. Pillars and spikes hold still during cutscenes, so nothing hits you while your controls are locked.
 
 How each action looks is `app/render/boss-pose.ts`, a pure function of the action and how far into it the boss is.
 
@@ -140,6 +150,6 @@ A cheat never injects a fact into the rules and never writes `RunView`: the worl
 
 ECS by default: a concept moves to `domain/` only when something outside the simulation depends on its rules: another area, or a decision a save must not get wrong.
 
-Hit points, bullets, slam timing and radius, ammo and reload, pillars, the boss's movement, the whole weapons slice (drops, pickup and swap, durability, throwing, stuck weapons, buffs, the slam slow) and the boss's actions, chain gaps, jumps and evading. They change every tick or only feed the simulation's own maths, so they are ECS.
+Hit points, bullets, slam timing and radius, moving pillars and their spikes, the ring's gaps, ammo and reload, pillars, the boss's movement, the whole weapons slice (drops, pickup and swap, durability, throwing, stuck weapons, buffs, the slam slow) and the boss's actions, chain gaps, jumps and evading. They change every tick or only feed the simulation's own maths, so they are ECS.
 
 **The boss's phase moved out of the domain.** It started there because the source doc used it as the example, and it never passed the "what reacts?" test: every reader is simulation or display (the choreography, the boss's colour, the HUD), and the rule ("phase 2 at half hp, once") always said yes. The domain keeps the boss's lifecycle, alive then defeated, because the run reacts to the defeat. If a checkpoint mid-fight or a story beat ever reacts to phase 2, it comes back.

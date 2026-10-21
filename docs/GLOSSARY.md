@@ -7,6 +7,10 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Phase** | ECS (`BossPhase.phase`) | Which stage of the fight the boss is in (1 or 2). Written only by `bossThresholdSystem`: phase 2 at half hp, once. Not a rule, because nothing outside the fight reacts to it. |
 | `BossPhase.running` | ECS component | Which phase's coroutine the ECS has started, so a new phase starts its choreography from the top. |
 | **Defeated** | domain (`domain/boss`) | The boss's lifecycle: alive, then defeated, once. The run reacts to it. |
+| **Unchained** | ECS (`BossStyle`) | Arena 2's boss: the Warden's body with shorter chain gaps, the gap ring and the spiral. `BossDef.style` picks its scripts. |
+| **Gap ring** | ECS (`Pattern`) | A ring of bullets with three telegraphed gaps that turn a little each wave. |
+| **Orbiting pillar** | ECS (`Orbit`, `Orbiting`) | A pillar on a circle around the arena's middle; still blocks bodies and shots. |
+| **Spiked** | ECS tag | An orbiting pillar while a live boss is in phase 2: faster, and hurts on touch, once per `SPIKE_COOLDOWN`. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
