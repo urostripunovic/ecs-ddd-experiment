@@ -4,6 +4,7 @@ async () => {
   const c = await import('/src/ecs/components/index.ts');
   const w = await import('/src/ecs/core/world.ts');
   const perks = await import('/src/ecs/systems/perks.ts');
+  const { DOORS } = await import('/src/ecs/arenas.ts');
   const held = new Set();
   const taps = [];
   const press = (code, down) => {
@@ -44,7 +45,8 @@ async () => {
     const p = find(c.ShapeKind.Player);
     const b = find(c.ShapeKind.Boss);
     let mx = 0, mz = 0, fire = false;
-    // Cleared: line up with the tunnel, then walk north into the dark.
+    // Cleared: line up with a door, then walk north into the dark. The bot always
+    // takes the red door once it's open, so a playtest reaches the final.
     if (p >= 0 && c.RunView.status === c.RunStatus.Cleared) {
       const px = c.Transform.x[p];
       // Takes the nearest reward first (offers are forfeited at the tunnel), then heads north.
@@ -58,7 +60,10 @@ async () => {
         const dx = c.Transform.x[pick] - px, dz = c.Transform.z[pick] - c.Transform.z[p];
         const d = Math.hypot(dx, dz) || 1;
         mx = dx / d; mz = dz / d;
-      } else if (Math.abs(px) > 0.8) { mx = -Math.sign(px); mz = -0.4; } else { mz = -1; }
+      } else {
+        const door = c.RunView.finalDoorOpen ? DOORS.final.x : DOORS.onward.x;
+        if (Math.abs(px - door) > 0.8) { mx = Math.sign(door - px); mz = -0.4; } else { mz = -1; }
+      }
     } else if (p >= 0 && b >= 0 && c.RunView.status === c.RunStatus.Fighting && !w.has(p, c.C.Dead)) {
       const px = c.Transform.x[p], pz = c.Transform.z[p];
       const dx = c.Transform.x[b] - px, dz = c.Transform.z[b] - pz;
