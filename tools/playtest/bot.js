@@ -47,7 +47,18 @@ async () => {
     // Cleared: line up with the tunnel, then walk north into the dark.
     if (p >= 0 && c.RunView.status === c.RunStatus.Cleared) {
       const px = c.Transform.x[p];
-      if (Math.abs(px) > 0.8) { mx = -Math.sign(px); mz = -0.4; } else { mz = -1; }
+      // Takes the nearest reward first (offers are forfeited at the tunnel), then heads north.
+      let pick = -1, best = 1e9;
+      for (let e = 0; e < w.world.nextFresh; e++) {
+        if (!w.world.inUse[e] || !w.has(e, c.C.RewardPickup)) continue;
+        const d = Math.hypot(c.Transform.x[e] - px, c.Transform.z[e] - c.Transform.z[p]);
+        if (d < best) { best = d; pick = e; }
+      }
+      if (pick >= 0) {
+        const dx = c.Transform.x[pick] - px, dz = c.Transform.z[pick] - c.Transform.z[p];
+        const d = Math.hypot(dx, dz) || 1;
+        mx = dx / d; mz = dz / d;
+      } else if (Math.abs(px) > 0.8) { mx = -Math.sign(px); mz = -0.4; } else { mz = -1; }
     } else if (p >= 0 && b >= 0 && c.RunView.status === c.RunStatus.Fighting && !w.has(p, c.C.Dead)) {
       const px = c.Transform.x[p], pz = c.Transform.z[p];
       const dx = c.Transform.x[b] - px, dz = c.Transform.z[b] - pz;
