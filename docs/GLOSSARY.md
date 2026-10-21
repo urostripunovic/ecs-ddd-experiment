@@ -22,7 +22,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
-| `RunView` | ECS singleton | Projected copy of the run (status, arena, whether the tunnel is open) that systems and the HUD read. Typed read-only; only `bridge/` can import its writable side (`RunViewWritable`), so only the run projector and the spawn projection write it. |
+| `RunView` | ECS singleton | Projected copy of the run (status, arena, whether it's the final, which doors are open) that systems and the HUD read. Typed read-only; only `bridge/` can import its writable side (`RunViewWritable`), so only the run projector and the spawn projection write it. |
 | **Command** | bridge | Something the simulation asks the domain, e.g. `BossDowned`. Imperative or attempt. |
 | **Domain event** | domain | A fact the domain decided, e.g. `BossDefeated`. Past tense. |
 | **Projector** | bridge | Turns a domain event into component writes. Never sends commands. |
@@ -53,7 +53,10 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Knockback** | ECS | A shove in m/s until a tick, in its own field; `inputSystem` adds it, staying the only writer of player velocity. |
 | **Invulnerable** | ECS | Hits flash but take no hp. The boss during its roar (a tag); the player while dodging (the `Dodge.until` deadline). `hurt()` combines both. |
 | **Dodge** | ECS | Shift: a 12-tick dash at a direction fixed when it starts, invulnerable throughout, passing through the boss but not pillars. A press counter like throwing; a press during the cooldown or a cutscene is dropped. |
-| **Tunnel** | ECS | The corridor through the north wall, open only while the arena is cleared. Walking past its end sends `TunnelEntered`, latched by `TunnelPending` until the run answers. |
+| **Tunnel** | ECS | The onward door: the corridor through the middle of the north wall, open only while the arena is cleared. Walking past its end sends `TunnelEntered(onward)`, latched by `TunnelPending` until the run answers. |
+| **Final door** | ECS | The second corridor in the north wall, behind a red gate, opened by the run when you're ready for the final (`ArenaCleared(doors)`). Walking in sends `TunnelEntered(final)`. |
+| **Power** | domain | How strong the run judges you at a kill (`powerOf`): hp, revives, armor, perks, weapon. Never shown; it only decides whether the final door opens. |
+| **Doors** | domain | Which doors a clear opened: `onward`, `both` or `final`. Null until the arena is cleared. |
 | **Perch** | ECS | A pillar an arena's boss starts on top of (`Jump.fromHeight`); its first move is to drop in, during a short cutscene. |
 | **Spawn projection** | bridge | `buildArena(arena, loadout)`: the whole ECS world rebuilt from domain state. Arena 1 and every arena after it use the same path. |
 | **Lifetime** | ECS | How long a piece of state lives: the arena (`ARENA_STATE`, wiped by every build), the run (`RUN_STATE`, carried on purpose) or ever (`CONSTANTS`). |

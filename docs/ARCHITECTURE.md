@@ -69,21 +69,24 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 | # | Area | State | Request | Facts | Status | Test |
 | --- | --- | --- | --- | --- | --- | --- |
 | R1 | run | new run |  | Fighting, arena 1, carrying the gun, 3 revives, nothing on offer | accepted | `run.test`: starts in arena 1; `run.test`: a run starts with three, and holds at most eight |
-| R2 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared` | accepted | `run.test`: clearing a boss before the last arena |
-| R3 | run | Cleared, not the last arena | `TunnelEntered(loadout)` | `ArenaEntered(next, loadout)` | accepted | `run.test`: entering the tunnel after a clear |
+| R2 | run | Fighting, not the final | `BossCleared` | `ArenaCleared(doors)` | accepted | `run.test`: clearing a boss before the last arena |
+| R3 | run | Cleared, onward door open | `TunnelEntered(onward, loadout)` | `ArenaEntered(next, drawn, loadout)` | accepted | `run.test`: entering the tunnel after a clear |
 | R4 | run | Fighting | `TunnelEntered` | `TunnelRefused(NotCleared)` | accepted | `run.test`: refuses the tunnel |
-| R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | accepted | `run.test`: clearing the last arena |
+| R5 | run | Fighting, the final | `BossCleared` | `RunWon` | accepted | `run.test`: clearing the last arena; `run.test`: wins the run only by clearing the final |
 | R6 | run | Fighting, no revives left | `PlayerDowned` | `RunLost` | accepted | `run.test`: going down with no revives left loses the run |
 | R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | accepted | `run.test`: a trade on the same tick |
 | R8 | run | Cleared | `PlayerDowned` | With a revive left, `PlayerRevived`; with none, `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | accepted | `run.test`: going down after the clear with no revives left; `run.test`: going down after the clear with a revive left; `transition.test`: nothing hurts you once the arena is cleared |
 | R9 | run | Won, this tick | `PlayerDowned` | With a revive left, `PlayerRevived`: the win stands and the revive is spent. With none, `RunLost`: if we die, we die. Either way, whichever death was reported first | accepted | `run.test`: a trade with the last boss on your last life; `run.test`: a trade with the last boss with a revive left; `flow.test`: a trade with the last boss loses the run |
-| R10 | run | Cleared, not the last arena | `TunnelEntered(loadout with perks)` | `ArenaEntered(next, loadout)`: perks carry over, oldest first. A loadout holds at most three, never the same one twice (`loadoutOf` throws otherwise) | accepted | `run.test`: carry over with the loadout, oldest first; `run.test`: are never more than three, and never the same one twice |
+| R10 | run | Cleared | `TunnelEntered(loadout with perks)` | `ArenaEntered(next, loadout)`: perks carry over, oldest first. A loadout holds at most three, never the same one twice (`loadoutOf` throws otherwise) | accepted | `run.test`: carry over with the loadout, oldest first; `run.test`: are never more than three, and never the same one twice |
 | R11 | run | Fighting, revives left | `PlayerDowned` | `PlayerRevived(revives - 1)`: back up where you fell, at full hp (the projector) | accepted | `run.test`: going down with a revive left gets you back up |
-| R12 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared`, then `RewardsOffered`: three different rewards drawn from the run's seed and arena; no revive when you hold 8 | accepted | `run.test`: clearing a boss before the last arena offers three; `run.test`: never offers a revive when you already hold eight |
+| R12 | run | Fighting, not the final | `BossCleared` | `ArenaCleared`, then `RewardsOffered`: three different rewards drawn from the run's seed and arena; no revive when you hold 8 | accepted | `run.test`: clearing a boss before the last arena offers three; `run.test`: never offers a revive when you already hold eight |
 | R13 | run | Cleared, an offer open | `RewardChosen(i)` | `RewardTaken(offer[i])`, and the offer closes | accepted | `run.test`: choosing one takes it and closes the offer |
 | R14 | run | No offer open, or no such option | `RewardChosen` | `RewardRefused(NoOffer or NoSuchOption)`: refused rather than ignored, like the tunnel, so the pedestal sensor's latch is released | accepted | `run.test`: choosing one takes it and closes the offer; asking again is refused; `run.test`: refuses a choice with nothing on offer |
 | R15 | run | Cleared, an offer open | `RewardTaken(revive)` | revives + 1, never past 8 | accepted | `run.test`: a revive reward adds one, never past eight |
 | R16 | run | Cleared, an offer open | `TunnelEntered` | `ArenaEntered`; the offer is left behind | experimental | `run.test`: walking into the tunnel without choosing forfeits the offer |
+| R17 | run | Fighting, not the final | `BossCleared(loadout at the kill)` | `ArenaCleared(doors)`: after the Warden, onward only; from 3 drawn bosses, both once power (hidden, `powerOf`) is at least 5.5; after 7, the final only. Down at the kill, the run judges what you entered with | experimental | `run.test`: opens both doors after enough drawn bosses; `run.test`: judges you as you stand at the kill; `run.test`: leaves only the final door after the most drawn bosses; `flow.test`: a strong clear deep enough opens the final door |
+| R18 | run | Cleared, final door open | `TunnelEntered(final, loadout)` | `ArenaEntered(next, final, loadout)` | accepted | `run.test`: enters the final through its door |
+| R19 | run | Cleared, that door closed | `TunnelEntered(door)` | `TunnelRefused(DoorClosed)`: refused, so the sensor's latch is released | accepted | `run.test`: refuses a door that is closed; `flow.test`: a strong clear deep enough opens the final door, a closed one is refused |
 | B1 | boss | (removed: the phase moved to the simulation) |  |  |  |  |
 | B2 | boss | (removed) |  |  |  |  |
 | B3 | boss | alive | `BossDowned` | `BossDefeated` | accepted | `boss.test`: defeated once |
@@ -130,9 +133,13 @@ Decided with the user: the Keeper, in its own hall, is the last fight of every r
 
 ## The run's plan
 
-Decided with the user: six fights. Arena 1 is always the Warden, the tutorial; arenas 2 to 5 are drawn from a pool of boss-and-arena pairs (`POOL` in `ecs/arenas.ts`); arena 6 is always the final boss. `arenaFor(seed, arena, arenas)` plans each from the run's seed with a pure hash draw, so planning never moves the RNG that a seed's drops depend on, and it never draws the same boss twice in a row when the pool has a choice. Each arena deeper adds 30% hp and 8% pace; pace shortens every chain gap (never under one tick, so two actions can't start together) and speeds bullets by half as much.
+Decided with the user: arena 1 is always the Warden, the tutorial; the arenas after it are drawn from a pool of boss-and-arena pairs (`POOL` in `ecs/arenas.ts`) until you take the door to the final boss. `arenaFor(seed, arena, final)` plans each from the run's seed with a pure hash draw, so planning never moves the RNG that a seed's drops depend on, and it never draws the same boss twice in a row when the pool has a choice. Each arena deeper adds 30% hp and 8% pace; pace shortens every chain gap (never under one tick, so two actions can't start together) and speeds bullets by half as much.
 
-The plan is simulation: the run only knows how many arenas there are and which one you're in. Each run gets a random seed (the app picks it; nothing else calls `Math.random`), shown on the end screen; `?seed=123` replays that run exactly.
+The plan is simulation: the run only knows which arena you're in and whether it's the final. The draw for an arena depends only on the seed and its number, so which door you took never changes the bosses you'd meet.
+
+## Power and the fork
+
+Decided with the user: Hades-style. A clear opens the onward door and, once you're strong enough, a second door beside it, to the final; you choose. After 7 drawn bosses the final's is the only door, so every run ends there. How strong you are is a rule (it decides where the run goes next), so it's domain: `powerOf(loadout, revives)` counts hp, revives, armor plates, perks and a weapon in hand. It's hidden: no event carries it and the HUD only shows which gates sank. It's judged on the loadout at the kill, which `BossCleared` carries, so a reward taken from that clear's offer counts at the next one. The final scales with depth like every boss, so taking it later meets a tougher Keeper. The threshold (5.5), the minimum of 3 drawn bosses and the weights are experimental (R17). Each run gets a random seed (the app picks it; nothing else calls `Math.random`), shown on the end screen; `?seed=123` replays that run exactly.
 
 ## Revives and rewards
 
