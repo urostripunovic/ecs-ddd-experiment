@@ -1,7 +1,7 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
 import { arenaFor } from '../../ecs/arenas';
-import { Ammo, BossPhase, C, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
+import { Ammo, BossPhase, C, Durability, GodMode, Health, Item, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { has, indexOf, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
@@ -130,7 +130,8 @@ export function createHud(root: HTMLElement) {
       set(lives, 'text', `${'♥'.repeat(RunView.revives)}${armorPlates(p) > 0 ? ' ' + '◆'.repeat(armorPlates(p)) : ''}`);
       const item = heldItem(p);
       const def = defOf(item);
-      set(weaponText, 'text', def.name.toUpperCase());
+      // The level is fine to show, unlike power: it's what you'd compare when deciding to swap.
+      set(weaponText, 'text', item === -1 ? def.name.toUpperCase() : `${def.name.toUpperCase()} LV ${Item.level[item]}`);
       set(weaponState, 'text', weaponDetail(item, def.mag, def.durability));
       set(status, 'text', statusLine(p));
       set(perks, 'text', perkLine(p));
