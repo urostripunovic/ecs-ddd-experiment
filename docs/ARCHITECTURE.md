@@ -24,6 +24,7 @@ Written down in `src/app/loop.ts`:
 2. `shakeSystem`: camera trauma decays (the wobble itself is drawn by the renderer)
 3. `inputSystem`: a new dodge press starts a dash (unless cooling down or in a cutscene); a dash sets the velocity outright; otherwise `PlayerInput` → velocity, scaled by haste and slow, plus knockback; zero during a cutscene
 4. `bossPhaseSystem`: sample the damage the boss took this second, then start or step the coroutine for its current `BossPhase`
+4b. `homingSystem`: the Sentinel's orbs turn toward the player, no faster than their turn rate
 5. `movementSystem`
 6. `orbitSystem`: orbiting pillars move along their circle, faster while spiked (frozen during a cutscene)
 7. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped; a dodging player passes through the boss)
@@ -37,6 +38,7 @@ Written down in `src/app/loop.ts`:
 15. `projectileSystem`: bullets damage the other team, and fly under anything airborne
 15b. `burnSystem`: whatever is burning loses a tick's share of its burn, through `hurt` like any hit
 16. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hurts if the slam says so (only jump landings do), and knocks stuck items loose
+16b. `hazardSystem`: a live charge hurts and shoves whoever it runs into, a live beam whoever it reaches before stone; once a pass
 17. `spikeSystem`: a spiked pillar hurts and shoves a player touching it, once per touch (not through a dodge, not in a cutscene)
 18. `durabilitySystem`: held items decay over time; anything at 0 breaks
 19. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
@@ -129,6 +131,26 @@ How each action looks is `app/render/boss-pose.ts`, a pure function of the actio
 The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas have rules other parts depend on (entering the tunnel can be refused, the loadout carries over, the run is won or lost), so they're domain state. That a save would hold them is a hint about their lifetime, not the reason. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
+
+## Procedural bosses
+
+Decided with the user (Stage C). The pool (`POOL`) holds the hand-made Unchained and three halls whose boss is generated: the Colossus (walks you down and slams), the Lancer (charges) and the Sentinel (a turret with a beam and homing orbs). `arenaFor` gives each drawn boss a kit, a seed from the run's seed and the arena (`kitFor`), and `planFor(kit, depth, body)` turns it into the boss: a name, two phases (three from depth 3), and each phase's moves with their own settings. Phase 1 opens with the body's signature move and one or two more, drawn by the body's weights; each later phase adds a move; a three-phase boss ends on a combo, a generated storm. The plan is pure data, regenerated from `BossGen` when each phase starts, so a load needs only those numbers. One script plays every phase (`procedural`): a roar opens each phase after the first, then the kit's moves in turn, with the body deciding what happens between them.
+
+The charge, the beam sweep and the orbs are new actions any kit may draw. A **charge** shows its lane for the windup, then runs it; hitting the player is once a charge (`hazardSystem`), and running into a pillar stops it dead and stuns it, the opening it gives you. A **sweep** shows the arc it will cover, centred on you, then turns a beam across it once; pillars block the beam, so cover works. **Orbs** are slow homing projectiles (`homingSystem`): they turn after you, but you walk faster than they fly.
+
+**Fairness** is the user's word "unescapable", made into limits every generated move is checked against in `generate.test.ts`, across 300 kits, three bodies and five depths, from the player's own speed and dodge:
+
+| Limit | Holds because |
+| --- | --- |
+| A telegraph of at least 0.4 s before anything can land | Every windup, plus a bullet's flight to someone touching the boss at the deepest pace, is at least `MIN_TELEGRAPH` |
+| A slam can be left from touching distance | A dodge then walking covers its radius inside its windup |
+| A charge can be sidestepped | Half its width, on foot, inside its windup |
+| A sweep can be escaped | It never covers more than three quarters of the circle, and from where its beam passes faster than a dodge lasts, which you can walk to during its telegraph |
+| Orbs can be outrun | Slower than nine tenths of walking speed, at the deepest pace |
+| Rings leave a safe spot | Every wave in the air at once shares a gap wide enough for you and a bullet either side (the gap ring's rule) |
+| Spiral lanes can be walked with | Wide enough to stand in, and turning slower than you walk, 6 m out |
+| Bullets a second stay under a cap | At most the Keeper's storm (`DENSITY_CAP`), a combo counting both its parts |
+| One action at a time, every chain gap kept | `procedural.test.ts` plays every phase of four kits per body for 40 s and checks each gap and that nothing fires mid-air |
 
 ## The final boss
 

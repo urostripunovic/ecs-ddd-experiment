@@ -17,6 +17,13 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Armor plate** | ECS (`Armor`), carried by the loadout | Blocks one hit completely, then breaks. At most three. |
 | **Pool** | ECS (`POOL`) | The boss-and-arena pairs a run draws its middle arenas from. |
 | **Depth** | ECS (`arenaFor`) | How far into the run an arena is (arena 1 is depth 0). Each step adds hp and pace to its boss. |
+| **Procedural boss** | ECS (`BossGen`, `planFor`) | A drawn boss generated from a kit (a seed), its depth and its body: its name, phases and each phase's moves. |
+| **Body** | ECS (`Body`) | What a procedural boss is: the Colossus, the Lancer or the Sentinel. It weights which moves a kit draws, gives one signature move, and decides what the boss does between moves. |
+| **Kit** | ECS (`BossGen.kit`) | The seed a procedural boss's moves come from: the run's seed and the arena (`kitFor`). |
+| **Charge** | ECS action | The Lancer's: a lane shown on the floor, then a straight run down it. A pillar in the way stuns it. |
+| **Sweep** | ECS action | The Sentinel's: an arc shown on the floor, then a beam turning across it once. Pillars block it. |
+| **Orb** | ECS (`Homing`) | A slow projectile that turns after the player, slower than walking. |
+| **Combo** | ECS action | A generated storm: spiral arms and gap rings as one action, in a procedural boss's last phase. |
 | **Keeper** | ECS (`FINAL`) | The final boss: three phases, the Warden's moves, then rings and the spiral, then the storm. |
 | **Storm** | ECS action | The Keeper's phase 3 attack: two spiral arms and gap rings at once, as one action. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
