@@ -7,6 +7,7 @@ import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/c
 import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
 import { shakeSystem } from '../ecs/systems/cutscene';
 import { perkDropSystem } from '../ecs/systems/perks';
+import { rewardSensorSystem } from '../ecs/systems/rewards';
 import { orbitSystem, spikeGrowthSystem, spikeSystem } from '../ecs/systems/pillars';
 import { tunnelSystem } from '../ecs/systems/tunnel';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
@@ -46,6 +47,7 @@ export function tick(): void {
   bossThresholdSystem();
   spikeGrowthSystem();
   tunnelSystem();
+  rewardSensorSystem();
   deathSystem();
   domainStep(); // decide + evolve + project, inside the same tick
   world.tick++;

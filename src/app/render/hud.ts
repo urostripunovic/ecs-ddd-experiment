@@ -1,11 +1,12 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
 import { ARENAS } from '../../ecs/arenas';
-import { Ammo, BossPhase, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
+import { Ammo, BossPhase, C, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
-import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
+import { has, indexOf, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
 import { lowHp, Perk, perkSlots } from '../../ecs/systems/perks';
+import { armorPlates } from '../../ecs/systems/armor';
 import { defOf, heldItem } from '../../ecs/systems/weapons';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '') => {
@@ -38,13 +39,19 @@ function perkLine(p: EntityId): string {
   return perkSlots(p).map((k) => (k === Perk.None ? '—' : PERK_LABEL[k] + (on(k) ? ' ●' : ''))).join(' · ');
 }
 
+// Any pedestal still standing means the offer is open. Read once a frame, not per tick.
+function rewardsWaiting(): boolean {
+  for (let e = 0; e < world.nextFresh; e++) if (world.inUse[e] && has(e as EntityId, C.RewardPickup)) return true;
+  return false;
+}
+
 export function createHud(root: HTMLElement) {
   const boss = el('div', 'hud boss', `
     <div class="boss-name"><span data-boss-name></span><span data-phase></span></div>
     <div class="bar"><div data-boss-hp></div></div>`);
   const player = el('div', 'hud player', `
     <div class="bar"><div data-player-hp></div></div>
-    <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
+    <div class="row"><span>HP <b data-hp></b> <span data-lives></span></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
     <div class="row status" data-status></div>
     <div class="row perks" data-perks></div>`);
   const help = el('div', 'hud help', `WASD move · mouse aim · click/space attack · Shift dodge<br>Q / right-click throw · E swap · R reload<br>Enter restart · \` tick log${import.meta.env.DEV ? ' · G god mode' : ''}`);
@@ -72,6 +79,7 @@ export function createHud(root: HTMLElement) {
   const weaponState = q(player, '[data-weapon-state]');
   const status = q(player, '[data-status]');
   const perks = q(player, '[data-perks]');
+  const lives = q(player, '[data-lives]');
   const title = q(banner, '[data-title]');
   const subtitle = q(banner, '[data-subtitle]');
   const gaugeFill = q(gauge, '[data-fill]');
@@ -101,6 +109,8 @@ export function createHud(root: HTMLElement) {
       set(bossName, 'text', ARENAS[RunView.arena - 1]?.boss.name ?? '');
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
+      // Revives as hearts, armor plates as diamonds: both readable at a glance mid-dodge.
+      set(lives, 'text', `${'♥'.repeat(RunView.revives)}${armorPlates(p) > 0 ? ' ' + '◆'.repeat(armorPlates(p)) : ''}`);
       const item = heldItem(p);
       const def = defOf(item);
       set(weaponText, 'text', def.name.toUpperCase());
@@ -122,7 +132,9 @@ export function createHud(root: HTMLElement) {
       if (over) {
         const cleared = RunView.status === RunStatus.Cleared;
         set(title, 'text', cleared ? 'ARENA CLEARED' : RunView.status === RunStatus.Won ? 'VICTORY' : 'DEFEATED');
-        set(subtitle, 'text', cleared ? 'The tunnel to the north is open' : 'Press Enter to restart');
+        set(subtitle, 'text', cleared
+          ? (rewardsWaiting() ? 'Pick a reward, then take the tunnel north' : 'The tunnel to the north is open')
+          : 'Press Enter to restart');
       }
 
       if (!log.hidden && !DEV) {

@@ -26,6 +26,8 @@ describe('arena loop', () => {
     expect(kinds).toEqual([
       'BossDowned(warden) -> BossDefeated -> no component change',
       'BossCleared -> ArenaCleared -> RunView=Cleared, tunnel open',
+      // The same clear offers three rewards, drawn from the run's seed (R12).
+      expect.stringMatching(/^BossCleared -> RewardsOffered -> pedestals for \w+ and \w+ and \w+$/),
     ]);
     expect(BossPhase.phase[boss]).toBe(2);
   });

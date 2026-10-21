@@ -7,7 +7,7 @@
 // Never a fact injected into the rules, never a write to RunView: the world and
 // the rules would disagree, which is exactly what the load test guards against.
 import { initialBoss, type BossState } from '../../domain/boss/boss';
-import { STARTING_LOADOUT, type PerkName, type RunState } from '../../domain/run/run';
+import { initialRun, STARTING_LOADOUT, type PerkName, type RunState } from '../../domain/run/run';
 import { PERK_NUMBER } from '../../bridge/run/loadout';
 import { addPerk } from '../../ecs/systems/perks';
 import type { BossId, Tick } from '../../domain/shared/types';
@@ -140,7 +140,7 @@ function jump(to: JumpTarget): void {
   for (let a = 1; a <= arenas; a++) {
     bosses.set(bossIdFor(a), { ...initialBoss(bossIdFor(a)), defeated: a <= beaten });
   }
-  const base = { arena, arenas, loadout: STARTING_LOADOUT };
+  const base = { ...initialRun(arenas, store.run.seed), arena, loadout: STARTING_LOADOUT };
   const run: RunState =
     to === 'won' ? { ...base, status: 'Won', endedAt: world.tick as Tick }
     : to === 'arena1Cleared' ? { ...base, status: 'Cleared' }

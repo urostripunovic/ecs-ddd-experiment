@@ -1,7 +1,7 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam,
   Spikes, StuckIn, Transform, Velocity, Wielder,
 } from '../../ecs/components';
 import { TUNNEL } from '../../ecs/arenas';
@@ -35,6 +35,8 @@ const COLOR = {
 };
 // One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
 const PERK_COLOR = [0xffffff, 0xe8584a, 0x5fd39a, 0xffd65c, 0x9fb7ff, 0xd99cff];
+// One per RewardKind: revive, armor, heal, Scattergun.
+const REWARD_COLOR = [0xffffff, 0xff7aa8, 0x9fb7ff, 0x5fd39a, 0xffb347];
 // Ticks for spikes to grow out, so the roar's threat is visible before it bites.
 const SPIKE_GROW_TICKS = 40;
 const SPIKES_PER_RING = 8;
@@ -52,7 +54,12 @@ const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
 const LOOK_AHEAD = 3;
 const AIM_HEIGHT = 0.9; // bullets fly at this height, so aim on the same plane
 
-type Visual = THREE.Object3D & { userData: { mat?: THREE.MeshStandardMaterial; base?: number; spikes?: THREE.Group } };
+type Visual = THREE.Object3D & {
+  userData: {
+    mat?: THREE.MeshStandardMaterial; base?: number; spikes?: THREE.Group;
+    gem?: THREE.Mesh; gemMat?: THREE.MeshStandardMaterial;
+  };
+};
 
 function shaded(color: number): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 });
@@ -81,6 +88,10 @@ const geo = {
   gunGrip: new THREE.BoxGeometry(0.14, 0.26, 0.14).translate(0, -0.18, 0),
   buff: new THREE.OctahedronGeometry(0.34),
   perk: new THREE.IcosahedronGeometry(0.42, 0),
+  pedestal: new THREE.CylinderGeometry(0.7, 0.85, 0.6, 16),
+  rewardGem: new THREE.OctahedronGeometry(0.5),
+  scatterBody: new THREE.BoxGeometry(0.26, 0.22, 0.5).translate(0, 0, -0.2),
+  scatterBarrel: new THREE.CylinderGeometry(0.09, 0.13, 0.4, 10).rotateX(Math.PI / 2).translate(0, 0.02, -0.62),
   heavyBullet: new THREE.CapsuleGeometry(0.3, 1.2, 4, 10).rotateX(Math.PI / 2),
   // Base at the origin, pointing +x, so scaling a spike grows it out of the pillar.
   spike: new THREE.ConeGeometry(0.16, 0.5, 8).translate(0, 0.25, 0).rotateZ(-Math.PI / 2),
@@ -165,6 +176,18 @@ function build(kind: number): Visual {
     case ShapeKind.Sword: return weapon([geo.blade, steelMat], [geo.guard, gunMat]);
     case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
     case ShapeKind.Gun: return weapon([geo.gunBody, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Scattergun: return weapon([geo.scatterBody, woodMat], [geo.scatterBarrel, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Reward: {
+      const g = new THREE.Group() as Visual;
+      const stand = new THREE.Mesh(geo.pedestal, shaded(0x55585e));
+      stand.position.y = 0.3;
+      const gemMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.3 });
+      const gem = new THREE.Mesh(geo.rewardGem, gemMat);
+      gem.position.y = 1.4;
+      g.add(stand, gem);
+      g.userData = { gem, gemMat } as Visual['userData'];
+      return cast(g);
+    }
     case ShapeKind.Perk: {
       const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, roughness: 0.3 });
       return cast(new THREE.Mesh(geo.perk, mat)) as Visual;
@@ -385,7 +408,10 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         if (dead) color = COLOR.dead;
         mat.color.setHex(color);
         // A dodge glows for exactly its invulnerable ticks, so you can learn the timing by eye.
-        const glow = kind === ShapeKind.Player && dodging(e as EntityId) ? 0x3a6a8a : 0x000000;
+        // Just revived: a pulsing warm glow for exactly the ticks nothing can hurt you.
+        const shielded = kind === ShapeKind.Player && world.tick < Revive.shieldUntil[e];
+        const glow = shielded ? (Math.sin(t * 18) > 0 ? 0x8a6a2a : 0x3a2a10)
+          : kind === ShapeKind.Player && dodging(e as EntityId) ? 0x3a6a8a : 0x000000;
         mat.emissive.setHex(Hurt.flash[e] > 0 && !dead ? 0x777777 : glow);
       }
 
@@ -415,6 +441,12 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
           e, armWedges, geo.arm, COLOR.telegraph, SPIRAL_ARMS,
           !dead && BossAction.kind[e] === Action.Spiral && elapsed < SPIRAL_WINDUP,
         );
+      } else if (kind === ShapeKind.Reward) {
+        const color = REWARD_COLOR[RewardPickup.kind[e]] ?? 0xffffff;
+        v.userData.gemMat!.color.setHex(color);
+        v.userData.gemMat!.emissive.setHex(color);
+        v.userData.gem!.position.y = 1.4 + Math.sin(t * 2 + e) * 0.15;
+        v.userData.gem!.rotation.y = t * 1.5;
       } else if (kind === ShapeKind.Perk) {
         // Coloured by what it grants, and turning on two axes so it never reads as a buff.
         const mat = (v as THREE.Mesh).material as THREE.MeshStandardMaterial;
