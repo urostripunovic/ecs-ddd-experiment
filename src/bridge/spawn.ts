@@ -8,7 +8,7 @@ import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
 import { hp } from '../ecs/core/units';
-import { add, NO_HANDLE, resetWorld, toHandle, type EntityId, type Handle } from '../ecs/core/world';
+import { add, NOBODY, resetWorld, toHandle, type EntityId, type Handle } from '../ecs/core/world';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
 import { equip } from '../ecs/systems/weapons';
@@ -27,7 +27,7 @@ export type RunHandles = { player: Handle; boss: Handle };
 
 // One object, updated in place by every build, so whoever holds it (the app,
 // the camera) follows the player into the next arena without asking again.
-export const handles: RunHandles = { player: NO_HANDLE, boss: NO_HANDLE };
+export const handles: RunHandles = { player: NOBODY, boss: NOBODY };
 
 // The run's status as the simulation reads it. A Record, so a new status
 // breaks the build here instead of loading as something else.
@@ -37,9 +37,9 @@ const VIEW_STATUS: Record<RunStatusName, number> = {
 
 // Built already down, so the death sensor never reports it again: the rules
 // have decided this one.
-function downed(e: EntityId): void {
-  Health.hp[e] = 0;
-  add(e, C.Dead);
+function downed(entity: EntityId): void {
+  Health.hp[entity] = 0;
+  add(entity, C.Dead);
 }
 let options: RunOptions = {};
 

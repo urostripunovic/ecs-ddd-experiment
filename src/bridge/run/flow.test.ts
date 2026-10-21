@@ -3,7 +3,7 @@ import {
   Ammo, Arena, C, Health, Item, Jump, PlayerInput, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
-import { has, indexOf, isLive, NO_HANDLE, world, type EntityId } from '../../ecs/core/world';
+import { has, indexOf, isLive, NOBODY, world, type EntityId } from '../../ecs/core/world';
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
@@ -32,7 +32,7 @@ describe('run flow', () => {
 
   it('a trade on the same tick keeps the first outcome', () => {
     send('EntityDowned', h.player, h.boss, 0);
-    send('EntityDowned', h.boss, NO_HANDLE, 0);
+    send('EntityDowned', h.boss, NOBODY, 0);
     domainStep();
     expect(RunView.status).toBe(RunStatus.Lost);
   });
@@ -44,7 +44,7 @@ describe('run flow', () => {
 
   it('the tunnel stays shut while fighting, and a refused entry releases the latch', () => {
     expect(RunView.tunnelOpen).toBe(false);
-    send('TunnelEntered', h.player, NO_HANDLE, 0);
+    send('TunnelEntered', h.player, NOBODY, 0);
     domainStep();
     expect(readTickLog().at(-1)).toContain('TunnelRefused -> latch released (NotCleared)');
     expect(has(indexOf(h.player), C.TunnelPending)).toBe(false);

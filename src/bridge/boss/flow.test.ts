@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RunStatus, RunView } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
-import { NO_HANDLE } from '../../ecs/core/world';
+import { NOBODY } from '../../ecs/core/world';
 import { domainStep } from '../dispatch';
 import { BOSS_ID, startRun, type RunHandles } from '../spawn';
 import { store } from '../store';
@@ -26,7 +26,7 @@ describe('boss flow', () => {
   it('a stale handle from the previous run is ignored', () => {
     const old = h.boss;
     h = startRun();
-    send('EntityDowned', old, NO_HANDLE, 0);
+    send('EntityDowned', old, NOBODY, 0);
     domainStep();
     expect(store.bosses.get(BOSS_ID)?.defeated).toBe(false);
     expect(RunView.status).toBe(RunStatus.Fighting);
