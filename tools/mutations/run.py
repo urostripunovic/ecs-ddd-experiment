@@ -33,11 +33,22 @@ M = [
  ("spikes have no cooldown", "src/ecs/systems/pillars.ts", "      SpikeHit.readyAt[player] = after(SPIKE_COOLDOWN);\n", "", "src/ecs/systems/pillars.test.ts"),
  ("pillars move in cutscenes", "src/ecs/systems/pillars.ts", "export function orbitSystem(dt: Seconds): void {\n  if (controlsLocked()) return;", "export function orbitSystem(dt: Seconds): void {", "src/ecs/systems/pillars.test.ts"),
  ("spikes hurt through a dodge", "src/ecs/systems/damage.ts", "  if (has(target, C.Invulnerable) || dodging(target)) return false;", "  if (has(target, C.Invulnerable)) return false;", "src/ecs/systems/pillars.test.ts"),
- ("the ring leaves no gaps", "src/ecs/systems/boss-scripts.ts", "      if (!inGap(a, at, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);", "      shoot(boss, a, RING_SPEED);", "src/ecs/systems/patterns.test.ts"),
+ ("the ring leaves no gaps", "src/ecs/systems/boss-scripts.ts", "    if (!inGap(a, gapAt, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);", "    shoot(boss, a, RING_SPEED);", "src/ecs/systems/patterns.test.ts"),
  ("the ring's gaps turn too far", "src/ecs/systems/boss-scripts.ts", "export const RING_TURN = 0.14;", "export const RING_TURN = 0.3;", "src/ecs/systems/patterns.test.ts"),
  ("a revive is never used", "src/domain/run/run.ts", "      return s.revives > 0\n", "      return false\n", "src/domain/run/run.test.ts"),
  ("the offer can repeat a reward", "src/domain/run/run.ts", "pool.splice(Math.floor(next() * pool.length), 1)", "pool.slice(0, 1)", "src/domain/run/run.test.ts"),
  ("revive offered at eight", "src/domain/run/run.ts", "r !== 'revive' || revives < MAX_REVIVES", "true", "src/domain/run/run.test.ts"),
+ ("a swing ignores the level", "src/ecs/systems/weapons.ts", "def.dmg * dmgMul(w) * levelMul(heldItem(w))", "def.dmg * dmgMul(w)", "src/ecs/systems/weapons.test.ts"),
+ ("a shot ignores the level", "src/ecs/systems/weapons.ts", "times(def.dmg, dmgMul(w) * levelMul(item))", "times(def.dmg, dmgMul(w))", "src/ecs/systems/weapons.test.ts"),
+ ("a throw ignores the level", "src/ecs/systems/weapons.ts", "charge.dmgMul * levelMul(item);", "charge.dmgMul;", "src/ecs/systems/weapons.test.ts"),
+ ("the Final shot ignores the level", "src/ecs/systems/weapons.ts", "dmgMul(wielder) * levelMul(gun))", "dmgMul(wielder))", "src/ecs/systems/weapons.test.ts"),
+ ("stock comes at level 1", "src/ecs/systems/weapons.ts", "spawnWeapon(kind, spot.x, spot.z, weaponLevelFor(RunView.arena))", "spawnWeapon(kind, spot.x, spot.z)", "src/ecs/systems/weapons.test.ts"),
+ ("a gift comes at level 1", "src/ecs/systems/weapons.ts", "Transform.z[w], weaponLevelFor(RunView.arena)));", "Transform.z[w]));", "src/ecs/systems/weapons.test.ts"),
+ ("the snapshot drops the level", "src/bridge/run/commands.ts", "Ammo.count[w], Item.level[w])", "Ammo.count[w], 1)", "src/bridge/run/flow.test.ts"),
+ ("the carried weapon takes the arena's level", "src/bridge/spawn.ts", "spawnWeapon(carriedKind, px, pz, loadout.weapon.level)", "spawnWeapon(carriedKind, px, pz, weaponLevelFor(arena))", "src/bridge/run/flow.test.ts"),
+ ("a new arena's stock is level 1", "src/bridge/spawn.ts", "      spawnWeapon(kind, x, z, stockLevel);", "      spawnWeapon(kind, x, z);", "src/bridge/run/flow.test.ts"),
+ ("power ignores the level", "src/domain/run/run.ts", "1 + POWER_PER_WEAPON_LEVEL * (loadout.weapon.level - 1)", "1", "src/domain/run/run.test.ts"),
+ ("any weapon level is carriable", "src/domain/run/run.ts", "Number.isInteger(level) && level >= 1 && level <= MAX_ARENAS", "true", "src/domain/run/run.test.ts"),
 ]
 bad = []
 for name, path, old, new, tests in M:
