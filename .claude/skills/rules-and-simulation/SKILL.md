@@ -18,10 +18,10 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 1. **Read the code you'll touch, then predict the footprint**: the files per layer (rules, seam, simulation, app, docs) and the existing tests you expect to break. A guess made before reading is a worse number; say so if you give one.
 2. **List the invariants the change touches**, checked against the code, each with a test. They follow the design: when it changes, change the invariant and its test on purpose.
 3. **Ask what the change leaves open.** If it touches a trigger in `game-design-interview`, ask those questions before building.
-4. **Write the failing test first**, and check it fails for the right reason.
+4. **Write the failing test first**, and check it fails for the right reason: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 7: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
 5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*.
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
-7. **Compare** the prediction with what changed, and explain each miss. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
+7. **Compare** the prediction with what changed, and explain each miss. Show each new test's failing line from step 4, and how much each file you touched grew. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. A file outgrowing its one job is friction too: say so, and split it before building on it. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
 
@@ -100,6 +100,8 @@ A save holds the rules state, the RNG's position if loads must replay exactly, a
 The docs are part of the contract, so a **drift test** checks them against the code: every code name the architecture doc and glossary mention exists, every examples row has a status, and the tests the rows name exist. It can't prove the meaning matches; it makes the common drift loud. Rules the compiler can't express (deadlines only through `after()`) get a source scan test; `@ts-expect-error` lines prove the types still reject what they should. A test must fail before the change; one that guards against future mistakes is checked by breaking the code on purpose once (copy the file aside first, and restore from the copy). A test you've never seen fail may be blind, and a blind test looks exactly like a passing one. The two checks cover each other: the playtest finds what no test runs, breaking the code finds tests that can't fail.
 
 ## Where this goes wrong
+
+- **Growth goes unremarked.** A file that collects every new feature (a weapons file with every weapon's special case, a renderer that draws everything) stops having one job long before anyone notices. Size and "is this the X?" branches are the tell; a structure test that fails on both turns a reviewer's eye into a check.
 
 - **Describing behaviour from memory.** Before changing an effect, find what causes it and the test that pins it. No test? Write it first.
 - **Brands survive parameters, not arithmetic**, and typed arrays strip them: re-brand a read value with the checking constructor, never a cast.
