@@ -77,7 +77,6 @@ export const FINAL_ARENA: ArenaLayout = {
 export const POOL: readonly ArenaLayout[] = [GRINDER];
 
 // Decided with the user: the Warden, four drawn from the pool, then the final boss.
-export const RUN_LENGTH = 6;
 
 // How much each arena deeper adds: hp and pace. The Warden, at depth 0, is untouched.
 const HP_PER_DEPTH = 0.3;
@@ -98,11 +97,13 @@ function drawn(seed: number, arena: number): ArenaLayout {
   return POOL[pick];
 }
 
-// Arena `arena` of `arenas` in the run with this seed: its layout, and its boss
-// scaled to the depth. `layout` overrides the draw, to compare one boss at
-// different depths.
-export function arenaFor(seed: number, arena: number, arenas: number, layout?: ArenaLayout): PlannedArena {
-  const chosen = layout ?? (arena === 1 ? WARDEN_ARENA : arena === arenas ? FINAL_ARENA : drawn(seed, arena));
+// Arena `arena` in the run with this seed, the final boss's if `final`: its
+// layout, and its boss scaled to the depth, so a final taken later is tougher.
+// Which arena is the final is the run's decision; the draw for the others
+// depends only on the seed and the arena, so the fork never changes it.
+// `layout` overrides the draw, to compare one boss at different depths.
+export function arenaFor(seed: number, arena: number, final: boolean, layout?: ArenaLayout): PlannedArena {
+  const chosen = layout ?? (final ? FINAL_ARENA : arena === 1 ? WARDEN_ARENA : drawn(seed, arena));
   const depth = arena - 1;
   const base = chosen.boss;
   const boss: BossDef = {
@@ -113,6 +114,7 @@ export function arenaFor(seed: number, arena: number, arenas: number, layout?: A
   return { layout: chosen, boss, depth };
 }
 
-// The tunnel through the north wall: a corridor the player may enter only
-// while it's open. Stepping past ENTER_Z is entering it.
-export const TUNNEL = { halfWidth: 2.2, depth: 6, enterZ: 3 } as const;
+// The doors through the north wall: corridors the player may enter only while
+// the run has opened them. Stepping past enterZ is entering one. The onward door
+// is the old tunnel, centred; the final door opens beside it when you're ready.
+export const DOORS = { halfWidth: 2.2, depth: 6, enterZ: 3, onward: { x: 0 }, final: { x: 10 } } as const;
