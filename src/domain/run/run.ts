@@ -5,7 +5,8 @@ import { assertNever, NO_EVENTS, type BossId, type PlayerId, type Tick, type Wea
 // and what you carry between them are rules other parts depend on: a door can
 // be refused, the loadout carries over, the run is won or lost.
 export type RunStatus = 'Fighting' | 'Cleared' | 'Won' | 'Lost';
-export type WeaponKind = 'sword' | 'spear' | 'gun' | 'scattergun';
+export type WeaponKind =
+  | 'sword' | 'spear' | 'gun' | 'scattergun' | 'chakram' | 'warhammer' | 'railgun' | 'flamethrower';
 // What a perk does is the simulation's business; the run only carries which ones you hold.
 export type PerkName = 'lastStand' | 'adrenaline' | 'finalShot' | 'ricochet' | 'longReach';
 export const MAX_PERKS = 3;
