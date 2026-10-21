@@ -3,7 +3,7 @@ import {
   Ammo, Arena, C, Health, Item, Jump, PlayerInput, RewardPickup, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
-import { has, indexOf, isLive, NOBODY, query, world, type EntityId } from '../../ecs/core/world';
+import { add, has, indexOf, isLive, NOBODY, query, world, type EntityId } from '../../ecs/core/world';
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
@@ -71,6 +71,16 @@ describe('run flow', () => {
     expect(readTickLog().some((line) => line.includes(`RewardTaken`) && line.includes(offer[RewardPickup.option[first]]))).toBe(true);
     expect(store.run.offer).toBeNull();
     expect(pedestals()).toBe(0);
+    expect(has(p, C.RewardPending)).toBe(false);
+  });
+
+  it('a reward choice the run refuses still releases the pedestal latch', () => {
+    const p = indexOf(h.player);
+    // As rewardSensorSystem would, while fighting with nothing on offer.
+    add(p, C.RewardPending);
+    send('RewardTouched', h.player, NOBODY, 0);
+    domainStep();
+    expect(readTickLog().at(-1)).toContain('RewardRefused');
     expect(has(p, C.RewardPending)).toBe(false);
   });
 

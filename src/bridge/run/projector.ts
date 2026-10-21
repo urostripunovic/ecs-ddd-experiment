@@ -6,7 +6,6 @@ import { indexOf, isLive, remove, type EntityId } from '../../ecs/core/world';
 import { applyReward, clearRewards, revivePlayer } from '../../ecs/systems/rewards';
 import { idMap } from '../id-map';
 import { PLAYER_ID } from '../ids';
-import { store } from '../store';
 import { REWARD_KIND } from './loadout';
 import { spawnPedestals } from './rewards';
 
@@ -53,7 +52,7 @@ export function projectRun(e: RunEvent): string {
     case 'PlayerRevived': {
       const p = livePlayer();
       if (p !== -1) revivePlayer(p);
-      RunViewWritable.revives = store.run.revives;
+      RunViewWritable.revives = e.revivesLeft;
       return `back up (${e.revivesLeft} revives left)`;
     }
     case 'RewardsOffered':
@@ -65,8 +64,14 @@ export function projectRun(e: RunEvent): string {
         clearRewards(p);
         applyReward(p, REWARD_KIND[e.reward]);
       }
-      RunViewWritable.revives = store.run.revives;
+      RunViewWritable.revives = e.revives;
       return `took ${e.reward}`;
+    }
+    case 'RewardRefused': {
+      // The answer that releases the sensor's latch, so stepping on a pedestal again is reported again.
+      const p = livePlayer();
+      if (p !== -1) remove(p, C.RewardPending);
+      return `latch released (${e.reason})`;
     }
     default:
       return assertNever(e);
