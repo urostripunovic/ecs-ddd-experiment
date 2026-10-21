@@ -29,6 +29,17 @@ describe('run flow', () => {
   let h: RunHandles;
   beforeEach(() => { h = startRun(); });
 
+  // Beats each boss and takes each tunnel until the run's last arena.
+  const toLastArena = () => {
+    while (store.run.arena < store.run.arenas) {
+      send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
+      tunnelSystem();
+      domainStep();
+    }
+  };
+
   // Uses up the revives the run starts with, so the next down is the last.
   const spendRevives = () => {
     while (store.run.revives > 0) {
@@ -167,12 +178,8 @@ describe('run flow', () => {
   for (const bossFirst of [true, false]) {
     it(`a trade with the last boss loses the run (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
       spendRevives();
-      send('EntityDowned', h.boss, h.player, 0);
-      domainStep();
-      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
-      tunnelSystem();
-      domainStep();
-      expect(RunView.arena).toBe(2);
+      toLastArena();
+      expect(RunView.arena).toBe(RunView.arenas);
       if (bossFirst) send('EntityDowned', h.boss, h.player, 0);
       send('EntityDowned', h.player, h.boss, 0);
       if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);
@@ -183,11 +190,7 @@ describe('run flow', () => {
 
   for (const bossFirst of [true, false]) {
     it(`a trade with the last boss with a revive left wins, and spends it (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
-      send('EntityDowned', h.boss, h.player, 0);
-      domainStep();
-      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
-      tunnelSystem();
-      domainStep();
+      toLastArena();
       if (bossFirst) send('EntityDowned', h.boss, h.player, 0);
       send('EntityDowned', h.player, h.boss, 0);
       if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);

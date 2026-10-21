@@ -62,7 +62,7 @@ const STATES: [string, () => void][] = [
   ['arena 1 cleared, a reward taken (R13)', () => { downBoss(); takeReward(); }],
   ['revived once (R11)', downPlayer],
   ['fighting in arena 2 (R3)', () => { downBoss(); intoTunnel(); }],
-  ['won (R5)', () => { downBoss(); intoTunnel(); downBoss(); }],
+  ['won (R5)', () => { while (store.run.arena < store.run.arenas) { downBoss(); intoTunnel(); } downBoss(); }],
   ['lost, every revive spent (R6)', () => { for (let i = 0; i < 4; i++) downPlayer(); }],
 ];
 

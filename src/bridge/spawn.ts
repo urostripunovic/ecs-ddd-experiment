@@ -1,7 +1,7 @@
 import { initialBoss, type BossState } from '../domain/boss/boss';
 import type { Loadout, RunState, RunStatus as RunStatusName } from '../domain/run/run';
 import type { BossId } from '../domain/shared/types';
-import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
+import { arenaFor, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
 import { Ammo, Armor, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
 import { clearOutbox } from '../ecs/core/outbox';
@@ -74,7 +74,8 @@ export function buildArena(arena: number, loadout: Loadout): void {
   resetArenaState();
   resetScripts();
   idMap.unbindHandles();
-  const layout = ARENAS[arena - 1];
+  const planned = arenaFor(store.run.seed, arena, store.run.arenas);
+  const layout = planned.layout;
 
   // Pillars are pure simulation (cover), so the domain never hears of them.
   for (const [x, z] of layout.pillars) spawnPillar(x, z, PILLAR_RADIUS);
@@ -111,7 +112,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   const bossId = bossIdFor(arena);
   const [bx, bz] = layout.bossStart;
   // ?bossHp shortens the fight while tuning; everything else comes from the def.
-  const def = options.bossHp ? { ...layout.boss, hp: hp(options.bossHp) } : layout.boss;
+  const def = options.bossHp ? { ...planned.boss, hp: hp(options.bossHp) } : planned.boss;
   const b = spawnBoss(def, bx, bz);
   if (!store.bosses.has(bossId)) store.bosses.set(bossId, initialBoss(bossId));
   const bossState = store.bosses.get(bossId)!;
@@ -131,6 +132,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   // The run projector opens it on ArenaCleared; a loaded clear must open it too.
   RunViewWritable.tunnelOpen = store.run.status === 'Cleared';
   RunViewWritable.revives = store.run.revives;
+  RunViewWritable.seed = store.run.seed;
   // An offer still open on a cleared arena stands on its pedestals, as a load would find it.
   if (store.run.status === 'Cleared' && store.run.offer) spawnPedestals(store.run.offer);
   handles.player = toHandle(p);
