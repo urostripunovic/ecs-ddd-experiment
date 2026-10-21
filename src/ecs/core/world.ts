@@ -41,8 +41,6 @@ export const world = {
   // 1 while a row holds an entity. Not whether it's alive in the game: a downed
   // boss keeps its row, with the Dead tag in its signature.
   inUse,
-  /** @deprecated Use world.inUse, the same array. Kept only while the other layers move over. */
-  alive: inUse,
   generation: new Uint32Array(MAX_ENTITIES),
   freeList: new Int32Array(MAX_ENTITIES),
   freeCount: 0,
