@@ -11,6 +11,7 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Gap ring** | ECS (`Pattern`) | A ring of bullets with three telegraphed gaps that turn a little each wave. |
 | **Orbiting pillar** | ECS (`Orbit`, `Orbiting`) | A pillar on a circle around the arena's middle; still blocks bodies and shots. |
 | **Spiked** | ECS tag | An orbiting pillar while a live boss is in phase 2: faster, and hurts on touch, once per `SPIKE_COOLDOWN`. |
+| **Perk** | ECS (`Perks`), carried by the domain | One of three slots on the player, oldest first. Its effect is simulation; the run's loadout carries which ones you hold (`PerkName`). |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |

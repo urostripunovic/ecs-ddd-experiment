@@ -41,12 +41,13 @@ Written down in `src/app/loop.ts`:
 19. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
 20. `hurtFlashSystem`
 21. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
-22. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
-23. `spikeGrowthSystem`: orbiting pillars are spiked exactly while a live boss is in phase 2 and the run is fighting
-24. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
-25. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-26. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
-27. render (once per frame, interpolated between the last two ticks)
+22. `perkDropSystem`: a perk pickup a few seconds into the fight, then every 20 s, one on the ground at a time, offering one you don't hold
+23. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
+24. `spikeGrowthSystem`: orbiting pillars are spiked exactly while a live boss is in phase 2 and the run is fighting
+25. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
+26. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+27. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
+28. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
@@ -112,6 +113,10 @@ How each action looks is `app/render/boss-pose.ts`, a pure function of the actio
 The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas have rules other parts depend on (entering the tunnel can be refused, the loadout carries over, the run is won or lost), so they're domain state. That a save would hold them is a hint about their lifetime, not the reason. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
+
+## Perks
+
+Three slots on the player, oldest first; a fourth pushes the oldest out, and picking up one you hold moves it to newest. What each does is simulation (`ecs/systems/perks.ts`, `status.ts`, the weapon systems): Last stand (+50% damage) and Adrenaline (+25% speed) switch on at 30% hp; Final shot turns the gun's throw into the rest of the magazine as one heavy shot, and an overcharged one blows the gun up in your hands; Ricochet bounces a thrown sword twice, harder each time; Long reach makes spear thrusts reach half again as far. The run carries the slots with the loadout (R10), so the next arena's player gets them back from the spawn projection.
 
 ## What lives how long
 
