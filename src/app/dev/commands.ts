@@ -7,7 +7,9 @@
 // Never a fact injected into the rules, never a write to RunView: the world and
 // the rules would disagree, which is exactly what the load test guards against.
 import { initialBoss, type BossState } from '../../domain/boss/boss';
-import { STARTING_LOADOUT, type RunState } from '../../domain/run/run';
+import { STARTING_LOADOUT, type PerkName, type RunState } from '../../domain/run/run';
+import { PERK_NUMBER } from '../../bridge/run/loadout';
+import { addPerk } from '../../ecs/systems/perks';
 import type { BossId, Tick } from '../../domain/shared/types';
 import { bossIdFor } from '../../bridge/ids';
 import { disagreements } from '../../bridge/run/agree';
@@ -25,6 +27,7 @@ export type ArenaComponent = keyof typeof ARENA_STATE;
 export type DevCommand =
   | { kind: 'god'; flag: 'invulnerable' | 'keepWeapons' | 'freezeBoss'; on: boolean }
   | { kind: 'give'; weapon: 'sword' | 'spear' | 'gun' }
+  | { kind: 'perk'; perk: PerkName }
   | { kind: 'heal' }
   | { kind: 'set'; entity: Handle; component: ArenaComponent; field: string; value: number }
   | { kind: 'damageBoss'; amount: number }
@@ -32,7 +35,7 @@ export type DevCommand =
   | { kind: 'jump'; to: JumpTarget };
 
 export const LEVEL: Record<DevCommand['kind'], 'debug' | 'gameplay'> = {
-  god: 'debug', give: 'debug', heal: 'debug', set: 'debug',
+  god: 'debug', give: 'debug', perk: 'debug', heal: 'debug', set: 'debug',
   damageBoss: 'gameplay', killBoss: 'gameplay', jump: 'gameplay',
 };
 
@@ -79,6 +82,7 @@ function describe(cmd: DevCommand): string {
   switch (cmd.kind) {
     case 'god': return `${cmd.flag} ${cmd.on ? 'on' : 'off'}`;
     case 'give': return `give ${cmd.weapon}`;
+    case 'perk': return `perk ${cmd.perk}`;
     case 'heal': return 'heal';
     case 'set': return `set ${cmd.component}.${cmd.field}=${cmd.value}`;
     case 'damageBoss': return `damage boss ${cmd.amount}`;
@@ -99,6 +103,9 @@ function apply(cmd: DevCommand): void {
       return;
     case 'give':
       if (p !== -1) giveWeapon(p, WEAPON[cmd.weapon]);
+      return;
+    case 'perk':
+      if (p !== -1) addPerk(p, PERK_NUMBER[cmd.perk]);
       return;
     case 'heal':
       if (p !== -1) Health.hp[p] = Health.max[p];

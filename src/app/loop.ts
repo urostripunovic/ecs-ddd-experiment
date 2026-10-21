@@ -6,6 +6,7 @@ import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems
 import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
 import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
 import { shakeSystem } from '../ecs/systems/cutscene';
+import { perkDropSystem } from '../ecs/systems/perks';
 import { orbitSystem, spikeGrowthSystem, spikeSystem } from '../ecs/systems/pillars';
 import { tunnelSystem } from '../ecs/systems/tunnel';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
@@ -41,6 +42,7 @@ export function tick(): void {
   stockSystem();
   hurtFlashSystem();
   dropSystem();
+  perkDropSystem();
   bossThresholdSystem();
   spikeGrowthSystem();
   tunnelSystem();

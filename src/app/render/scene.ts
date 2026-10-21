@@ -1,7 +1,7 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam,
   Spikes, StuckIn, Transform, Velocity, Wielder,
 } from '../../ecs/components';
 import { TUNNEL } from '../../ecs/arenas';
@@ -31,7 +31,10 @@ const COLOR = {
   fury: 0xe8584a,
   spiked: 0x8a4f45,
   safe: 0x6fd3b0,
+  heavyBullet: 0xfff1a8,
 };
+// One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
+const PERK_COLOR = [0xffffff, 0xe8584a, 0x5fd39a, 0xffd65c, 0x9fb7ff, 0xd99cff];
 // Ticks for spikes to grow out, so the roar's threat is visible before it bites.
 const SPIKE_GROW_TICKS = 40;
 const SPIKES_PER_RING = 8;
@@ -77,6 +80,8 @@ const geo = {
   gunBody: new THREE.BoxGeometry(0.18, 0.2, 0.62).translate(0, 0, -0.25),
   gunGrip: new THREE.BoxGeometry(0.14, 0.26, 0.14).translate(0, -0.18, 0),
   buff: new THREE.OctahedronGeometry(0.34),
+  perk: new THREE.IcosahedronGeometry(0.42, 0),
+  heavyBullet: new THREE.CapsuleGeometry(0.3, 1.2, 4, 10).rotateX(Math.PI / 2),
   // Base at the origin, pointing +x, so scaling a spike grows it out of the pillar.
   spike: new THREE.ConeGeometry(0.16, 0.5, 8).translate(0, 0.25, 0).rotateZ(-Math.PI / 2),
   // A wedge centred on angle 0, flat on the floor: one ring gap.
@@ -160,6 +165,15 @@ function build(kind: number): Visual {
     case ShapeKind.Sword: return weapon([geo.blade, steelMat], [geo.guard, gunMat]);
     case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
     case ShapeKind.Gun: return weapon([geo.gunBody, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Perk: {
+      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, roughness: 0.3 });
+      return cast(new THREE.Mesh(geo.perk, mat)) as Visual;
+    }
+    case ShapeKind.HeavyBullet: {
+      const m = new THREE.Mesh(geo.heavyBullet, new THREE.MeshBasicMaterial({ color: COLOR.heavyBullet })) as Visual;
+      m.position.y = AIM_HEIGHT;
+      return m;
+    }
     case ShapeKind.Haste: return buffVisual(COLOR.haste);
     case ShapeKind.Fury: return buffVisual(COLOR.fury);
     default:
@@ -323,7 +337,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     const v = pools[kind].pop() ?? build(kind);
     v.rotation.set(0, 0, 0);
     v.scale.setScalar(1);
-    v.position.y = kind === ShapeKind.Bullet || kind === ShapeKind.EnemyBullet ? AIM_HEIGHT : 0;
+    v.position.y = kind === ShapeKind.Bullet || kind === ShapeKind.EnemyBullet || kind === ShapeKind.HeavyBullet ? AIM_HEIGHT : 0;
     scene.add(v);
     visuals[e] = v;
     visualGen[e] = world.generation[e];
@@ -401,7 +415,15 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
           e, armWedges, geo.arm, COLOR.telegraph, SPIRAL_ARMS,
           !dead && BossAction.kind[e] === Action.Spiral && elapsed < SPIRAL_WINDUP,
         );
-      } else if (kind === ShapeKind.Bullet) {
+      } else if (kind === ShapeKind.Perk) {
+        // Coloured by what it grants, and turning on two axes so it never reads as a buff.
+        const mat = (v as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        const color = PERK_COLOR[PerkPickup.kind[e]] ?? 0xffffff;
+        mat.color.setHex(color);
+        mat.emissive.setHex(color);
+        v.position.y = 1 + Math.sin(t * 2.4 + e) * 0.2;
+        v.rotation.set(t * 1.3, t * 1.9, 0);
+      } else if (kind === ShapeKind.Bullet || kind === ShapeKind.HeavyBullet) {
         // A tracer reads far better than a dot at this camera distance.
         v.rotation.y = Math.atan2(Velocity.x[e], Velocity.z[e]);
       } else if (kind === ShapeKind.Pillar) {

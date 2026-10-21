@@ -23,6 +23,7 @@ export function createGodMenu(root: HTMLElement) {
       <label><input type="checkbox" data-flag="keepWeapons"> weapons never run dry or wear</label>
       <label><input type="checkbox" data-flag="freezeBoss"> freeze boss</label>
       <div class="row"><button data-give="gun">gun</button><button data-give="sword">sword</button><button data-give="spear">spear</button><button data-cmd="heal">heal</button></div>
+      <div class="row"><button data-perk="lastStand">last stand</button><button data-perk="adrenaline">adrenaline</button><button data-perk="finalShot">final shot</button><button data-perk="ricochet">ricochet</button><button data-perk="longReach">long reach</button></div>
     </section>
     <section><h3>Gameplay: through the rules</h3>
       <div class="row"><button data-cmd="damageBoss">boss −100 hp</button><button data-cmd="killBoss">kill boss</button></div>
@@ -51,6 +52,9 @@ export function createGodMenu(root: HTMLElement) {
   }
   for (const btn of panel.querySelectorAll<HTMLButtonElement>('[data-give]')) {
     btn.addEventListener('click', () => send({ kind: 'give', weapon: btn.dataset.give as 'gun' }));
+  }
+  for (const btn of panel.querySelectorAll<HTMLButtonElement>('[data-perk]')) {
+    btn.addEventListener('click', () => send({ kind: 'perk', perk: btn.dataset.perk as 'lastStand' }));
   }
   q('[data-cmd="heal"]').addEventListener('click', () => send({ kind: 'heal' }));
   q('[data-cmd="damageBoss"]').addEventListener('click', () => send({ kind: 'damageBoss', amount: 100 }));

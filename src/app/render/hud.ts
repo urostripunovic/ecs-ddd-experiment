@@ -5,6 +5,7 @@ import { Ammo, BossPhase, Durability, GodMode, Health, RunStatus, RunView, Wield
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
 import { furious, hasted, slowed } from '../../ecs/systems/status';
+import { lowHp, Perk, perkSlots } from '../../ecs/systems/perks';
 import { defOf, heldItem } from '../../ecs/systems/weapons';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, html = '') => {
@@ -28,6 +29,15 @@ function statusLine(p: EntityId): string {
   return parts.join(' · ') || ' ';
 }
 
+// Indexed by Perk. The low-hp ones are marked while they're switched on.
+const PERK_LABEL = ['', 'LAST STAND', 'ADRENALINE', 'FINAL SHOT', 'RICOCHET', 'LONG REACH'];
+
+function perkLine(p: EntityId): string {
+  const live = lowHp(p);
+  const on = (k: number) => live && (k === Perk.LastStand || k === Perk.Adrenaline);
+  return perkSlots(p).map((k) => (k === Perk.None ? '—' : PERK_LABEL[k] + (on(k) ? ' ●' : ''))).join(' · ');
+}
+
 export function createHud(root: HTMLElement) {
   const boss = el('div', 'hud boss', `
     <div class="boss-name"><span data-boss-name></span><span data-phase></span></div>
@@ -35,7 +45,8 @@ export function createHud(root: HTMLElement) {
   const player = el('div', 'hud player', `
     <div class="bar"><div data-player-hp></div></div>
     <div class="row"><span>HP <b data-hp></b></span><span><b data-weapon></b> <span data-weapon-state></span></span></div>
-    <div class="row status" data-status></div>`);
+    <div class="row status" data-status></div>
+    <div class="row perks" data-perks></div>`);
   const help = el('div', 'hud help', `WASD move · mouse aim · click/space attack · Shift dodge<br>Q / right-click throw · E swap · R reload<br>Enter restart · \` tick log${import.meta.env.DEV ? ' · G god mode' : ''}`);
   // The perfect zone is placed from the same constants the simulation uses, so what you see is what you get.
   const gauge = el('div', 'hud gauge', `
@@ -60,6 +71,7 @@ export function createHud(root: HTMLElement) {
   const weaponText = q(player, '[data-weapon]');
   const weaponState = q(player, '[data-weapon-state]');
   const status = q(player, '[data-status]');
+  const perks = q(player, '[data-perks]');
   const title = q(banner, '[data-title]');
   const subtitle = q(banner, '[data-subtitle]');
   const gaugeFill = q(gauge, '[data-fill]');
@@ -94,6 +106,7 @@ export function createHud(root: HTMLElement) {
       set(weaponText, 'text', def.name.toUpperCase());
       set(weaponState, 'text', weaponDetail(item, def.mag, def.durability));
       set(status, 'text', statusLine(p));
+      set(perks, 'text', perkLine(p));
 
       const fill = Wielder.charge[p] / CHARGE_MAX_TICKS;
       gauge.hidden = fill === 0;
