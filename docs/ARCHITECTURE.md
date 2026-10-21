@@ -45,9 +45,10 @@ Written down in `src/app/loop.ts`:
 23. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
 24. `spikeGrowthSystem`: orbiting pillars are spiked exactly while a live boss is in phase 2 and the run is fighting
 25. `tunnelSystem`: the player past the end of an open tunnel → `TunnelEntered` (latched by `TunnelPending`)
-26. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
-27. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
-28. render (once per frame, interpolated between the last two ticks)
+26. `rewardSensorSystem`: the player stepping on a reward pedestal → `RewardTouched` with its option (latched by `RewardPending`)
+27. `deathSystem`: hp ≤ 0 → `Dead` tag + `EntityDowned` (edge-triggered)
+28. `domainStep`: drain outbox → command → `decide` → `evolve` → projector, plus follow-ups; then, if the run entered a new arena, rebuild the world from domain state
+29. render (once per frame, interpolated between the last two ticks)
 
 ## The chains in this slice
 
@@ -119,6 +120,12 @@ How each action looks is `app/render/boss-pose.ts`, a pure function of the actio
 The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas have rules other parts depend on (entering the tunnel can be refused, the loadout carries over, the run is won or lost), so they're domain state. That a save would hold them is a hint about their lifetime, not the reason. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
+
+## Revives and rewards
+
+Decided with the user. You start with 3 revives and hold at most 8 (run state). Going down with one left is `PlayerRevived`: back up where you fell at full hp, 2 s untouchable, nearby enemy bullets cleared (`revivePlayer`). A trade on the winning tick spends a revive and the win stands; with none left, if we die, we die (R6, R8, R9, R11).
+
+Clearing a boss before the last arena offers three different rewards, drawn from the run's seed and arena (`offerFor`, R12): a revive (never at 8), an armor plate, a full heal, or the Scattergun. They stand on pedestals; stepping on one is `RewardChosen`, the run answers `RewardTaken`, and the projector clears the pedestals and applies it (R13-R15). The tunnel leaves an untaken offer behind (R16, experimental). Armor plates each block one hit completely and break, at most three: `Armor.gained - Armor.broken`, one writer each. They carry with the loadout like hp.
 
 ## Perks
 

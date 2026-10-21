@@ -12,6 +12,9 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Orbiting pillar** | ECS (`Orbit`, `Orbiting`) | A pillar on a circle around the arena's middle; still blocks bodies and shots. |
 | **Spiked** | ECS tag | An orbiting pillar while a live boss is in phase 2: faster, and hurts on touch, once per `SPIKE_COOLDOWN`. |
 | **Perk** | ECS (`Perks`), carried by the domain | One of three slots on the player, oldest first. Its effect is simulation; the run's loadout carries which ones you hold (`PerkName`). |
+| **Revive** | domain (`RunState.revives`) | A spare life: going down with one left gets you back up instead of losing. Start 3, max 8. |
+| **Reward** | domain (`Reward`), pedestals in the ECS | What a cleared boss offers: three to pick one from. `revive`, `armor`, `heal` or `scattergun`. |
+| **Armor plate** | ECS (`Armor`), carried by the loadout | Blocks one hit completely, then breaks. At most three. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
