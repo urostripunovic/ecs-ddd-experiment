@@ -9,7 +9,8 @@ import { BossStyleKind } from '../../ecs/bosses/defs';
 import { DOORS } from '../../ecs/arenas';
 import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
 import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
-import { dodging } from '../../ecs/systems/status';
+import { dizzy, dodging } from '../../ecs/systems/status';
+import { CHARGE_MAX_TICKS } from '../../ecs/weapons/charge';
 import { bossPose } from './boss-pose';
 import { follow, type Follow } from './camera';
 import { handleAt, has, indexOf, isLive, MAX_ENTITIES, NOBODY, world, type EntityId, type Handle } from '../../ecs/core/world';
@@ -486,6 +487,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         // Ducked and stretched along the dash.
         const ducked = dodging(e as EntityId);
         v.scale.set(ducked ? 1.15 : 1, ducked ? 0.6 : 1, ducked ? 1.15 : 1);
+        // Dizzy: swaying, so you know why your feet won't listen.
+        if (!dead && dizzy(e as EntityId)) { v.rotation.z = Math.sin(t * 7) * 0.25; v.rotation.x = Math.cos(t * 5) * 0.2; }
+        else v.rotation.x = 0;
       } else if (kind === ShapeKind.Boss) {
         const slamming = has(e as EntityId, C.Slam);
         const winding = slamming ? 1 - Slam.timer[e] / Slam.windup[e] : 0;
@@ -620,6 +624,13 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     v.position.set(px - fz * 0.45 + fx * (0.15 + thrust), HAND_HEIGHT, pz + fx * 0.45 + fz * (0.15 + thrust));
     v.rotation.set(0, yaw + sweep, 0);
     v.scale.setScalar(1);
+    // A spinning hammer circles you, head out, faster as its momentum builds.
+    if (kind === ShapeKind.Warhammer && PlayerInput.throwHeld && Wielder.charge[p] > 0) {
+      const momentum = Math.min(1, Wielder.charge[p] / CHARGE_MAX_TICKS);
+      const turn = (performance.now() / 1000) * (9 + 15 * momentum);
+      v.position.set(px, HAND_HEIGHT, pz);
+      v.rotation.set(0, turn, 0);
+    }
     // The flame shows while the simulation says it's spraying (it keeps swing up then).
     if (kind === ShapeKind.Flamethrower && Wielder.swing[p] > 0) {
       flame.visible = true;

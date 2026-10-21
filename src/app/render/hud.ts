@@ -4,7 +4,8 @@ import { arenaFor } from '../../ecs/arenas';
 import { Ammo, BossPhase, C, Durability, GodMode, Health, Item, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { has, indexOf, world, type EntityId, type Handle } from '../../ecs/core/world';
-import { furious, hasted, slowed } from '../../ecs/systems/status';
+import { dizzy, furious, hasted, slowed } from '../../ecs/systems/status';
+import { WeaponKind } from '../../ecs/weapons/defs';
 import { lowHp, Perk, perkSlots } from '../../ecs/systems/perks';
 import { armorPlates } from '../../ecs/systems/armor';
 import { defOf, heldItem } from '../../ecs/systems/weapons';
@@ -27,6 +28,7 @@ function statusLine(p: EntityId): string {
   if (hasted(p)) parts.push('HASTE');
   if (furious(p)) parts.push('FURY');
   if (slowed(p)) parts.push('SLOWED');
+  if (dizzy(p)) parts.push('DIZZY');
   return parts.join(' · ') || ' ';
 }
 
@@ -74,7 +76,7 @@ export function createHud(root: HTMLElement) {
   // The perfect zone is placed from the same constants the simulation uses, so what you see is what you get.
   const gauge = el('div', 'hud gauge', `
     <div class="gauge-fill" data-fill></div>
-    <div class="gauge-zone" style="left:${PERFECT_FROM * 100}%;width:${(PERFECT_TO - PERFECT_FROM) * 100}%"></div>`);
+    <div class="gauge-zone" data-zone style="left:${PERFECT_FROM * 100}%;width:${(PERFECT_TO - PERFECT_FROM) * 100}%"></div>`);
   gauge.hidden = true;
   const log = el('pre', 'hud log');
   // Any cheat marks the run, so a screenshot or a bug report says so.
@@ -99,6 +101,7 @@ export function createHud(root: HTMLElement) {
   const title = q(banner, '[data-title]');
   const subtitle = q(banner, '[data-subtitle]');
   const gaugeFill = q(gauge, '[data-fill]');
+  const gaugeZone = q(gauge, '[data-zone]');
   // Indexed by ChargeZone.
   const ZONE_CLASS = ['building', 'perfect', 'over'];
 
@@ -141,7 +144,10 @@ export function createHud(root: HTMLElement) {
       gauge.hidden = fill === 0;
       if (fill > 0) {
         set(gaugeFill, 'scale', fill.toFixed(3));
-        gaugeFill.className = `gauge-fill ${ZONE_CLASS[throwCharge(fill).zone]}`;
+        // A spinning hammer's gauge is momentum: no perfect zone to show or hit.
+        const spin = item !== -1 && Item.kind[item] === WeaponKind.Warhammer && Wielder.charge[p] > 0;
+        gaugeZone.hidden = spin;
+        gaugeFill.className = `gauge-fill ${spin ? 'building' : ZONE_CLASS[throwCharge(fill).zone]}`;
       }
 
       cheated.hidden = !GodMode.cheated;
