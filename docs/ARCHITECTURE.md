@@ -75,6 +75,7 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 | R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | accepted | `run.test`: a trade on the same tick |
 | R8 | run | Cleared | `PlayerDowned` | `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | accepted | `run.test`: going down after the clear; `transition.test`: nothing hurts you once the arena is cleared |
 | R9 | run | Won, this tick | `PlayerDowned` | `RunLost`: if we die, we die. A trade loses whichever death was reported first | accepted | `run.test`: a trade with the last boss; `flow.test`: a trade with the last boss loses the run |
+| R10 | run | Cleared, not the last arena | `TunnelEntered(loadout with perks)` | `ArenaEntered(next, loadout)`: perks carry over, oldest first. A loadout holds at most three, never the same one twice (`loadoutOf` throws otherwise) | accepted | `run.test`: carry over with the loadout, oldest first; `run.test`: are never more than three, and never the same one twice |
 | B1 | boss | (removed: the phase moved to the simulation) |  |  |  |  |
 | B2 | boss | (removed) |  |  |  |  |
 | B3 | boss | alive | `BossDowned` | `BossDefeated` | accepted | `boss.test`: defeated once |

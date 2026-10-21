@@ -10,6 +10,7 @@ const run = (s: RunState, cmd: RunCommand) => decide(cmd, s).reduce(evolve, s);
 const CARRIED: Loadout = {
   hp: 64,
   weapon: { id: 'w-7' as WeaponId, kind: 'spear', durability: 41, ammo: 0 },
+  perks: ['adrenaline'],
 };
 
 describe('run', () => {
@@ -95,7 +96,7 @@ describe('run', () => {
   describe('loadout', () => {
     it('accepts what a living player can carry', () => {
       expect(loadoutOf(61, carriedWeapon('w-1' as WeaponId, 'gun', 0, 7))).toEqual({
-        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 },
+        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 }, perks: [],
       });
       expect(loadoutOf(1, null).weapon).toBeNull();
     });
@@ -107,5 +108,23 @@ describe('run', () => {
       expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 2.5)).toThrow(RangeError);
       expect(() => carriedWeapon('w-1' as WeaponId, 'sword', -3, 0)).toThrow(RangeError);
     });
+  });
+});
+
+describe('perks', () => {
+  it('starts a run with none', () => {
+    expect(STARTING_LOADOUT.perks).toEqual([]);
+  });
+
+  it('carry over with the loadout, oldest first', () => {
+    const carried = loadoutOf(50, null, ['lastStand', 'finalShot', 'ricochet']);
+    let s = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(300) });
+    s = run(s, { kind: 'TunnelEntered', player: PLAYER, loadout: carried, tick: t(400) });
+    expect(s.loadout.perks).toEqual(['lastStand', 'finalShot', 'ricochet']);
+  });
+
+  it('are never more than three, and never the same one twice', () => {
+    expect(() => loadoutOf(50, null, ['lastStand', 'adrenaline', 'finalShot', 'ricochet'])).toThrow(RangeError);
+    expect(() => loadoutOf(50, null, ['lastStand', 'lastStand'])).toThrow(RangeError);
   });
 });

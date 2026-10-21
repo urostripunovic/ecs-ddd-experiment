@@ -5,11 +5,15 @@ import { assertNever, NO_EVENTS, type BossId, type PlayerId, type Tick, type Wea
 // can be refused, the loadout carries over, the run is won or lost.
 export type RunStatus = 'Fighting' | 'Cleared' | 'Won' | 'Lost';
 export type WeaponKind = 'sword' | 'spear' | 'gun';
+// What a perk does is the simulation's business; the run only carries which ones you hold.
+export type PerkName = 'lastStand' | 'adrenaline' | 'finalShot' | 'ricochet' | 'longReach';
+export const MAX_PERKS = 3;
 
 // What passes from one arena to the next. The simulation reports it; the run
 // decides it carries.
 export type CarriedWeapon = { readonly id: WeaponId; readonly kind: WeaponKind; readonly durability: number; readonly ammo: number };
-export type Loadout = { readonly hp: number; readonly weapon: CarriedWeapon | null };
+// perks: oldest first, as the slots hold them.
+export type Loadout = { readonly hp: number; readonly weapon: CarriedWeapon | null; readonly perks: readonly PerkName[] };
 
 // The numbers come from the simulation; they are checked once, here, where the
 // loadout is made. A value no player could carry is a bug on the simulation
@@ -25,9 +29,11 @@ export function carriedWeapon(id: WeaponId, kind: WeaponKind, durability: number
 }
 
 // Only a living player carries anything into the next arena.
-export function loadoutOf(hp: number, weapon: CarriedWeapon | null): Loadout {
+export function loadoutOf(hp: number, weapon: CarriedWeapon | null, perks: readonly PerkName[] = []): Loadout {
   check(Number.isFinite(hp) && hp > 0, 'hp', hp);
-  return { hp, weapon };
+  check(perks.length <= MAX_PERKS, 'number of perks', perks.length);
+  check(new Set(perks).size === perks.length, 'set of perks (a repeat)', perks.length);
+  return { hp, weapon, perks: [...perks] };
 }
 
 type Run = {
@@ -55,6 +61,7 @@ export type RunEvent =
 export const STARTING_LOADOUT: Loadout = {
   hp: 100,
   weapon: { id: 'w-start' as WeaponId, kind: 'gun', durability: 0, ammo: 16 },
+  perks: [],
 };
 
 export function initialRun(arenas: number): RunState {
@@ -84,7 +91,7 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
       // Refused rather than ignored, so whatever is waiting on the answer is released.
       if (s.status !== 'Cleared') return [{ kind: 'TunnelRefused', reason: 'NotCleared', tick: cmd.tick }];
       if (s.arena >= s.arenas) return [{ kind: 'TunnelRefused', reason: 'LastArena', tick: cmd.tick }];
-      // The rule for what carries over: your hp as it stands, and the weapon in your hands.
+      // The rule for what carries over: your hp as it stands, the weapon in your hands, and your perks.
       return [{ kind: 'ArenaEntered', arena: s.arena + 1, loadout: cmd.loadout, tick: cmd.tick }];
     default:
       return assertNever(cmd);
