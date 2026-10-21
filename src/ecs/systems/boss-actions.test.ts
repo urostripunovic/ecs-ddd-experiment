@@ -10,7 +10,7 @@ import { has, query, resetWorld, toHandle, world, type EntityId } from '../core/
 import { PILLAR_RADIUS } from '../arenas';
 import { UNCHAINED, WARDEN, type BossDef } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
-import { Action, chainGap, DEFAULT_GAP, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
+import { Action, chainGap, DEFAULT_GAP, paceGap, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
 import { bossPhaseSystem, bossThresholdSystem, resetScripts, slamSystem } from './boss';
@@ -146,6 +146,16 @@ describe('boss choreography', () => {
     projectileSystem(DT);
     expect(Health.hp[b]).toBe(before);
     expect(world.inUse[bullet]).toBe(1); // flew on, not spent on the boss
+  });
+});
+
+describe('pace', () => {
+  it('a faster boss waits less between attacks, but never under one tick', () => {
+    arena(1, { ...UNCHAINED, pace: 2 });
+    expect(paceGap(b, ticks(10))).toBe(5);
+    expect(paceGap(b, ticks(1))).toBe(1);
+    arena(1, UNCHAINED);
+    expect(paceGap(b, ticks(10))).toBe(10);
   });
 });
 

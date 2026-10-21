@@ -4,7 +4,7 @@
 // Every attack goes through begin()/finish() (boss-actions.ts), so attacks never
 // overlap and the chain gaps between them come from one table.
 import {
-  Arena, C, Collider, Health, Jump, Knockback, Pattern, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity,
+  Arena, BossPace, C, Collider, Health, Jump, Knockback, Pattern, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity,
 } from '../components';
 import { helperBuf, scriptBuf } from '../core/buffers';
 import { waitTicks, type Script } from '../core/script';
@@ -105,9 +105,12 @@ function* slam(boss: EntityId, def: SlamDef): Script {
   finish(boss);
 }
 
+// A deeper boss's bullets are a little faster: half its extra pace, so patterns
+// stay readable while the gaps between them shrink.
 function shoot(boss: EntityId, angle: number, speed: number): void {
+  const pace = BossPace.pace[boss] > 0 ? BossPace.pace[boss] : 1;
   spawnProjectile(
-    Transform.x[boss], Transform.z[boss], Math.cos(angle), Math.sin(angle), speed,
+    Transform.x[boss], Transform.z[boss], Math.cos(angle), Math.sin(angle), speed * (1 + (pace - 1) / 2),
     TeamId.Enemy, toHandle(boss), ENEMY_BULLET_DMG, ENEMY_BULLET_LIFE, ShapeKind.EnemyBullet,
   );
 }

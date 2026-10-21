@@ -10,6 +10,8 @@ export type BossDef = {
   readonly evadeGrace: Ticks;
   // Which scripts and chain gaps it fights with: BossStyleKind.
   readonly style: number;
+  // 1 is its own pace; higher waits less between attacks and shoots a little faster.
+  readonly pace: number;
 };
 
 export const BossStyleKind = { Warden: 0, Unchained: 1 } as const;
@@ -20,6 +22,7 @@ export const WARDEN: BossDef = {
   radius: meters(1.3),
   evadeGrace: inTicks(seconds(4)),
   style: BossStyleKind.Warden,
+  pace: 1,
 };
 
 // Arena 2's Warden: the same body, a faster temper. It fights with gap rings and
@@ -30,4 +33,5 @@ export const UNCHAINED: BossDef = {
   radius: meters(1.3),
   evadeGrace: inTicks(seconds(3)),
   style: BossStyleKind.Unchained,
+  pace: 1,
 };

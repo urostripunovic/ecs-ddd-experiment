@@ -120,6 +120,8 @@ export const Shape = { kind: new Uint8Array(MAX_ENTITIES) };
 
 // Which script set a boss runs: 0 is the Warden, 1 the Unchained (see BossDef.style).
 export const BossStyle = { kind: new Uint8Array(MAX_ENTITIES) };
+// BossDef.pace, scaled by depth: higher waits less between attacks.
+export const BossPace = { pace: new Float32Array(MAX_ENTITIES) };
 // Where the next ring's gaps are, in radians around the boss, so the floor
 // telegraph and the bullets can never disagree. Written by the ring script only.
 export const Pattern = { gapAt: new Float32Array(MAX_ENTITIES), gapHalf: new Float32Array(MAX_ENTITIES) };
@@ -178,7 +180,7 @@ export const Stock = { respawnAt: new Uint32Array(4) };
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
   Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
-  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop, Armor, Revive, RewardPickup,
+  Stock, BossStyle, BossPace, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop, Armor, Revive, RewardPickup,
 };
 // The input counters must keep counting (a new player starts caught up with
 // them), and RunView is the run's projection, rewritten by every build.

@@ -1,5 +1,5 @@
 import {
-  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
+  Ammo, BossPace, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
   Shape, ShapeKind, Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
 import type { OrbitDef } from './arenas';
@@ -58,6 +58,7 @@ export function spawnBoss(def: BossDef, x: number, z: number): EntityId {
   Collider.radius[boss] = def.radius;
   Shape.kind[boss] = ShapeKind.Boss;
   BossStyle.kind[boss] = def.style;
+  BossPace.pace[boss] = def.pace;
   BossPhase.phase[boss] = 1;
   // From the boss's actual hp, so changing how hp is set can't desync the two.
   Pressure.hpMark[boss] = Health.hp[boss];

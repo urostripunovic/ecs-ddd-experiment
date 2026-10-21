@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { ARENAS, PILLAR_RADIUS } from '../arenas';
+import { GRINDER, PILLAR_RADIUS } from '../arenas';
 import { UNCHAINED } from '../bosses/defs';
 import { BossPhase, C, Collider, Dodge, Health, Knockback, Orbit, resetArenaState, resetRunState, RunStatus, Transform } from '../components';
 import { RunViewWritable } from '../components/run-view';
@@ -77,7 +77,7 @@ describe('orbiting pillars', () => {
   });
 
   it('leave a lane between the ring and the walls wide enough to walk in arena 2', () => {
-    const layout = ARENAS[1];
+    const layout = GRINDER;
     const [cx, cz] = layout.orbitCenter;
     for (const o of layout.orbiting) {
       const outer = Math.max(Math.abs(cx), Math.abs(cz)) + o.radius + PILLAR_RADIUS;

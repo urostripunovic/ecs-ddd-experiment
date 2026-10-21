@@ -2,7 +2,7 @@
 // phase coroutine runs them in sequence through begin()/finish(), so two can
 // never overlap. When the next action may start is data (CHAIN_GAPS), not
 // waits scattered through the scripts.
-import { BossAction, BossPhase, BossStyle } from '../components';
+import { BossAction, BossPace, BossPhase, BossStyle } from '../components';
 import type { Script } from '../core/script';
 import { ticks, type Ticks } from '../core/units';
 import { world, type EntityId } from '../core/world';
@@ -44,9 +44,16 @@ export function chainGap(phase: number, from: ActionKind, to: ActionKind, style 
   return gaps.phases[phase]?.[`${NAMES[from]}->${NAMES[to]}`] ?? gaps.default;
 }
 
+// A deeper boss's pace shortens every gap, but a gap is never under one tick:
+// that would let two actions start on the same tick.
+export function paceGap(boss: EntityId, gap: Ticks): Ticks {
+  const pace = BossPace.pace[boss] > 0 ? BossPace.pace[boss] : 1;
+  return gap === 0 ? gap : ticks(Math.max(1, Math.round(gap / pace)));
+}
+
 // Waits out the chain gap, then marks the action as running.
 export function* begin(boss: EntityId, kind: ActionKind): Script {
-  const gap = chainGap(BossPhase.phase[boss], BossAction.lastKind[boss] as ActionKind, kind, BossStyle.kind[boss]);
+  const gap = paceGap(boss, chainGap(BossPhase.phase[boss], BossAction.lastKind[boss] as ActionKind, kind, BossStyle.kind[boss]));
   while (world.tick < BossAction.lastEnd[boss] + gap) yield;
   BossAction.kind[boss] = kind;
   BossAction.startedAt[boss] = world.tick;
