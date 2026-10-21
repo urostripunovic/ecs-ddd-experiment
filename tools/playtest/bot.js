@@ -3,6 +3,7 @@
 async () => {
   const c = await import('/src/ecs/components/index.ts');
   const w = await import('/src/ecs/core/world.ts');
+  const perks = await import('/src/ecs/systems/perks.ts');
   const held = new Set();
   const taps = [];
   const press = (code, down) => {
@@ -20,7 +21,8 @@ async () => {
     let best = -1, bd = maxDist;
     for (let e = 0; e < w.world.nextFresh; e++) {
       if (!w.world.inUse[e] || !w.has(e, c.C.Grounded)) continue;
-      if (w.has(e, c.C.BuffPickup) !== wantBuff) continue;
+      // Perk pickups are walked to like buffs: grabbed on the way, never instead of a weapon.
+      if ((w.has(e, c.C.BuffPickup) || w.has(e, c.C.PerkPickup)) !== wantBuff) continue;
       const nearBoss = b >= 0 && Math.hypot(c.Transform.x[e] - c.Transform.x[b], c.Transform.z[e] - c.Transform.z[b]) < 4;
       const d = Math.hypot(c.Transform.x[e] - c.Transform.x[p], c.Transform.z[e] - c.Transform.z[p]) + (nearBoss ? 40 : 0);
       if (d < bd) { bd = d; best = e; }
@@ -33,6 +35,7 @@ async () => {
   };
   let strafe = 1, frame = 0, flipCooldown = 0, throwCooldown = 0, charging = false;
   window.__perfectThrows = 0;
+  window.__finalShots = 0;
   window.__dodges = 0;
   let dodgeReady = 0;
 
@@ -60,13 +63,15 @@ async () => {
       const [near, far] = kind === 1 ? [2.8, 3.5] : kind === 2 ? [4.0, 4.6] : [7, 11];
 
       // Throw a blade that's nearly worn out. Never a dry gun: it reloads by itself,
-      // and throwing it left the bot empty-handed across the arena.
-      const dry = false;
+      // and throwing it left the bot empty-handed across the arena. With Final shot,
+      // a full-ish gun is thrown on purpose: it stays in hand.
+      const dry = kind === 3 && perks.hasPerk(p, perks.Perk.FinalShot) && c.Ammo.count[item] >= 10;
       const hurtBad = c.Health.hp[p] < 55 && !w.has(b, c.C.Slam);
       const worn = (kind === 1 || kind === 2) && (c.Durability.value[item] < 30 || hurtBad);
       // Hold the throw and let go inside the perfect zone (44 of 60 ticks).
       if (charging && (item === -1 || c.Wielder.charge[p] >= 44)) {
         if (c.Wielder.charge[p] >= 41 && c.Wielder.charge[p] <= 48) window.__perfectThrows++;
+        if (kind === 3) window.__finalShots++;
         press('KeyQ', false); charging = false; throwCooldown = 30;
       } else if (!charging && (dry || worn) && throwCooldown === 0 && d < [0, 9.5, 15, 7][kind]) { press('KeyQ', true); charging = true; }
 
