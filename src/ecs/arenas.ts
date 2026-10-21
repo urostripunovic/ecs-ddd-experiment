@@ -3,6 +3,7 @@
 import { FINAL, UNCHAINED, WARDEN, type BossDef } from './bosses/defs';
 import { hashDraw } from './core/rng';
 import { hp, meters, type Meters } from './core/units';
+import { SPECIALS } from './weapons/defs';
 
 // A pillar that circles orbitCenter. angle is where it starts (radians); speed is
 // radians per second in phase 1, sped up while its spikes are out.
@@ -14,7 +15,8 @@ export type ArenaLayout = {
   readonly perch: number;
   readonly bossStart: readonly [number, number];
   readonly playerStart: readonly [number, number];
-  // Where the weapons you didn't bring are laid out at the start.
+  // Where the weapons you didn't bring are laid out at the start: the basics,
+  // then the arena's special.
   readonly weaponSpots: readonly (readonly [number, number])[];
   readonly boss: BossDef;
   readonly orbitCenter: readonly [number, number];
@@ -30,7 +32,7 @@ export const WARDEN_ARENA: ArenaLayout = {
   perch: -1,
   bossStart: [0, -8],
   playerStart: [0, 12],
-  weaponSpots: [[-4, 9], [4, 9], [0, 9]],
+  weaponSpots: [[-4, 9], [4, 9], [0, 9], [8, 12]],
   boss: WARDEN,
   orbitCenter: [0, 0],
   orbiting: [],
@@ -44,7 +46,7 @@ export const GRINDER: ArenaLayout = {
   perch: 0,
   bossStart: [0, -4],
   playerStart: [0, 13],
-  weaponSpots: [[-4, 15], [4, 15], [0, 16]],
+  weaponSpots: [[-4, 15], [4, 15], [0, 16], [8, 15]],
   boss: UNCHAINED,
   orbitCenter: [0, -1],
   orbiting: [
@@ -62,7 +64,7 @@ export const FINAL_ARENA: ArenaLayout = {
   perch: 0,
   bossStart: [0, 0],
   playerStart: [0, 16],
-  weaponSpots: [[-4, 17.5], [4, 17.5], [0, 18]],
+  weaponSpots: [[-4, 17.5], [4, 17.5], [0, 18], [8, 17.5]],
   boss: FINAL,
   orbitCenter: [0, 0],
   orbiting: [
@@ -82,7 +84,18 @@ export const POOL: readonly ArenaLayout[] = [GRINDER];
 const HP_PER_DEPTH = 0.3;
 const PACE_PER_DEPTH = 0.08;
 
-export type PlannedArena = { readonly layout: ArenaLayout; readonly boss: BossDef; readonly depth: number };
+// special: the special weapon kind the arena keeps stocked, 0 for none.
+export type PlannedArena = { readonly layout: ArenaLayout; readonly boss: BossDef; readonly depth: number; readonly special: number };
+
+// A key apart from the arena draws', so adding specials never changes which bosses a seed meets.
+const SPECIAL_KEY = 1000;
+
+// The tutorial keeps to the basics; every arena after it, the final too, stocks
+// one special, drawn from the seed like the bosses, without moving the drop RNG.
+export function specialFor(seed: number, arena: number): number {
+  if (arena <= 1) return 0;
+  return SPECIALS[Math.floor(hashDraw(seed, SPECIAL_KEY + arena) * SPECIALS.length)];
+}
 
 // Which pool entry each middle arena draws, from the seed alone, never the same
 // one twice in a row when the pool has a choice.
@@ -111,7 +124,7 @@ export function arenaFor(seed: number, arena: number, final: boolean, layout?: A
     hp: hp(Math.round(base.hp * (1 + HP_PER_DEPTH * depth))),
     pace: base.pace * (1 + PACE_PER_DEPTH * depth),
   };
-  return { layout: chosen, boss, depth };
+  return { layout: chosen, boss, depth, special: specialFor(seed, arena) };
 }
 
 // The doors through the north wall: corridors the player may enter only while

@@ -1,10 +1,10 @@
 import {
   Ammo, BossPace, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
-  Shape, ShapeKind, Team, TeamId, Transform, Velocity, Wielder,
+  Shape, ShapeKind, Team, TeamId, Tracer, Transform, Velocity, Wielder,
 } from './components';
 import type { OrbitDef } from './arenas';
 import type { BossDef } from './bosses/defs';
-import { after, type Hp, type Meters, type Seconds } from './core/units';
+import { after, type Hp, type Meters, type Seconds, type Ticks } from './core/units';
 import { add, mask, NOBODY, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
 
@@ -17,8 +17,12 @@ const ITEM = mask(C.Transform, C.Velocity, C.Team, C.Item, C.Shape, C.Grounded);
 const BUFF = mask(C.Transform, C.BuffPickup, C.Shape, C.Grounded);
 const PERK = mask(C.Transform, C.PerkPickup, C.Shape, C.Grounded);
 const REWARD = mask(C.Transform, C.RewardPickup, C.Shape);
+const TRACER = mask(C.Transform, C.Tracer, C.Shape);
 
-const WEAPON_SHAPE = [ShapeKind.None, ShapeKind.Sword, ShapeKind.Spear, ShapeKind.Gun, ShapeKind.Scattergun];
+const WEAPON_SHAPE = [
+  ShapeKind.None, ShapeKind.Sword, ShapeKind.Spear, ShapeKind.Gun, ShapeKind.Scattergun,
+  ShapeKind.Chakram, ShapeKind.Warhammer, ShapeKind.Railgun, ShapeKind.Flamethrower,
+];
 const BUFF_SHAPE = [ShapeKind.None, ShapeKind.Haste, ShapeKind.Fury];
 
 // A recycled slot still holds its old previous-position; without resetting it
@@ -150,4 +154,16 @@ export function spawnReward(option: number, kind: number, x: number, z: number):
   RewardPickup.kind[reward] = kind;
   Shape.kind[reward] = ShapeKind.Reward;
   return reward;
+}
+
+// A railgun beam to draw for a moment; it hurts nothing itself.
+export function spawnTracer(x: number, z: number, x1: number, z1: number, life: Ticks): EntityId {
+  const tracer = spawn();
+  add(tracer, TRACER);
+  place(tracer, x, z);
+  Tracer.x1[tracer] = x1;
+  Tracer.z1[tracer] = z1;
+  Tracer.until[tracer] = after(life);
+  Shape.kind[tracer] = ShapeKind.RailBeam;
+  return tracer;
 }

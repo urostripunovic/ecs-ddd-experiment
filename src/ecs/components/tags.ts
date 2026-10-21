@@ -29,4 +29,5 @@ export const C = {
   PerkPickup: bit(25),   // lying in the arena; walking over it fills a perk slot
   RewardPickup: bit(26), // a boss's reward on its pedestal; stepping on it chooses it
   RewardPending: bit(27), // latch: the player chose a reward and the run hasn't answered yet
+  Tracer: bit(28),       // a railgun beam, drawn for a moment; it hurts nothing itself
 } as const;

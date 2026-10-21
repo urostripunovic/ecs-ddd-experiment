@@ -39,9 +39,12 @@ export const LastHit = { by: handleField(C.Health) };
 // acted on. The app only ever increments the counts and the ECS only writes the
 // seen values, so an input is never lost or doubled whatever the frame rate.
 // charge: ticks the throw has been held, capped at CHARGE_MAX_TICKS.
+// fireSeen/fireCharge: the same pair for the railgun, which charges on fire
+// and shoots on the release.
 export const Wielder = {
   held: handleField(C.Wielder), cooldown: new Float32Array(MAX_ENTITIES), swing: new Uint8Array(MAX_ENTITIES),
   throwSeen: new Int32Array(MAX_ENTITIES), interactSeen: new Int32Array(MAX_ENTITIES), charge: new Uint8Array(MAX_ENTITIES),
+  fireSeen: new Int32Array(MAX_ENTITIES), fireCharge: new Uint8Array(MAX_ENTITIES),
 };
 
 // Items are entities, so a thrown gun keeps its ammo and a dropped sword its wear.
@@ -60,7 +63,15 @@ export const Thrown = {
   by: handleField(C.Flying), dmg: new Float32Array(MAX_ENTITIES), wearMul: new Float32Array(MAX_ENTITIES), ticksLeft: new Uint16Array(MAX_ENTITIES),
   // Bounces left before it lands (Ricochet).
   bounces: new Uint8Array(MAX_ENTITIES),
+  // A chakram's leg (0 out, 1 coming home) and the last thing it hit on this
+  // leg, so it hits each target once going out and once coming back.
+  leg: new Uint8Array(MAX_ENTITIES), lastHit: handleField(C.Flying),
 };
+// Burning: hurts dps hit points a second until a tick. A deadline, so spraying
+// again only moves it on; by is who lit it.
+export const Burn = { until: new Uint32Array(MAX_ENTITIES), dps: new Float32Array(MAX_ENTITIES), by: handleField(C.Health) };
+// A railgun beam to draw: from Transform to x1/z1, gone after until.
+export const Tracer = { x1: new Float32Array(MAX_ENTITIES), z1: new Float32Array(MAX_ENTITIES), until: new Uint32Array(MAX_ENTITIES) };
 
 // angle is where around the host it went in, so it rides there.
 export const StuckIn = { host: handleField(C.Stuck), angle: new Float32Array(MAX_ENTITIES) };
@@ -118,6 +129,7 @@ export const Pressure = {
 export const ShapeKind = {
   None: 0, Player: 1, Boss: 2, Bullet: 3, EnemyBullet: 4, Pillar: 5,
   Sword: 6, Spear: 7, Gun: 8, Haste: 9, Fury: 10, Perk: 11, HeavyBullet: 12, Reward: 13, Scattergun: 14,
+  Chakram: 15, Warhammer: 16, Railgun: 17, Flamethrower: 18, RailBeam: 19,
 } as const;
 export const Shape = { kind: new Uint8Array(MAX_ENTITIES) };
 
@@ -156,7 +168,7 @@ export const RewardPickup = { option: new Uint8Array(MAX_ENTITIES), kind: new Ui
 // throwHeld charges the gauge; the release is what throws.
 export const PlayerInput = {
   moveX: 0, moveZ: 0, aimX: 0, aimZ: -1, fire: false, reload: false,
-  throwHeld: false, throwReleases: 0, interactPresses: 0, dodgePresses: 0,
+  throwHeld: false, throwReleases: 0, interactPresses: 0, dodgePresses: 0, fireReleases: 0,
 };
 // A read model of the domain's run: read-only here, written only by the bridge
 // through run-view.ts. Cleared: the boss is down, the tunnel may be open, and
@@ -174,14 +186,15 @@ export const Shake = { trauma: 0 };
 // a run any cheat touched, so a bug report says so.
 export const GodMode = { invulnerable: false, keepWeapons: false, freezeBoss: false, cheated: false };
 // Per weapon kind, the tick its replacement appears; 0 = nothing missing.
-export const Stock = { respawnAt: new Uint32Array(4) };
+// special: the one special weapon kind this arena keeps on top of the basics, 0 for none.
+export const Stock = { respawnAt: new Uint32Array(16), special: 0 };
 
 // Every component and singleton says how long it lives, here and nowhere else.
 // A new arena wipes ARENA_STATE; RUN_STATE carries on, on purpose; CONSTANTS
 // never change. scope.test.ts fails if anything exported here is in no list or
 // in two, so a new singleton can't silently leak from one arena into the next.
 export const ARENA_STATE = {
-  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
+  Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, Burn, Tracer, StuckIn, BuffPickup, Buffs,
   Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
   Stock, BossStyle, BossPace, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop, Armor, Revive, RewardPickup,
 };
