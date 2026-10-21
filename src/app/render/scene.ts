@@ -1,12 +1,12 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam, StuckIn,
-  Transform, Velocity,
-  Wielder,
+  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PlayerInput, RunView, Shake, Shape, ShapeKind, Slam,
+  Spikes, StuckIn, Transform, Velocity, Wielder,
 } from '../../ecs/components';
 import { TUNNEL } from '../../ecs/arenas';
-import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
+import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
+import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
 import { dodging } from '../../ecs/systems/status';
 import { bossPose } from './boss-pose';
 import { follow, type Follow } from './camera';
@@ -29,7 +29,12 @@ const COLOR = {
   gun: 0x3b4048,
   haste: 0x5fd39a,
   fury: 0xe8584a,
+  spiked: 0x8a4f45,
+  safe: 0x6fd3b0,
 };
+// Ticks for spikes to grow out, so the roar's threat is visible before it bites.
+const SPIKE_GROW_TICKS = 40;
+const SPIKES_PER_RING = 8;
 
 const SWING_TICKS = 10;
 
@@ -44,7 +49,7 @@ const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
 const LOOK_AHEAD = 3;
 const AIM_HEIGHT = 0.9; // bullets fly at this height, so aim on the same plane
 
-type Visual = THREE.Object3D & { userData: { mat?: THREE.MeshStandardMaterial; base?: number } };
+type Visual = THREE.Object3D & { userData: { mat?: THREE.MeshStandardMaterial; base?: number; spikes?: THREE.Group } };
 
 function shaded(color: number): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 });
@@ -72,10 +77,14 @@ const geo = {
   gunBody: new THREE.BoxGeometry(0.18, 0.2, 0.62).translate(0, 0, -0.25),
   gunGrip: new THREE.BoxGeometry(0.14, 0.26, 0.14).translate(0, -0.18, 0),
   buff: new THREE.OctahedronGeometry(0.34),
+  // Base at the origin, pointing +x, so scaling a spike grows it out of the pillar.
+  spike: new THREE.ConeGeometry(0.16, 0.5, 8).translate(0, 0.25, 0).rotateZ(-Math.PI / 2),
+  // A wedge centred on angle 0, flat on the floor: one ring gap.
+  gap: new THREE.CircleGeometry(16, 12, -RING_GAP_HALF, RING_GAP_HALF * 2).rotateX(-Math.PI / 2),
+  arm: new THREE.CircleGeometry(16, 4, -0.05, 0.1).rotateX(-Math.PI / 2),
 };
 const bulletMat = new THREE.MeshBasicMaterial({ color: COLOR.bullet });
 const enemyBulletMat = new THREE.MeshBasicMaterial({ color: COLOR.enemyBullet });
-const pillarMat = shaded(COLOR.pillar);
 const steelMat = new THREE.MeshStandardMaterial({ color: COLOR.steel, roughness: 0.35, metalness: 0.6 });
 const woodMat = shaded(COLOR.wood);
 const gunMat = shaded(COLOR.gun);
@@ -128,8 +137,25 @@ function build(kind: number): Visual {
     case ShapeKind.EnemyBullet:
       return new THREE.Mesh(geo.enemyBullet, enemyBulletMat) as Visual;
     case ShapeKind.Pillar: {
-      const m = new THREE.Mesh(geo.pillar, pillarMat) as Visual;
-      return cast(m);
+      // Own material, so a spiked pillar can glow without tinting the rest.
+      const mat = shaded(COLOR.pillar);
+      const g = new THREE.Group() as Visual;
+      const column = new THREE.Mesh(geo.pillar, mat);
+      column.position.y = 1.6;
+      const spikes = new THREE.Group();
+      for (let row = 0; row < 2; row++) {
+        for (let i = 0; i < SPIKES_PER_RING; i++) {
+          const a = ((i + row * 0.5) / SPIKES_PER_RING) * Math.PI * 2;
+          const spike = new THREE.Mesh(geo.spike, steelMat);
+          spike.position.set(Math.cos(a), 0.9 + row * 1.3, Math.sin(a));
+          spike.rotation.y = -a;
+          spikes.add(spike);
+        }
+      }
+      spikes.visible = false;
+      g.add(column, spikes);
+      g.userData = { mat, base: COLOR.pillar, spikes } as Visual['userData'];
+      return cast(g);
     }
     case ShapeKind.Sword: return weapon([geo.blade, steelMat], [geo.guard, gunMat]);
     case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
@@ -277,6 +303,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
   const telegraphs: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
   const cones: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
+  // Floor wedges: where a ring leaves its gaps, and where a spiral's arms start.
+  const gapWedges: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const armWedges: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
   let highWater = 0;
 
   const release = (e: number) => {
@@ -286,6 +315,8 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     visuals[e] = null;
     if (telegraphs[e]) telegraphs[e]!.visible = false;
     if (cones[e]) cones[e]!.visible = false;
+    if (gapWedges[e]) gapWedges[e]!.visible = false;
+    if (armWedges[e]) armWedges[e]!.visible = false;
   };
 
   const acquire = (e: number, kind: number): Visual => {
@@ -365,13 +396,25 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         v.scale.set(pose.sx, pose.sy, pose.sx);
         drawTelegraph(e, winding);
         drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < CONE_WINDUP, elapsed / CONE_WINDUP);
+        drawWedges(e, gapWedges, geo.gap, COLOR.safe, RING_GAPS, !dead && BossAction.kind[e] === Action.Ring);
+        drawWedges(
+          e, armWedges, geo.arm, COLOR.telegraph, SPIRAL_ARMS,
+          !dead && BossAction.kind[e] === Action.Spiral && elapsed < SPIRAL_WINDUP,
+        );
       } else if (kind === ShapeKind.Bullet) {
         // A tracer reads far better than a dot at this camera distance.
         v.rotation.y = Math.atan2(Velocity.x[e], Velocity.z[e]);
       } else if (kind === ShapeKind.Pillar) {
         const r = Collider.radius[e];
         v.scale.set(r, 1, r);
-        v.position.y = 1.6;
+        // Orbiting pillars turn as they go round, so the motion reads even without spikes.
+        if (has(e as EntityId, C.Orbiting)) v.rotation.y = -Orbit.angle[e] * 2;
+        const spiked = has(e as EntityId, C.Spiked);
+        const grow = spiked ? Math.min(1, (world.tick - Spikes.since[e] + alpha) / SPIKE_GROW_TICKS) : 0;
+        const spikes = v.userData.spikes!;
+        spikes.visible = grow > 0;
+        for (const spike of spikes.children) spike.scale.setScalar(Math.max(0.001, grow));
+        if (spiked) mat!.color.setHex(COLOR.spiked);
       } else if (kind === ShapeKind.Haste || kind === ShapeKind.Fury) {
         v.position.y = 0.8 + Math.sin(t * 3 + e) * 0.15;
         v.rotation.y = t * 2;
@@ -463,6 +506,29 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     g.scale.set(r, 1, r);
     const fill = g.userData.fill as THREE.Mesh;
     fill.scale.setScalar(Math.max(0.001, progress));
+  }
+
+  // Pattern.gapAt is the same number the ring's bullets are fired from, so the
+  // floor can't show a gap the bullets don't leave.
+  function drawWedges(
+    e: number, pool: (THREE.Group | null)[], shape: THREE.BufferGeometry, color: number, count: number, active: boolean,
+  ): void {
+    if (!active && !pool[e]) return;
+    const g = pool[e] ?? (pool[e] = buildWedges(shape, color, count));
+    if (!g.parent) scene.add(g);
+    g.visible = active;
+    if (!active) return;
+    g.position.set(visuals[e]!.position.x, 0.03, visuals[e]!.position.z);
+    for (let k = 0; k < g.children.length; k++) {
+      g.children[k].rotation.y = -(Pattern.gapAt[e] + (k * 2 * Math.PI) / g.children.length);
+    }
+  }
+
+  function buildWedges(shape: THREE.BufferGeometry, color: number, count: number): THREE.Group {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false });
+    for (let k = 0; k < count; k++) g.add(new THREE.Mesh(shape, mat));
+    return g;
   }
 
   function drawCone(e: number, active: boolean, progress: number): void {

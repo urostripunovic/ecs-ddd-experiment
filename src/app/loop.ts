@@ -6,6 +6,7 @@ import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems
 import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
 import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
 import { shakeSystem } from '../ecs/systems/cutscene';
+import { orbitSystem, spikeGrowthSystem, spikeSystem } from '../ecs/systems/pillars';
 import { tunnelSystem } from '../ecs/systems/tunnel';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
 import {
@@ -24,6 +25,7 @@ export function tick(): void {
   inputSystem();
   bossPhaseSystem();
   movementSystem(DT);
+  orbitSystem(DT);
   bodyCollisionSystem();
   heldFollowSystem();
   stuckFollowSystem();
@@ -34,11 +36,13 @@ export function tick(): void {
   projectileCollisionSystem();
   projectileSystem(DT);
   slamSystem();
+  spikeSystem();
   durabilitySystem(DT);
   stockSystem();
   hurtFlashSystem();
   dropSystem();
   bossThresholdSystem();
+  spikeGrowthSystem();
   tunnelSystem();
   deathSystem();
   domainStep(); // decide + evolve + project, inside the same tick

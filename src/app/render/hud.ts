@@ -1,5 +1,6 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
+import { ARENAS } from '../../ecs/arenas';
 import { Ammo, BossPhase, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { indexOf, type EntityId, type Handle } from '../../ecs/core/world';
@@ -29,7 +30,7 @@ function statusLine(p: EntityId): string {
 
 export function createHud(root: HTMLElement) {
   const boss = el('div', 'hud boss', `
-    <div class="boss-name"><span>The Warden</span><span data-phase></span></div>
+    <div class="boss-name"><span data-boss-name></span><span data-phase></span></div>
     <div class="bar"><div data-boss-hp></div></div>`);
   const player = el('div', 'hud player', `
     <div class="bar"><div data-player-hp></div></div>
@@ -53,6 +54,7 @@ export function createHud(root: HTMLElement) {
   const q = (n: HTMLElement, sel: string) => n.querySelector<HTMLElement>(sel)!;
   const bossHp = q(boss, '[data-boss-hp]');
   const phase = q(boss, '[data-phase]');
+  const bossName = q(boss, '[data-boss-name]');
   const playerHp = q(player, '[data-player-hp]');
   const hpText = q(player, '[data-hp]');
   const weaponText = q(player, '[data-weapon]');
@@ -84,6 +86,7 @@ export function createHud(root: HTMLElement) {
       const p = indexOf(h.player);
       set(bossHp, 'scale', (Health.hp[b] / Health.max[b]).toFixed(3));
       set(phase, 'text', `arena ${RunView.arena}/${RunView.arenas} · phase ${BossPhase.phase[b]}`);
+      set(bossName, 'text', ARENAS[RunView.arena - 1]?.boss.name ?? '');
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
       const item = heldItem(p);

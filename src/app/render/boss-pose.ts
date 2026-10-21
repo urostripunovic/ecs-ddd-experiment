@@ -2,7 +2,8 @@
 // how far into it we are. The simulation only stores which action and since
 // when, so animation can be tuned here without touching gameplay.
 import {
-  Action, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER, ROAR_HOLD, ROAR_REAR,
+  Action, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER, RING_WAVE_GAP, RING_WINDUP,
+  ROAR_HOLD, ROAR_REAR, SPIRAL_WINDUP,
 } from '../../ecs/systems/boss-actions';
 
 export type Pose = { height: number; sx: number; sy: number; lean: number };
@@ -63,6 +64,26 @@ export function bossPose(kind: number, elapsed: number, slamWindup: number, from
       const settle = 1 - clamp01(t / ROAR_HOLD);
       const tremble = Math.sin(t * 2.6) * 0.05 * settle;
       return { height: 0, sx: 1 + 0.08 * settle + tremble, sy: 1 + 0.08 * settle - tremble, lean: 0.25 * settle };
+    }
+    case Action.Ring: {
+      if (elapsed < RING_WINDUP) {
+        // Hunkers down while the floor shows where the gaps will be.
+        const c = ease(clamp01(elapsed / RING_WINDUP));
+        return { height: 0, sx: 1 + 0.12 * c, sy: 1 - 0.16 * c, lean: 0 };
+      }
+      // A puff on every wave, like the burst, settling before the next.
+      const since = (elapsed - RING_WINDUP) % RING_WAVE_GAP;
+      const puff = 0.2 * Math.exp(-since * 0.3);
+      return { height: 0, sx: 1 + puff, sy: 1 + puff * 0.5, lean: 0 };
+    }
+    case Action.Spiral: {
+      if (elapsed < SPIRAL_WINDUP) {
+        const r = ease(clamp01(elapsed / SPIRAL_WINDUP));
+        return { height: 0, sx: 1, sy: 1 + 0.1 * r, lean: -0.2 * r };
+      }
+      // A steady shudder while the arms pour out.
+      const t = elapsed - SPIRAL_WINDUP;
+      return { height: 0, sx: 1 + Math.sin(t * 1.3) * 0.04, sy: 1.08, lean: 0.08 };
     }
     case Action.Slam:
       return { height: 0, sx: 1 + slamWindup * 0.12, sy: 1 - slamWindup * 0.18, lean: 0.12 * slamWindup };
