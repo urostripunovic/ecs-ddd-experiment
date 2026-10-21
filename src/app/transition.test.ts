@@ -35,7 +35,7 @@ function snapshot(groups: Record<string, object>): Record<string, unknown> {
 
 function worldShape() {
   return {
-    mask: Array.from(world.signature), alive: Array.from(world.alive),
+    signature: Array.from(world.signature), inUse: Array.from(world.inUse),
     nextFresh: world.nextFresh, freeCount: world.freeCount, tick: world.tick,
   };
 }

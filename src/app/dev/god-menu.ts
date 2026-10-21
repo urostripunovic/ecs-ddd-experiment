@@ -90,7 +90,7 @@ export function createGodMenu(root: HTMLElement) {
   function renderEntities(): void {
     const options: string[] = [];
     for (let e = 0; e < world.nextFresh && e < MAX_ENTITIES; e++) {
-      if (!world.alive[e] || !has(e as EntityId, C.Shape)) continue;
+      if (!world.inUse[e] || !has(e as EntityId, C.Shape)) continue;
       const h = toHandle(e as EntityId);
       options.push(`<option value="${h}"${h === selected ? ' selected' : ''}>${nameOf(h)}</option>`);
     }

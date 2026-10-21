@@ -324,7 +324,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
 
     highWater = Math.max(highWater, world.nextFresh);
     for (let e = 0; e < highWater; e++) {
-      const kind = world.alive[e] && has(e as EntityId, C.Shape) ? Shape.kind[e] : 0;
+      const kind = world.inUse[e] && has(e as EntityId, C.Shape) ? Shape.kind[e] : 0;
       if (visuals[e] && (kind === 0 || visualGen[e] !== world.generation[e] || visualKind[e] !== kind)) release(e);
       if (kind === 0) continue;
 
