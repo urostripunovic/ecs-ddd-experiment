@@ -33,10 +33,10 @@ function statusLine(p: EntityId): string {
 // Indexed by Perk. The low-hp ones are marked while they're switched on.
 const PERK_LABEL = ['', 'LAST STAND', 'ADRENALINE', 'FINAL SHOT', 'RICOCHET', 'LONG REACH'];
 
-function perkLine(p: EntityId): string {
-  const live = lowHp(p);
-  const on = (k: number) => live && (k === Perk.LastStand || k === Perk.Adrenaline);
-  return perkSlots(p).map((k) => (k === Perk.None ? '—' : PERK_LABEL[k] + (on(k) ? ' ●' : ''))).join(' · ');
+function perkLine(player: EntityId): string {
+  const live = lowHp(player);
+  const on = (perk: number) => live && (perk === Perk.LastStand || perk === Perk.Adrenaline);
+  return perkSlots(player).map((perk) => (perk === Perk.None ? '—' : PERK_LABEL[perk] + (on(perk) ? ' ●' : ''))).join(' · ');
 }
 
 // Any pedestal still standing means the offer is open. Read once a frame, not per tick.
