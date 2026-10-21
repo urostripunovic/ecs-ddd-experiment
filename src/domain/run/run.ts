@@ -57,6 +57,9 @@ type Run = {
   readonly seed: number;
   readonly revives: number;
   // Three rewards to pick one from, after a clear; null when there's nothing to pick.
+  // Only a cleared arena ever has one (RewardsOffered follows ArenaCleared, and
+  // ArenaEntered clears it), but every status can hold the field: making it
+  // Cleared-only would split every state type for a combination nothing produces.
   readonly offer: readonly Reward[] | null;
 };
 // Only a finished run has an end tick, so "won, but when?" can't be written down.
@@ -78,7 +81,9 @@ export type RunEvent =
   | { kind: 'TunnelRefused'; reason: 'NotCleared' | 'LastArena'; tick: Tick }
   | { kind: 'PlayerRevived'; player: PlayerId; revivesLeft: number; tick: Tick }
   | { kind: 'RewardsOffered'; arena: number; options: readonly Reward[]; tick: Tick }
-  | { kind: 'RewardTaken'; reward: Reward; tick: Tick };
+  // revives: the count after taking it, so whoever shows it needn't read the state.
+  | { kind: 'RewardTaken'; reward: Reward; revives: number; tick: Tick }
+  | { kind: 'RewardRefused'; reason: 'NoOffer' | 'NoSuchOption'; tick: Tick };
 
 export const STARTING_LOADOUT: Loadout = {
   hp: 100,
@@ -148,9 +153,15 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
       // The rule for what carries over: your hp as it stands, the weapon in your hands, and your perks.
       return [{ kind: 'ArenaEntered', arena: s.arena + 1, loadout: cmd.loadout, tick: cmd.tick }];
     case 'RewardChosen':
-      // One pick per offer; a second touch, or a choice with nothing on offer, is already answered.
-      if (s.status !== 'Cleared' || !s.offer || cmd.option < 0 || cmd.option >= s.offer.length) return NO_EVENTS;
-      return [{ kind: 'RewardTaken', reward: s.offer[cmd.option], tick: cmd.tick }];
+      // One pick per offer. Anything else is refused rather than ignored, like the
+      // tunnel, so whatever is waiting on the answer is released.
+      if (s.status !== 'Cleared' || !s.offer) return [{ kind: 'RewardRefused', reason: 'NoOffer', tick: cmd.tick }];
+      if (!Number.isInteger(cmd.option) || cmd.option < 0 || cmd.option >= s.offer.length) {
+        return [{ kind: 'RewardRefused', reason: 'NoSuchOption', tick: cmd.tick }];
+      }
+      const reward = s.offer[cmd.option];
+      const revives = reward === 'revive' ? Math.min(MAX_REVIVES, s.revives + 1) : s.revives;
+      return [{ kind: 'RewardTaken', reward, revives, tick: cmd.tick }];
     default:
       return assertNever(cmd);
   }
@@ -169,8 +180,8 @@ export function evolve(s: RunState, e: RunEvent): RunState {
     case 'TunnelRefused': return s;
     case 'PlayerRevived': return { ...s, revives: e.revivesLeft };
     case 'RewardsOffered': return { ...s, offer: e.options };
-    case 'RewardTaken':
-      return { ...s, offer: null, revives: e.reward === 'revive' ? Math.min(MAX_REVIVES, s.revives + 1) : s.revives };
+    case 'RewardTaken': return { ...s, offer: null, revives: e.revives };
+    case 'RewardRefused': return s;
     default: return assertNever(e);
   }
 }

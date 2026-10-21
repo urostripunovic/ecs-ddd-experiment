@@ -81,7 +81,7 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 | R11 | run | Fighting, revives left | `PlayerDowned` | `PlayerRevived(revives - 1)`: back up where you fell, at full hp (the projector) | accepted | `run.test`: going down with a revive left gets you back up |
 | R12 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared`, then `RewardsOffered`: three different rewards drawn from the run's seed and arena; no revive when you hold 8 | accepted | `run.test`: clearing a boss before the last arena offers three; `run.test`: never offers a revive when you already hold eight |
 | R13 | run | Cleared, an offer open | `RewardChosen(i)` | `RewardTaken(offer[i])`, and the offer closes | accepted | `run.test`: choosing one takes it and closes the offer |
-| R14 | run | No offer open, or no such option | `RewardChosen` | none: already answered | accepted | `run.test`: choosing one takes it and closes the offer; `run.test`: ignores a choice with nothing on offer |
+| R14 | run | No offer open, or no such option | `RewardChosen` | `RewardRefused(NoOffer or NoSuchOption)`: refused rather than ignored, like the tunnel, so the pedestal sensor's latch is released | accepted | `run.test`: choosing one takes it and closes the offer; asking again is refused; `run.test`: refuses a choice with nothing on offer |
 | R15 | run | Cleared, an offer open | `RewardTaken(revive)` | revives + 1, never past 8 | accepted | `run.test`: a revive reward adds one, never past eight |
 | R16 | run | Cleared, an offer open | `TunnelEntered` | `ArenaEntered`; the offer is left behind | experimental | `run.test`: walking into the tunnel without choosing forfeits the offer |
 | B1 | boss | (removed: the phase moved to the simulation) |  |  |  |  |

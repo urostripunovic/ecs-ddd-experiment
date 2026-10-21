@@ -186,22 +186,25 @@ describe('rewards', () => {
     expect(clear({ ...initialRun(2), arena: 2 }).offer).toBeNull();
   });
 
-  it('choosing one takes it and closes the offer; asking again is already answered', () => {
+  it('choosing one takes it and closes the offer; asking again is refused', () => {
     const s = clear(initialRun(3, 7));
     const reward = s.offer![1];
-    expect(decide(choose(1), s)).toEqual([{ kind: 'RewardTaken', reward, tick: t(320) }]);
+    const revives = reward === 'revive' ? s.revives + 1 : s.revives;
+    expect(decide(choose(1), s)).toEqual([{ kind: 'RewardTaken', reward, revives, tick: t(320) }]);
     const taken = run(s, choose(1));
     expect(taken.offer).toBeNull();
-    expect(decide(choose(0), taken)).toHaveLength(0);
+    expect(decide(choose(0), taken)).toEqual([{ kind: 'RewardRefused', reason: 'NoOffer', tick: t(320) }]);
   });
 
-  it('ignores a choice with nothing on offer, or one that isn\'t there', () => {
-    expect(decide(choose(0), initialRun(3))).toHaveLength(0);
-    expect(decide(choose(3), clear(initialRun(3, 7)))).toHaveLength(0);
+  // Refused rather than ignored, so the pedestal sensor's latch is always released.
+  it('refuses a choice with nothing on offer, or one that isn\'t there', () => {
+    expect(decide(choose(0), initialRun(3))).toEqual([{ kind: 'RewardRefused', reason: 'NoOffer', tick: t(320) }]);
+    expect(decide(choose(3), clear(initialRun(3, 7)))).toEqual([{ kind: 'RewardRefused', reason: 'NoSuchOption', tick: t(320) }]);
   });
 
   it('a revive reward adds one, never past eight', () => {
     const offered: RunState = { ...initialRun(3), status: 'Cleared', revives: MAX_REVIVES, offer: ['revive', 'armor', 'heal'] };
+    expect(decide(choose(0), offered)).toEqual([{ kind: 'RewardTaken', reward: 'revive', revives: MAX_REVIVES, tick: t(320) }]);
     expect(run(offered, choose(0)).revives).toBe(MAX_REVIVES);
     expect(run({ ...offered, revives: 4 }, choose(0)).revives).toBe(5);
   });
