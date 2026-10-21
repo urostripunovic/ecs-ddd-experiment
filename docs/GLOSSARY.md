@@ -16,10 +16,14 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Projector** | bridge | Turns a domain event into component writes. Never sends commands. |
 | **Process manager** | bridge | Turns one context's event into another context's command, e.g. `BossDefeated` → `BossCleared`. |
 | `Handle` | ECS | Entity index + generation. Safe to store; goes stale when the slot is reused. |
+| `EntityId` | ECS | An entity's row: its index in every component array, up to `MAX_ENTITIES`. Only valid this tick; called `entity`, or what it is (`player`). |
+| **Signature** | ECS (`world.signature`) | The set of components an entity has, one bit each. Systems query by it; `add`, `remove` and `has` change and read it, never the values. |
+| **Generation** | ECS (`world.generation`) | How many times an entity's row has been freed. A handle keeps the one it saw; a different one means the entity it pointed at is gone. |
+| `NOBODY` | ECS | The handle that points at no one. Never 0: that's the first entity spawned. |
 | `BossId`, `PlayerId` | domain | Stable IDs that would be saved. Mapped to handles only in `bridge/id-map.ts`. |
 | `Tick` | domain | The only clock. Never wall time. |
 | **Item** | ECS | A weapon entity, always in exactly one state: `Grounded`, `Held`, `Flying` or `Stuck`. It keeps its ammo and wear in every state. |
-| **Wielder** | ECS | Something that holds one item. Empty hands (`NO_HANDLE`) fight with fists. |
+| **Wielder** | ECS | Something that holds one item. Empty hands (`NOBODY`) fight with fists. |
 | **Durability** | ECS | Wear left on a sword or spear: drops per connecting swing, per throw hit, and over time while held. At 0 the item breaks. |
 | **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
 | **Slowed** | ECS | A jump landing's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. How long a slam slows is its `slowFor`; the stamp's is 0. |

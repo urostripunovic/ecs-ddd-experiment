@@ -119,7 +119,7 @@ Two tests hold this. `scope.test.ts` fails if a component or singleton is in no 
 
 ## Units
 
-Numbers that carry a unit are branded (`ecs/core/units.ts`): `Ticks` (a duration), `TickAt` (a moment), `Seconds` (dt-integrated countdowns), `Hp`, `Share` (0..1 of something) and `Meters`. Definitions tables, constructors and signatures use them (`waitTicks(Ticks)`, `startCutscene(Ticks)`, `spawnProjectile(…, dmg: Hp, life: Seconds, …)`, `dt: Seconds`); the per-tick loops read plain numbers from typed arrays. The constructors (`ticks`, `seconds`, `hp`, `share`, `meters`) reject impossible values when they're made, which for definitions is at module load.
+Numbers that carry a unit are branded (`ecs/core/units.ts`): `Ticks` (a duration), `TickAt` (a moment), `Seconds` (dt-integrated countdowns), `Hp`, `Share` (0..1 of something) and `Meters`. Definitions tables, constructors and function signatures use them (`waitTicks(Ticks)`, `startCutscene(Ticks)`, `spawnProjectile(…, dmg: Hp, life: Seconds, …)`, `dt: Seconds`); the per-tick loops read plain numbers from typed arrays. The constructors (`ticks`, `seconds`, `hp`, `share`, `meters`) reject impossible values when they're made, which for definitions is at module load.
 
 Deadlines are made only with `after(duration)`, and seconds become ticks only through `inTicks`/`inSeconds`. `units.test.ts` scans the source for both, and holds `@ts-expect-error` lines that stop compiling if a brand ever stops working.
 
