@@ -15,7 +15,7 @@ import { handles, loadRunState } from '../../bridge/spawn';
 import { store } from '../../bridge/store';
 import { logChain } from '../../bridge/tick-log';
 import { ARENA_STATE, C, GodMode, Health, holdsHandles, Jump, LastHit, Shape, ShapeKind } from '../../ecs/components';
-import { indexOf, isLive, MAX, NO_HANDLE, remove, world, type Handle } from '../../ecs/core/world';
+import { indexOf, isLive, MAX_ENTITIES, NOBODY, remove, world, type Handle } from '../../ecs/core/world';
 import { giveWeapon } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
 
@@ -106,7 +106,7 @@ function apply(cmd: DevCommand): void {
     case 'set': {
       if (!isLive(cmd.entity)) return;
       const field = (ARENA_STATE[cmd.component] as Record<string, unknown>)[cmd.field];
-      if (ArrayBuffer.isView(field) && (field as Float32Array).length === MAX) (field as Float32Array)[indexOf(cmd.entity)] = cmd.value;
+      if (ArrayBuffer.isView(field) && (field as Float32Array).length === MAX_ENTITIES) (field as Float32Array)[indexOf(cmd.entity)] = cmd.value;
       return;
     }
     case 'damageBoss':
@@ -162,7 +162,7 @@ const SHAPE_NAME = Object.fromEntries(Object.entries(ShapeKind).map(([k, v]) => 
 // How a handle reads in the menu and logs: "Gun #6", "none", or "gone #6" for one
 // whose entity has died (its slot may hold something else by now).
 export function nameOf(h: Handle): string {
-  if (h === NO_HANDLE) return 'none';
+  if (h === NOBODY) return 'none';
   const e = indexOf(h);
   if (!isLive(h)) return `gone #${e}`;
   return `${SHAPE_NAME[Shape.kind[e]] ?? 'entity'} #${e}`;
@@ -177,7 +177,7 @@ export function inspect(h: Handle): Field[] {
   const out: Field[] = [];
   for (const [component, group] of Object.entries(ARENA_STATE)) {
     for (const [field, arr] of Object.entries(group as Record<string, unknown>)) {
-      if (!ArrayBuffer.isView(arr) || (arr as Float32Array).length !== MAX) continue;
+      if (!ArrayBuffer.isView(arr) || (arr as Float32Array).length !== MAX_ENTITIES) continue;
       const value = (arr as Float32Array)[e];
       if (value === 0) continue;
       out.push(holdsHandles(arr)

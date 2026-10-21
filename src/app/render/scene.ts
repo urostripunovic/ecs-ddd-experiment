@@ -10,7 +10,7 @@ import { Action, CONE_WINDUP } from '../../ecs/systems/boss-actions';
 import { dodging } from '../../ecs/systems/status';
 import { bossPose } from './boss-pose';
 import { follow, type Follow } from './camera';
-import { handleAt, has, indexOf, isLive, MAX, NO_HANDLE, world, type EntityId, type Handle } from '../../ecs/core/world';
+import { handleAt, has, indexOf, isLive, MAX_ENTITIES, NOBODY, world, type EntityId, type Handle } from '../../ecs/core/world';
 
 const COLOR = {
   bg: 0x1b1c1e,
@@ -247,7 +247,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 200);
   camera.position.copy(CAMERA_OFFSET);
   const lookAt = new THREE.Vector3();
-  const cam: Follow = { x: 0, z: 0, focus: NO_HANDLE };
+  const cam: Follow = { x: 0, z: 0, focus: NOBODY };
 
   scene.add(new THREE.HemisphereLight(0xe4e8ee, 0x2a2b2e, 1.2));
   const sun = new THREE.DirectionalLight(0xffffff, 1.8);
@@ -269,14 +269,14 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
 
   // Visuals are pooled per shape and keyed by slot + generation, so a recycled
   // slot never inherits the previous occupant's mesh.
-  const visuals: (Visual | null)[] = new Array(MAX).fill(null);
+  const visuals: (Visual | null)[] = new Array(MAX_ENTITIES).fill(null);
   // Same width as world.generation, or a slot past 65,535 reuses would never match
   // and its mesh would be rebuilt every frame.
-  const visualGen = new Uint32Array(MAX);
-  const visualKind = new Uint8Array(MAX);
+  const visualGen = new Uint32Array(MAX_ENTITIES);
+  const visualKind = new Uint8Array(MAX_ENTITIES);
   const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
-  const telegraphs: (THREE.Group | null)[] = new Array(MAX).fill(null);
-  const cones: (THREE.Mesh | null)[] = new Array(MAX).fill(null);
+  const telegraphs: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const cones: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
   let highWater = 0;
 
   const release = (e: number) => {

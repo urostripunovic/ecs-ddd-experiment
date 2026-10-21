@@ -10,14 +10,14 @@ import { send } from '../ecs/core/outbox';
 import { restoreRng, rngState } from '../ecs/core/rng';
 import { hp, seconds } from '../ecs/core/units';
 import { spawnProjectile } from '../ecs/prefabs';
-import { has, indexOf, NO_HANDLE, world, type Handle } from '../ecs/core/world';
+import { has, indexOf, NOBODY, world, type Handle } from '../ecs/core/world';
 import { tunnelSystem } from '../ecs/systems/tunnel';
 import { tick } from './loop';
 
 // Fields that hold handles. Generations are run-lifetime on purpose (they keep
 // growing so stale handles stay stale), so handles are compared by slot.
 const HANDLE_FIELDS = new Set<unknown>([Wielder.held, LastHit.by, Thrown.by, StuckIn.host, Projectile.owner]);
-const slotOf = (h: number) => (h === NO_HANDLE ? -1 : indexOf(h as Handle));
+const slotOf = (h: number) => (h === NOBODY ? -1 : indexOf(h as Handle));
 
 function snapshot(groups: Record<string, object>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -35,7 +35,7 @@ function snapshot(groups: Record<string, object>): Record<string, unknown> {
 
 function worldShape() {
   return {
-    mask: Array.from(world.mask), alive: Array.from(world.alive),
+    mask: Array.from(world.signature), alive: Array.from(world.alive),
     nextFresh: world.nextFresh, freeCount: world.freeCount, tick: world.tick,
   };
 }

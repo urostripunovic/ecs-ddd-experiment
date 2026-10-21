@@ -4,7 +4,7 @@
 // shows up here without touching this file.
 import { handles } from '../../bridge/spawn';
 import { C, GodMode } from '../../ecs/components';
-import { has, isLive, MAX, toHandle, world, type EntityId, type Handle } from '../../ecs/core/world';
+import { has, isLive, MAX_ENTITIES, toHandle, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { timeControl } from '../loop';
 import { inspect, lastJumpCheck, nameOf, queueDev, type ArenaComponent, type DevCommand, type JumpTarget } from './commands';
 const JUMPS: [JumpTarget, string][] = [
@@ -89,7 +89,7 @@ export function createGodMenu(root: HTMLElement) {
 
   function renderEntities(): void {
     const options: string[] = [];
-    for (let e = 0; e < world.nextFresh && e < MAX; e++) {
+    for (let e = 0; e < world.nextFresh && e < MAX_ENTITIES; e++) {
       if (!world.alive[e] || !has(e as EntityId, C.Shape)) continue;
       const h = toHandle(e as EntityId);
       options.push(`<option value="${h}"${h === selected ? ' selected' : ''}>${nameOf(h)}</option>`);

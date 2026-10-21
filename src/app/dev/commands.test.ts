@@ -6,7 +6,7 @@ import { readTickLog } from '../../bridge/tick-log';
 import {
   Ammo, BossPhase, C, GodMode, Health, Item, PlayerInput, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
-import { has, indexOf, isLive, NO_HANDLE, world, type Handle } from '../../ecs/core/world';
+import { has, indexOf, isLive, NOBODY, world, type Handle } from '../../ecs/core/world';
 import { WeaponKind } from '../../ecs/weapons/defs';
 import { createFrameDriver, tick, timeControl } from '../loop';
 import { clearDev, devHistory, inspect, nameOf, queueDev, replayDev, type DevCommand } from './commands';
@@ -72,7 +72,7 @@ describe('debug cheats: forced simulation data', () => {
   });
 
   it('nameOf: nobody and a dead entity are said so, not shown as a number', () => {
-    expect(nameOf(NO_HANDLE)).toBe('none');
+    expect(nameOf(NOBODY)).toBe('none');
     const gun = Wielder.held[player()] as Handle;
     cheat({ kind: 'give', weapon: 'spear' });
     expect(nameOf(gun)).toMatch(/^Gun #\d+$/); // dropped, still alive
