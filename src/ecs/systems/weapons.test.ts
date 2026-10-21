@@ -6,7 +6,7 @@ import {
 } from '../components';
 import { seedRng } from '../core/rng';
 import { hp, inSeconds, seconds, ticks } from '../core/units';
-import { add, has, NO_HANDLE, resetWorld, world, type EntityId } from '../core/world';
+import { add, has, NOBODY, resetWorld, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS } from '../arenas';
 import { WARDEN } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
@@ -111,7 +111,7 @@ describe('durability', () => {
     equip(p, spear);
     Durability.value[spear] = 0.004;
     durabilitySystem(DT);
-    expect(Wielder.held[p]).toBe(NO_HANDLE);
+    expect(Wielder.held[p]).toBe(NOBODY);
     expect(world.alive[spear]).toBe(0);
   });
 

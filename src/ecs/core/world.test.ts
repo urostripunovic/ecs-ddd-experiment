@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { despawn, GENERATIONS, indexOf, isLive, MAX, NO_HANDLE, resetWorld, spawn, toHandle, world } from './world';
+import { despawn, GENERATIONS, indexOf, isLive, MAX_ENTITIES, NOBODY, resetWorld, spawn, toHandle, world } from './world';
 
 describe('handles', () => {
   beforeEach(() => {
@@ -48,9 +48,9 @@ describe('handles', () => {
     expect(spawn()).not.toBe(e);
   });
 
-  it('never treat NO_HANDLE as live, even with every slot alive', () => {
-    for (let i = 0; i < MAX; i++) spawn();
-    expect(indexOf(NO_HANDLE)).toBeGreaterThanOrEqual(MAX);
-    expect(isLive(NO_HANDLE)).toBe(false);
+  it('never treat NOBODY as live, even with every slot alive', () => {
+    for (let i = 0; i < MAX_ENTITIES; i++) spawn();
+    expect(indexOf(NOBODY)).toBeGreaterThanOrEqual(MAX_ENTITIES);
+    expect(isLive(NOBODY)).toBe(false);
   });
 });

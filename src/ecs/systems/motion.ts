@@ -29,12 +29,12 @@ export function snapshotSystem(): void {
 
 // Along the move direction, or where you aim when standing still, so a
 // dodge always goes somewhere you chose.
-function startDodge(e: EntityId): void {
+function startDodge(entity: EntityId): void {
   const moving = PlayerInput.moveX !== 0 || PlayerInput.moveZ !== 0;
-  Dodge.x[e] = moving ? PlayerInput.moveX : PlayerInput.aimX;
-  Dodge.z[e] = moving ? PlayerInput.moveZ : PlayerInput.aimZ;
-  Dodge.until[e] = after(DODGE_TICKS);
-  Dodge.readyAt[e] = after(plus(DODGE_TICKS, DODGE_COOLDOWN));
+  Dodge.x[entity] = moving ? PlayerInput.moveX : PlayerInput.aimX;
+  Dodge.z[entity] = moving ? PlayerInput.moveZ : PlayerInput.aimZ;
+  Dodge.until[entity] = after(DODGE_TICKS);
+  Dodge.readyAt[entity] = after(plus(DODGE_TICKS, DODGE_COOLDOWN));
 }
 
 // reads PlayerInput, RunView, Cutscene, Buffs, Slowed, Knockback, Dodge | writes Velocity (player-controlled only), Dodge

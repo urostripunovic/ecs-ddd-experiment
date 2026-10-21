@@ -9,7 +9,7 @@ import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
 import { random, randomRange } from '../core/rng';
 import { after, inTicks, seconds, ticks, times, type Seconds, type Ticks } from '../core/units';
 import {
-  add, despawn, entityAt, handleAt, has, indexOf, isLive, mask, NO_HANDLE, query, remove, toHandle, world,
+  add, despawn, entityAt, handleAt, has, indexOf, isLive, mask, NOBODY, query, remove, toHandle, world,
   type EntityId,
 } from '../core/world';
 import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
@@ -109,7 +109,7 @@ function breakItem(item: EntityId): void {
   const n = query(helperBuf, C.Wielder);
   for (let i = 0; i < n; i++) {
     const w = entityAt(helperBuf, i);
-    if (Wielder.held[w] === h) Wielder.held[w] = NO_HANDLE;
+    if (Wielder.held[w] === h) Wielder.held[w] = NOBODY;
   }
   despawn(item);
 }
@@ -198,7 +198,7 @@ export function throwSystem(): void {
     Thrown.dmg[item] = def.throwDmg * dmgMul(w) * charge.dmgMul;
     Thrown.wearMul[item] = charge.wearMul;
     Thrown.ticksLeft[item] = def.throwTicks;
-    Wielder.held[w] = NO_HANDLE;
+    Wielder.held[w] = NOBODY;
   }
 }
 

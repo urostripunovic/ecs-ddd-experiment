@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { add, despawn, NO_HANDLE, remove, resetWorld, spawn, toHandle } from '../core/world';
+import { add, despawn, NOBODY, remove, resetWorld, spawn, toHandle } from '../core/world';
 import { C, LastHit, Wielder } from '.';
 
 describe('freeing a row that a note still points at', () => {
   beforeEach(() => {
     resetWorld();
-    Wielder.held.fill(NO_HANDLE);
-    LastHit.by.fill(NO_HANDLE);
+    Wielder.held.fill(NOBODY);
+    LastHit.by.fill(NOBODY);
   });
 
   it('fails in dev and tests, naming the row and the note', () => {
@@ -25,7 +25,7 @@ describe('freeing a row that a note still points at', () => {
     add(player, C.Wielder);
     const sword = spawn();
     Wielder.held[player] = toHandle(sword);
-    Wielder.held[player] = NO_HANDLE;
+    Wielder.held[player] = NOBODY;
     expect(() => despawn(sword)).not.toThrow();
   });
 

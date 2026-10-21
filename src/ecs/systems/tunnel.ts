@@ -2,7 +2,7 @@ import { Arena, C, RunView, Transform } from '../components';
 import { TUNNEL } from '../arenas';
 import { buf } from '../core/buffers';
 import { send } from '../core/outbox';
-import { add, entityAt, mask, NO_HANDLE, query, toHandle } from '../core/world';
+import { add, entityAt, mask, NOBODY, query, toHandle } from '../core/world';
 
 const PLAYERS = mask(C.PlayerControlled, C.Transform);
 const GONE_OR_WAITING = mask(C.Dead, C.TunnelPending);
@@ -17,6 +17,6 @@ export function tunnelSystem(): void {
     const p = entityAt(buf, i);
     if (Transform.z[p] > -(Arena.half + TUNNEL.enterZ)) continue;
     add(p, C.TunnelPending);
-    send('TunnelEntered', toHandle(p), NO_HANDLE, 0);
+    send('TunnelEntered', toHandle(p), NOBODY, 0);
   }
 }

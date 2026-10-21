@@ -4,7 +4,7 @@ import {
 } from './components';
 import type { BossDef } from './bosses/defs';
 import { after, type Hp, type Meters, type Seconds } from './core/units';
-import { add, mask, NO_HANDLE, spawn, world, type EntityId, type Handle } from './core/world';
+import { add, mask, NOBODY, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
 
 const PLAYER = mask(C.Transform, C.Velocity, C.Health, C.Wielder, C.Team, C.Collider, C.Shape, C.PlayerControlled);
@@ -20,95 +20,95 @@ const BUFF_SHAPE = [ShapeKind.None, ShapeKind.Haste, ShapeKind.Fury];
 
 // A recycled slot still holds its old previous-position; without resetting it
 // the entity would be drawn sliding in from where the last occupant died.
-function place(e: EntityId, x: number, z: number): void {
-  Transform.x[e] = Transform.px[e] = x;
-  Transform.y[e] = Transform.py[e] = 0;
-  Transform.z[e] = Transform.pz[e] = z;
-  Velocity.x[e] = Velocity.y[e] = Velocity.z[e] = 0;
+function place(entity: EntityId, x: number, z: number): void {
+  Transform.x[entity] = Transform.px[entity] = x;
+  Transform.y[entity] = Transform.py[entity] = 0;
+  Transform.z[entity] = Transform.pz[entity] = z;
+  Velocity.x[entity] = Velocity.y[entity] = Velocity.z[entity] = 0;
   // 0 is a valid handle (the first entity), so "nobody" must be said explicitly.
-  LastHit.by[e] = NO_HANDLE;
+  LastHit.by[entity] = NOBODY;
 }
 
 export function spawnPlayer(x: number, z: number): EntityId {
-  const e = spawn();
-  add(e, PLAYER);
-  place(e, x, z);
-  Health.hp[e] = Health.max[e] = 100;
-  Wielder.held[e] = NO_HANDLE;
+  const player = spawn();
+  add(player, PLAYER);
+  place(player, x, z);
+  Health.hp[player] = Health.max[player] = 100;
+  Wielder.held[player] = NOBODY;
   // Starts caught up with the input counters, so presses from before it existed
   // (a previous arena) aren't replayed as a throw the moment it spawns.
-  Wielder.throwSeen[e] = PlayerInput.throwReleases;
-  Wielder.interactSeen[e] = PlayerInput.interactPresses;
-  Dodge.seen[e] = PlayerInput.dodgePresses;
-  Team.id[e] = TeamId.Player;
-  Collider.radius[e] = 0.45;
-  Shape.kind[e] = ShapeKind.Player;
-  return e;
+  Wielder.throwSeen[player] = PlayerInput.throwReleases;
+  Wielder.interactSeen[player] = PlayerInput.interactPresses;
+  Dodge.seen[player] = PlayerInput.dodgePresses;
+  Team.id[player] = TeamId.Player;
+  Collider.radius[player] = 0.45;
+  Shape.kind[player] = ShapeKind.Player;
+  return player;
 }
 
 export function spawnBoss(def: BossDef, x: number, z: number): EntityId {
-  const e = spawn();
-  add(e, BOSS);
-  place(e, x, z);
-  Health.hp[e] = Health.max[e] = def.hp;
-  Team.id[e] = TeamId.Enemy;
-  Collider.radius[e] = def.radius;
-  Shape.kind[e] = ShapeKind.Boss;
-  BossPhase.phase[e] = 1;
+  const boss = spawn();
+  add(boss, BOSS);
+  place(boss, x, z);
+  Health.hp[boss] = Health.max[boss] = def.hp;
+  Team.id[boss] = TeamId.Enemy;
+  Collider.radius[boss] = def.radius;
+  Shape.kind[boss] = ShapeKind.Boss;
+  BossPhase.phase[boss] = 1;
   // From the boss's actual hp, so changing how hp is set can't desync the two.
-  Pressure.hpMark[e] = Health.hp[e];
-  Pressure.markedAt[e] = world.tick;
-  Pressure.evadeReadyAt[e] = after(def.evadeGrace);
-  return e;
+  Pressure.hpMark[boss] = Health.hp[boss];
+  Pressure.markedAt[boss] = world.tick;
+  Pressure.evadeReadyAt[boss] = after(def.evadeGrace);
+  return boss;
 }
 
 export function spawnPillar(x: number, z: number, radius: Meters): EntityId {
-  const e = spawn();
-  add(e, PILLAR);
-  place(e, x, z);
-  Collider.radius[e] = radius;
-  Shape.kind[e] = ShapeKind.Pillar;
-  return e;
+  const pillar = spawn();
+  add(pillar, PILLAR);
+  place(pillar, x, z);
+  Collider.radius[pillar] = radius;
+  Shape.kind[pillar] = ShapeKind.Pillar;
+  return pillar;
 }
 
 export function spawnProjectile(
   x: number, z: number, dirX: number, dirZ: number, speed: number,
   team: number, owner: Handle, dmg: Hp, life: Seconds, kind: number,
 ): EntityId {
-  const e = spawn();
-  add(e, PROJECTILE);
-  place(e, x, z);
-  Velocity.x[e] = dirX * speed;
-  Velocity.z[e] = dirZ * speed;
-  Team.id[e] = team;
-  Projectile.owner[e] = owner;
-  Projectile.dmg[e] = dmg;
-  Projectile.life[e] = life;
-  Shape.kind[e] = kind;
-  return e;
+  const projectile = spawn();
+  add(projectile, PROJECTILE);
+  place(projectile, x, z);
+  Velocity.x[projectile] = dirX * speed;
+  Velocity.z[projectile] = dirZ * speed;
+  Team.id[projectile] = team;
+  Projectile.owner[projectile] = owner;
+  Projectile.dmg[projectile] = dmg;
+  Projectile.life[projectile] = life;
+  Shape.kind[projectile] = kind;
+  return projectile;
 }
 
 // Spawns on the ground; equipping is a pickup like any other.
 export function spawnWeapon(kind: number, x: number, z: number): EntityId {
-  const e = spawn();
-  add(e, ITEM);
-  place(e, x, z);
+  const weapon = spawn();
+  add(weapon, ITEM);
+  place(weapon, x, z);
   const def = WEAPONS[kind];
-  Item.kind[e] = kind;
-  Item.pickupAt[e] = world.tick;
-  Durability.value[e] = def.durability;
-  Ammo.count[e] = def.mag;
-  Ammo.reload[e] = 0;
-  Team.id[e] = TeamId.Neutral;
-  Shape.kind[e] = WEAPON_SHAPE[kind];
-  return e;
+  Item.kind[weapon] = kind;
+  Item.pickupAt[weapon] = world.tick;
+  Durability.value[weapon] = def.durability;
+  Ammo.count[weapon] = def.mag;
+  Ammo.reload[weapon] = 0;
+  Team.id[weapon] = TeamId.Neutral;
+  Shape.kind[weapon] = WEAPON_SHAPE[kind];
+  return weapon;
 }
 
 export function spawnBuff(kind: number, x: number, z: number): EntityId {
-  const e = spawn();
-  add(e, BUFF);
-  place(e, x, z);
-  BuffPickup.kind[e] = kind;
-  Shape.kind[e] = BUFF_SHAPE[kind];
-  return e;
+  const buff = spawn();
+  add(buff, BUFF);
+  place(buff, x, z);
+  BuffPickup.kind[buff] = kind;
+  Shape.kind[buff] = BUFF_SHAPE[kind];
+  return buff;
 }
