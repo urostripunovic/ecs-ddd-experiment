@@ -4,12 +4,11 @@ import type { BossId } from '../domain/shared/types';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
 import { Ammo, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
-import { WARDEN } from '../ecs/bosses/defs';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
 import { hp } from '../ecs/core/units';
 import { add, NOBODY, resetWorld, toHandle, type EntityId, type Handle } from '../ecs/core/world';
-import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
+import { spawnBoss, spawnOrbitingPillar, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
 import { equip } from '../ecs/systems/weapons';
 import { WEAPON_STOCK } from '../ecs/weapons/defs';
@@ -77,6 +76,8 @@ export function buildArena(arena: number, loadout: Loadout): void {
 
   // Pillars are pure simulation (cover), so the domain never hears of them.
   for (const [x, z] of layout.pillars) spawnPillar(x, z, PILLAR_RADIUS);
+  const [ox, oz] = layout.orbitCenter;
+  for (const orbit of layout.orbiting) spawnOrbitingPillar(ox, oz, orbit, PILLAR_RADIUS);
 
   const [px, pz] = layout.playerStart;
   const p = spawnPlayer(px, pz);
@@ -106,7 +107,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   const bossId = bossIdFor(arena);
   const [bx, bz] = layout.bossStart;
   // ?bossHp shortens the fight while tuning; everything else comes from the def.
-  const def = options.bossHp ? { ...WARDEN, hp: hp(options.bossHp) } : WARDEN;
+  const def = options.bossHp ? { ...layout.boss, hp: hp(options.bossHp) } : layout.boss;
   const b = spawnBoss(def, bx, bz);
   if (!store.bosses.has(bossId)) store.bosses.set(bossId, initialBoss(bossId));
   const bossState = store.bosses.get(bossId)!;
