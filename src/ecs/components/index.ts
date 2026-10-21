@@ -116,6 +116,22 @@ export const ShapeKind = {
 } as const;
 export const Shape = { kind: new Uint8Array(MAX_ENTITIES) };
 
+// Which script set a boss runs: 0 is the Warden, 1 the Unchained (see BossDef.style).
+export const BossStyle = { kind: new Uint8Array(MAX_ENTITIES) };
+// Where the next ring's gaps are, in radians around the boss, so the floor
+// telegraph and the bullets can never disagree. Written by the ring script only.
+export const Pattern = { gapAt: new Float32Array(MAX_ENTITIES), gapHalf: new Float32Array(MAX_ENTITIES) };
+// A pillar on a circle: centre, radius, where it is on it now (radians) and how
+// fast it goes round (radians per second, negative for clockwise).
+export const Orbit = {
+  cx: new Float32Array(MAX_ENTITIES), cz: new Float32Array(MAX_ENTITIES), radius: new Float32Array(MAX_ENTITIES),
+  angle: new Float32Array(MAX_ENTITIES), speed: new Float32Array(MAX_ENTITIES),
+};
+// The tick a pillar's spikes came out, so the renderer can grow them in.
+export const Spikes = { since: new Uint32Array(MAX_ENTITIES) };
+// The first tick spikes may hurt this entity again: one hit per touch, not one per tick.
+export const SpikeHit = { readyAt: new Uint32Array(MAX_ENTITIES) };
+
 // Singletons: one local player, one match, one arena.
 // throwReleases/interactPresses/dodgePresses only ever count up (see Wielder.throwSeen).
 // throwHeld charges the gauge; the release is what throws.
@@ -148,7 +164,7 @@ export const Stock = { respawnAt: new Uint32Array(4) };
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
   Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
-  Stock,
+  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit,
 };
 // The input counters must keep counting (a new player starts caught up with
 // them), and RunView is the run's projection, rewritten by every build.

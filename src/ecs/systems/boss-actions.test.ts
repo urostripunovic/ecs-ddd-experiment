@@ -8,14 +8,14 @@ import { buf } from '../core/buffers';
 import { hp, inSeconds, seconds, ticks } from '../core/units';
 import { has, query, resetWorld, toHandle, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS } from '../arenas';
-import { WARDEN } from '../bosses/defs';
+import { UNCHAINED, WARDEN, type BossDef } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
 import { Action, chainGap, DEFAULT_GAP, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
 import { bossPhaseSystem, bossThresholdSystem, resetScripts, slamSystem } from './boss';
 import { outbox } from '../core/outbox';
-import { bodyCollisionSystem } from './collision';
+import { bodyCollisionSystem, projectileCollisionSystem } from './collision';
 import { projectileSystem } from './combat';
 import { movementSystem, snapshotSystem } from './motion';
 
@@ -25,14 +25,14 @@ type Chain = { from: ActionKind; to: ActionKind; gap: number };
 let p: EntityId;
 let b: EntityId;
 
-function arena(phase: number): void {
+function arena(phase: number, def: BossDef = WARDEN): void {
   resetWorld();
   resetRunState();
   resetScripts();
   RunViewWritable.status = RunStatus.Fighting;
   for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
   p = spawnPlayer(0, 12);
-  b = spawnBoss({ ...WARDEN, hp: hp(100_000) }, 0, -8); // never dies, so the choreography keeps running
+  b = spawnBoss({ ...def, hp: hp(100_000) }, 0, -8); // never dies, so the choreography keeps running
   BossPhase.phase[b] = phase;
   Pressure.evadeReadyAt[b] = 1e9; // evading is tested on its own below
 }
@@ -53,6 +53,8 @@ function run(ticks: number, playerKeepsAway: boolean) {
     bossPhaseSystem();
     movementSystem(DT);
     bodyCollisionSystem();
+    // Bullets leave at the walls, as in the game; without it a long run fills every slot.
+    projectileCollisionSystem();
     slamSystem();
     if (has(b, C.Airborne) && query(buf, C.Projectile) > shotsBefore) shotsWhileAirborne++;
     if (BossAction.kind[b] !== Action.Idle && BossAction.startedAt[b] !== lastStart) {
@@ -144,6 +146,31 @@ describe('boss choreography', () => {
     projectileSystem(DT);
     expect(Health.hp[b]).toBe(before);
     expect(world.inUse[bullet]).toBe(1); // flew on, not spent on the boss
+  });
+});
+
+describe('the Unchained', () => {
+  for (const phase of [1, 2]) {
+    it(`phase ${phase}: every action respects its own chain gaps, and nothing fires mid-air`, () => {
+      arena(phase, UNCHAINED);
+      const { chains, shotsWhileAirborne } = run(4000, true);
+      expect(chains.length).toBeGreaterThan(10);
+      for (const c of chains) expect(c.gap).toBeGreaterThanOrEqual(chainGap(phase, c.from, c.to, UNCHAINED.style));
+      expect(shotsWhileAirborne).toBe(0);
+    });
+  }
+
+  it('fights with gap rings in phase 1, and adds the spiral in phase 2', () => {
+    arena(1, UNCHAINED);
+    expect(run(4000, true).chains.some((c) => c.to === Action.Ring)).toBe(true);
+    arena(2, UNCHAINED);
+    const { chains } = run(4000, true);
+    expect(chains.some((c) => c.to === Action.Spiral)).toBe(true);
+    expect(chains.some((c) => c.to === Action.Ring)).toBe(true);
+  });
+
+  it('waits less between attacks than the Warden', () => {
+    expect(chainGap(1, Action.Slam, Action.Cone, UNCHAINED.style)).toBeLessThan(chainGap(1, Action.Slam, Action.Cone));
   });
 });
 

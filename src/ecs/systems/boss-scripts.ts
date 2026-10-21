@@ -1,9 +1,10 @@
-// One coroutine per boss phase. The phase is domain truth (saved); what the
-// boss does while in it is choreography and restarts from the top on load.
+// One coroutine per boss phase. The phase is simulation state (bossThresholdSystem
+// writes it); what the boss does while in it is choreography and restarts from
+// the top on load.
 // Every attack goes through begin()/finish() (boss-actions.ts), so attacks never
 // overlap and the chain gaps between them come from one table.
 import {
-  Arena, C, Collider, Health, Jump, Knockback, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity,
+  Arena, C, Collider, Health, Jump, Knockback, Pattern, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity,
 } from '../components';
 import { helperBuf, scriptBuf } from '../core/buffers';
 import { waitTicks, type Script } from '../core/script';
@@ -14,7 +15,7 @@ import { add, entityAt, mask, query, remove, toHandle, world, type EntityId } fr
 import { spawnProjectile } from '../prefabs';
 import {
   Action, begin, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, finish, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER,
-  ROAR_HOLD, ROAR_REAR,
+  RING_WAVE_GAP, RING_WINDUP, ROAR_HOLD, ROAR_REAR, SPIRAL_LENGTH, SPIRAL_WINDUP,
 } from './boss-actions';
 import { startCutscene } from './cutscene';
 
@@ -136,6 +137,73 @@ function* burst(boss: EntityId, count: number, offset: number): Script {
   yield* waitTicks(BURST_WINDUP);
   for (let i = 0; i < count; i++) shoot(boss, offset + (i / count) * Math.PI * 2, BURST_SPEED);
   finish(boss);
+}
+
+// The gap ring: a dense ring of bullets with RING_GAPS evenly spaced gaps. The
+// floor shows the next wave's gaps (Pattern), and each wave turns them by RING_TURN.
+// A wave is still flying when the next one fires, so the turn is small enough that
+// every wave in the air at once shares a safe spot: you drift with the gaps
+// instead of outrunning them.
+export const RING_BULLETS = 48;
+export const RING_GAPS = 3;
+export const RING_GAP_HALF = 0.27;
+export const RING_TURN = 0.14;
+export const RING_SPEED = 9;
+
+function inGap(angle: number, gapAt: number, half: number): boolean {
+  for (let k = 0; k < RING_GAPS; k++) {
+    const gap = gapAt + (k * 2 * Math.PI) / RING_GAPS;
+    if (Math.abs(Math.atan2(Math.sin(angle - gap), Math.cos(angle - gap))) < half) return true;
+  }
+  return false;
+}
+
+export function* ring(boss: EntityId, waves: number, gapAt: number, dir: 1 | -1): Script {
+  yield* begin(boss, Action.Ring);
+  stop(boss);
+  Pattern.gapAt[boss] = gapAt;
+  Pattern.gapHalf[boss] = RING_GAP_HALF;
+  yield* waitTicks(RING_WINDUP);
+  for (let w = 0; w < waves; w++) {
+    const at = Pattern.gapAt[boss];
+    for (let i = 0; i < RING_BULLETS; i++) {
+      const a = at + (i / RING_BULLETS) * Math.PI * 2;
+      if (!inGap(a, at, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);
+    }
+    if (w === waves - 1) break;
+    // Shown at once, so the telegraph always says where the next wave's gaps are.
+    Pattern.gapAt[boss] = at + RING_TURN * dir;
+    yield* waitTicks(RING_WAVE_GAP);
+  }
+  finish(boss);
+}
+
+// Three arms turning slowly: the lanes between them are safe if you walk round
+// with them, and an arm is thin enough to dodge through.
+const SPIRAL_ARMS = 3;
+const SPIRAL_EVERY = 4;
+const SPIRAL_STEP = 0.06;
+const SPIRAL_SPEED = 10;
+
+function* spiral(boss: EntityId, startAt: number, dir: 1 | -1): Script {
+  yield* begin(boss, Action.Spiral);
+  stop(boss);
+  Pattern.gapAt[boss] = startAt;
+  Pattern.gapHalf[boss] = 0;
+  yield* waitTicks(SPIRAL_WINDUP);
+  let at = startAt;
+  for (let t = 0; t < SPIRAL_LENGTH; t += SPIRAL_EVERY) {
+    for (let arm = 0; arm < SPIRAL_ARMS; arm++) shoot(boss, at + (arm * 2 * Math.PI) / SPIRAL_ARMS, SPIRAL_SPEED);
+    at += SPIRAL_STEP * dir;
+    Pattern.gapAt[boss] = at;
+    yield* waitTicks(ticks(SPIRAL_EVERY));
+  }
+  finish(boss);
+}
+
+function angleToPlayer(boss: EntityId): number {
+  const p = findPlayer();
+  return p === -1 ? 0 : Math.atan2(Transform.z[p] - Transform.z[boss], Transform.x[p] - Transform.x[boss]);
 }
 
 // Where a jump comes down: on the player, or away from them. Chosen at take-off
@@ -305,6 +373,52 @@ export function* phaseTwo(boss: EntityId): Script {
     yield* jump(boss, 'at');
     const urgency = shareOf(Health.hp[boss], Health.max[boss]) < HURRY_BELOW ? 1.4 : 1;
     yield* approach(boss, ticks(50), 3.2 * urgency);
+    yield* slam(boss, PHASE_TWO_SLAM);
+  }
+}
+
+// The Unchained, phase 1: short approaches and no slow walks. It opens every
+// third turn with a gap ring aimed so a gap starts on you, then slams up close or
+// fires and jumps from range.
+export function* unchainedOne(boss: EntityId): Script {
+  if (Jump.fromHeight[boss] > 0) yield* dropIn(boss);
+  let turn = 0;
+  let dir: 1 | -1 = 1;
+  for (;;) {
+    if (shouldEvade(boss)) yield* jump(boss, 'away');
+    yield* approach(boss, ticks(40), 3.4);
+    const far = distanceToPlayer(boss) > SLAM_RANGE;
+    switch (turn++ % 3) {
+      case 0:
+        yield* ring(boss, 3, angleToPlayer(boss), dir);
+        dir = dir === 1 ? -1 : 1;
+        break;
+      case 1:
+        if (far) yield* cone(boss, 2, 5, 0.18);
+        else yield* slam(boss, PHASE_ONE_SLAM);
+        break;
+      default:
+        if (far) yield* jump(boss, 'at');
+        else yield* slam(boss, PHASE_ONE_SLAM);
+    }
+  }
+}
+
+// Phase 2: the roar (which brings out the pillars' spikes), then a spiral, a
+// longer ring, and its chain: a cone straight into a jump, then a slam.
+export function* unchainedTwo(boss: EntityId): Script {
+  yield* roar(boss);
+  let dir: 1 | -1 = 1;
+  for (;;) {
+    if (shouldEvade(boss)) yield* jump(boss, 'away');
+    yield* spiral(boss, angleToPlayer(boss) + Math.PI / 3, dir);
+    yield* strafe(boss, ticks(14), 4.5, dir);
+    yield* ring(boss, 4, angleToPlayer(boss), dir);
+    dir = dir === 1 ? -1 : 1;
+    yield* cone(boss, 1, 7, 0.14);
+    yield* jump(boss, 'at');
+    const urgency = shareOf(Health.hp[boss], Health.max[boss]) < HURRY_BELOW ? 1.4 : 1;
+    yield* approach(boss, ticks(30), 4 * urgency);
     yield* slam(boss, PHASE_TWO_SLAM);
   }
 }

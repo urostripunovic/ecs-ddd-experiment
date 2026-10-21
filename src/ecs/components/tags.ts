@@ -24,4 +24,6 @@ export const C = {
   Stuck: bit(20),        // a thrown weapon lodged in its target; the fourth item state
   Invulnerable: bit(21), // hits still land and flash, but take no hp (the roar)
   TunnelPending: bit(22), // latch: the player stepped into the tunnel and the run hasn't answered yet
+  Orbiting: bit(23),     // a pillar that circles the arena (Orbit); it still blocks like any pillar
+  Spiked: bit(24),       // an orbiting pillar while a boss is in phase 2: touching it hurts
 } as const;

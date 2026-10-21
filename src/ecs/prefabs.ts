@@ -1,7 +1,8 @@
 import {
-  Ammo, BossPhase, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, PlayerInput, Pressure, Projectile, Shape, ShapeKind,
-  Team, TeamId, Transform, Velocity, Wielder,
+  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PlayerInput, Pressure, Projectile,
+  Shape, ShapeKind, Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
+import type { OrbitDef } from './arenas';
 import type { BossDef } from './bosses/defs';
 import { after, type Hp, type Meters, type Seconds } from './core/units';
 import { add, mask, NOBODY, spawn, world, type EntityId, type Handle } from './core/world';
@@ -54,6 +55,7 @@ export function spawnBoss(def: BossDef, x: number, z: number): EntityId {
   Team.id[boss] = TeamId.Enemy;
   Collider.radius[boss] = def.radius;
   Shape.kind[boss] = ShapeKind.Boss;
+  BossStyle.kind[boss] = def.style;
   BossPhase.phase[boss] = 1;
   // From the boss's actual hp, so changing how hp is set can't desync the two.
   Pressure.hpMark[boss] = Health.hp[boss];
@@ -68,6 +70,18 @@ export function spawnPillar(x: number, z: number, radius: Meters): EntityId {
   place(pillar, x, z);
   Collider.radius[pillar] = radius;
   Shape.kind[pillar] = ShapeKind.Pillar;
+  return pillar;
+}
+
+// Placed where its orbit starts, so the first frame already agrees with orbitSystem.
+export function spawnOrbitingPillar(cx: number, cz: number, def: OrbitDef, radius: Meters): EntityId {
+  const pillar = spawnPillar(cx + Math.cos(def.angle) * def.radius, cz + Math.sin(def.angle) * def.radius, radius);
+  add(pillar, C.Orbiting);
+  Orbit.cx[pillar] = cx;
+  Orbit.cz[pillar] = cz;
+  Orbit.radius[pillar] = def.radius;
+  Orbit.angle[pillar] = def.angle;
+  Orbit.speed[pillar] = def.speed;
   return pillar;
 }
 

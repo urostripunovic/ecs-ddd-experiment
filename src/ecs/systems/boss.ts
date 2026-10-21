@@ -1,10 +1,10 @@
-import { BossPhase, C, GodMode, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform, Velocity } from '../components';
+import { BossPhase, BossStyle, C, GodMode, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform, Velocity } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
 import { entityAt, mask, MAX_ENTITIES, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
-import { phaseOne, phaseTwo } from './boss-scripts';
+import { phaseOne, phaseTwo, unchainedOne, unchainedTwo } from './boss-scripts';
 import { releaseStuck } from './weapons';
 
 export const PHASE_TWO_AT = share(0.5);
@@ -12,7 +12,11 @@ export const PHASE_TWO_AT = share(0.5);
 const PRESSURE_WINDOW = inTicks(seconds(1));
 const SLAM_SLOW_FACTOR = 0.5;
 
-const PHASE_SCRIPTS = [null, phaseOne, phaseTwo] as const;
+// Indexed by BossStyleKind, then phase.
+const PHASE_SCRIPTS = [
+  [null, phaseOne, phaseTwo],
+  [null, unchainedOne, unchainedTwo],
+] as const;
 const runningScript: (Script | null)[] = new Array(MAX_ENTITIES).fill(null);
 
 const BOSSES = mask(C.Boss, C.Health);
@@ -43,7 +47,7 @@ export function bossPhaseSystem(): void {
     }
     const phase = BossPhase.phase[e];
     if (phase !== BossPhase.running[e]) {
-      const start = PHASE_SCRIPTS[phase] ?? null;
+      const start = PHASE_SCRIPTS[BossStyle.kind[e]]?.[phase] ?? null;
       runningScript[e] = start ? start(e) : null;
       BossPhase.running[e] = phase;
     }

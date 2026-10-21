@@ -2,33 +2,51 @@
 // phase coroutine runs them in sequence through begin()/finish(), so two can
 // never overlap. When the next action may start is data (CHAIN_GAPS), not
 // waits scattered through the scripts.
-import { BossAction, BossPhase } from '../components';
+import { BossAction, BossPhase, BossStyle } from '../components';
 import type { Script } from '../core/script';
 import { ticks, type Ticks } from '../core/units';
 import { world, type EntityId } from '../core/world';
 
-export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5 } as const;
+export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5, Ring: 6, Spiral: 7 } as const;
 export type ActionKind = (typeof Action)[keyof typeof Action];
-const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar'] as const;
+const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar', 'ring', 'spiral'] as const;
 type Name = (typeof NAMES)[number];
 
-// Ticks from the end of one action to the start of the next. Anything not
-// listed waits DEFAULT_GAP, so nothing chains unless a phase says so.
+// Ticks from the end of one action to the start of the next, per boss style
+// (BossStyleKind) and phase. Anything not listed waits that style's default
+// gap, so nothing chains unless a phase says so.
 export const DEFAULT_GAP = ticks(10);
-export const CHAIN_GAPS: Record<number, Partial<Record<`${Name}->${Name}`, Ticks>>> = {
-  1: {},
-  // Phase 2: a shot can roll straight into loading a jump. Landing never rolls into a shot.
-  2: { 'cone->jump': ticks(1), 'burst->jump': ticks(1) },
-};
+type Gaps = { readonly default: Ticks; readonly phases: Record<number, Partial<Record<`${Name}->${Name}`, Ticks>>> };
+export const CHAIN_GAPS: readonly Gaps[] = [
+  {
+    // The Warden.
+    default: DEFAULT_GAP,
+    phases: {
+      1: {},
+      // Phase 2: a shot can roll straight into loading a jump. Landing never rolls into a shot.
+      2: { 'cone->jump': ticks(1), 'burst->jump': ticks(1) },
+    },
+  },
+  {
+    // The Unchained: a shorter breath between everything. Its rings and spiral
+    // roll into a jump like the Warden's shots; a landing still never rolls into a shot.
+    default: ticks(6),
+    phases: {
+      1: { 'ring->jump': ticks(1) },
+      2: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1) },
+    },
+  },
+];
 
-export function chainGap(phase: number, from: ActionKind, to: ActionKind): Ticks {
+export function chainGap(phase: number, from: ActionKind, to: ActionKind, style = 0): Ticks {
   if (from === Action.Idle) return ticks(0);
-  return CHAIN_GAPS[phase]?.[`${NAMES[from]}->${NAMES[to]}`] ?? DEFAULT_GAP;
+  const gaps = CHAIN_GAPS[style] ?? CHAIN_GAPS[0];
+  return gaps.phases[phase]?.[`${NAMES[from]}->${NAMES[to]}`] ?? gaps.default;
 }
 
 // Waits out the chain gap, then marks the action as running.
 export function* begin(boss: EntityId, kind: ActionKind): Script {
-  const gap = chainGap(BossPhase.phase[boss], BossAction.lastKind[boss] as ActionKind, kind);
+  const gap = chainGap(BossPhase.phase[boss], BossAction.lastKind[boss] as ActionKind, kind, BossStyle.kind[boss]);
   while (world.tick < BossAction.lastEnd[boss] + gap) yield;
   BossAction.kind[boss] = kind;
   BossAction.startedAt[boss] = world.tick;
@@ -49,3 +67,8 @@ export const JUMP_AIR = ticks(34);
 export const JUMP_RECOVER = ticks(12);
 export const ROAR_REAR = ticks(20);
 export const ROAR_HOLD = ticks(55);
+// The ring's floor telegraph shows its gaps for this long before the first wave.
+export const RING_WINDUP = ticks(30);
+export const RING_WAVE_GAP = ticks(26);
+export const SPIRAL_WINDUP = ticks(18);
+export const SPIRAL_LENGTH = ticks(120);
