@@ -11,8 +11,6 @@ export type ComponentMask = Brand<number, 'ComponentMask'>;
 
 // How many entities can be alive at once, and so the length of every component array.
 export const MAX_ENTITIES = 1024;
-/** @deprecated Use MAX_ENTITIES. Kept only while the other layers move over. */
-export const MAX = MAX_ENTITIES;
 
 // A handle is generation << SLOT_BITS | slot in one int32. The slot needs only
 // enough bits to hold MAX_ENTITIES and one index past it (for NOBODY); every other
@@ -34,15 +32,11 @@ export const mask = (...bits: ComponentMask[]) =>
 // Decodes to an index past MAX_ENTITIES, so it can never alias a live entity.
 // 0 would: it is the first entity ever spawned.
 export const NOBODY = -1 as Handle;
-/** @deprecated Use NOBODY. Kept only while the other layers move over. */
-export const NO_HANDLE = NOBODY;
 
 const signature = new Uint32Array(MAX_ENTITIES);
 export const world = {
   // Each entity's signature: one bit per component it has.
   signature,
-  /** @deprecated Use world.signature, the same array. Kept only while the other layers move over. */
-  mask: signature,
   alive: new Uint8Array(MAX_ENTITIES),
   generation: new Uint32Array(MAX_ENTITIES),
   freeList: new Int32Array(MAX_ENTITIES),
