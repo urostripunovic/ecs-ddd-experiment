@@ -16,7 +16,7 @@ import { readTickLog } from '../tick-log';
 
 const countKind = (kind: number) => {
   let n = 0;
-  for (let e = 0; e < world.nextFresh; e++) if (world.alive[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
+  for (let e = 0; e < world.nextFresh; e++) if (world.inUse[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
   return n;
 };
 
