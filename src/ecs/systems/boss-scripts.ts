@@ -180,7 +180,7 @@ export function* ring(boss: EntityId, waves: number, gapAt: number, dir: 1 | -1)
 
 // Three arms turning slowly: the lanes between them are safe if you walk round
 // with them, and an arm is thin enough to dodge through.
-const SPIRAL_ARMS = 3;
+export const SPIRAL_ARMS = 3;
 const SPIRAL_EVERY = 4;
 const SPIRAL_STEP = 0.06;
 const SPIRAL_SPEED = 10;

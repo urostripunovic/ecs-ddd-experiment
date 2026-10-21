@@ -1,5 +1,5 @@
 import {
-  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PlayerInput, Pressure, Projectile,
+  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, Pressure, Projectile,
   Shape, ShapeKind, Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
 import type { OrbitDef } from './arenas';
@@ -15,6 +15,7 @@ const PROJECTILE = mask(C.Transform, C.Velocity, C.Team, C.Projectile, C.Shape);
 // Velocity and Team are there from the start so throwing only swaps state tags.
 const ITEM = mask(C.Transform, C.Velocity, C.Team, C.Item, C.Shape, C.Grounded);
 const BUFF = mask(C.Transform, C.BuffPickup, C.Shape, C.Grounded);
+const PERK = mask(C.Transform, C.PerkPickup, C.Shape, C.Grounded);
 
 const WEAPON_SHAPE = [ShapeKind.None, ShapeKind.Sword, ShapeKind.Spear, ShapeKind.Gun];
 const BUFF_SHAPE = [ShapeKind.None, ShapeKind.Haste, ShapeKind.Fury];
@@ -125,4 +126,13 @@ export function spawnBuff(kind: number, x: number, z: number): EntityId {
   BuffPickup.kind[buff] = kind;
   Shape.kind[buff] = BUFF_SHAPE[kind];
   return buff;
+}
+
+export function spawnPerk(kind: number, x: number, z: number): EntityId {
+  const perk = spawn();
+  add(perk, PERK);
+  place(perk, x, z);
+  PerkPickup.kind[perk] = kind;
+  Shape.kind[perk] = ShapeKind.Perk;
+  return perk;
 }

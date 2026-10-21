@@ -26,4 +26,5 @@ export const C = {
   TunnelPending: bit(22), // latch: the player stepped into the tunnel and the run hasn't answered yet
   Orbiting: bit(23),     // a pillar that circles the arena (Orbit); it still blocks like any pillar
   Spiked: bit(24),       // an orbiting pillar while a boss is in phase 2: touching it hurts
+  PerkPickup: bit(25),   // lying in the arena; walking over it fills a perk slot
 } as const;

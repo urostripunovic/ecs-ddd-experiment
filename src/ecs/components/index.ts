@@ -55,6 +55,8 @@ export const Ammo = { count: new Uint16Array(MAX_ENTITIES), reload: new Float32A
 // ending mid-flight doesn't change what the throw does.
 export const Thrown = {
   by: handleField(C.Flying), dmg: new Float32Array(MAX_ENTITIES), wearMul: new Float32Array(MAX_ENTITIES), ticksLeft: new Uint16Array(MAX_ENTITIES),
+  // Bounces left before it lands (Ricochet).
+  bounces: new Uint8Array(MAX_ENTITIES),
 };
 
 // angle is where around the host it went in, so it rides there.
@@ -112,7 +114,7 @@ export const Pressure = {
 
 export const ShapeKind = {
   None: 0, Player: 1, Boss: 2, Bullet: 3, EnemyBullet: 4, Pillar: 5,
-  Sword: 6, Spear: 7, Gun: 8, Haste: 9, Fury: 10,
+  Sword: 6, Spear: 7, Gun: 8, Haste: 9, Fury: 10, Perk: 11, HeavyBullet: 12,
 } as const;
 export const Shape = { kind: new Uint8Array(MAX_ENTITIES) };
 
@@ -131,6 +133,11 @@ export const Orbit = {
 export const Spikes = { since: new Uint32Array(MAX_ENTITIES) };
 // The first tick spikes may hurt this entity again: one hit per touch, not one per tick.
 export const SpikeHit = { readyAt: new Uint32Array(MAX_ENTITIES) };
+// Three perk slots, oldest first; 0 is empty (Perk in systems/perks.ts).
+export const Perks = { s0: new Uint8Array(MAX_ENTITIES), s1: new Uint8Array(MAX_ENTITIES), s2: new Uint8Array(MAX_ENTITIES) };
+export const PerkPickup = { kind: new Uint8Array(MAX_ENTITIES) };
+// When the next perk may drop; 0 until the arena schedules its first.
+export const PerkDrop = { nextAt: 0 };
 
 // Singletons: one local player, one match, one arena.
 // throwReleases/interactPresses/dodgePresses only ever count up (see Wielder.throwSeen).
@@ -164,7 +171,7 @@ export const Stock = { respawnAt: new Uint32Array(4) };
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
   Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
-  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit,
+  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop,
 };
 // The input counters must keep counting (a new player starts caught up with
 // them), and RunView is the run's projection, rewritten by every build.

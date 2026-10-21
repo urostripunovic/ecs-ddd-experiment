@@ -2,11 +2,11 @@
 // Equipping, wear and throwing are pure simulation: no rule or save reacts to
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
-  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, GodMode, Item, RunStatus, RunView, PlayerInput, ShapeKind,
-  Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
+  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, GodMode, Item, PerkPickup, RunStatus, RunView, PlayerInput,
+  Shake, ShapeKind, Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
-import { random, randomRange } from '../core/rng';
+import { random } from '../core/rng';
 import { after, inTicks, seconds, ticks, times, type Seconds, type Ticks } from '../core/units';
 import {
   add, despawn, entityAt, handleAt, has, indexOf, isLive, mask, NOBODY, query, remove, toHandle, world,
@@ -16,10 +16,14 @@ import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
 import {
   BUFF_TICKS, BuffKind, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, type WeaponDef,
 } from '../weapons/defs';
-import { CHARGE_MAX_TICKS, throwCharge } from '../weapons/charge';
+import { CHARGE_MAX_TICKS, ChargeZone, throwCharge, type ThrowCharge } from '../weapons/charge';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
 import { dmgMul } from './status';
+import { randomClearSpot } from './spots';
+import {
+  addPerk, FINAL_SHOT_BLOWUP_DMG, hasPerk, LONG_REACH_MUL, Perk, RICOCHET_BOUNCES, RICOCHET_DMG_MUL,
+} from './perks';
 
 const WIELDERS = mask(C.Wielder, C.Transform);
 const HELD_ITEMS = mask(C.Item, C.Held);
@@ -32,7 +36,6 @@ const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
 // Blades and throws pass under anything mid-jump.
 const UNHITTABLE = mask(C.Dead, C.Airborne);
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
-const LIVE_PLAYERS = mask(C.PlayerControlled, C.Transform);
 const BOSSES = mask(C.Boss, C.Transform);
 
 const PICKUP_RADIUS = 1.3;
@@ -114,6 +117,22 @@ function breakItem(item: EntityId): void {
   despawn(item);
 }
 
+// Ricochet: mirror the velocity off the surface, step back off it, and fly on
+// harder, with a fresh flight time.
+function bounce(f: EntityId, nx: number, nz: number): void {
+  const along = Velocity.x[f] * nx + Velocity.z[f] * nz;
+  if (along < 0) {
+    Velocity.x[f] -= 2 * along * nx;
+    Velocity.z[f] -= 2 * along * nz;
+  }
+  const edge = Arena.half - 0.3;
+  Transform.x[f] = Math.max(-edge, Math.min(edge, Transform.x[f] + nx * 0.3));
+  Transform.z[f] = Math.max(-edge, Math.min(edge, Transform.z[f] + nz * 0.3));
+  Thrown.bounces[f]--;
+  Thrown.dmg[f] *= RICOCHET_DMG_MUL;
+  Thrown.ticksLeft[f] = defOf(f).throwTicks;
+}
+
 // A thrown weapon that hits lodges in its target and rides along with it.
 function stick(item: EntityId, host: EntityId): void {
   remove(item, C.Flying);
@@ -186,6 +205,10 @@ export function throwSystem(): void {
     const def = defOf(item);
     const charge = throwCharge(Wielder.charge[w] / CHARGE_MAX_TICKS);
     Wielder.charge[w] = 0;
+    if (Item.kind[item] === WeaponKind.Gun && Ammo.count[item] > 0 && hasPerk(w, Perk.FinalShot)) {
+      finalShot(w, item, charge);
+      continue;
+    }
     const start = Collider.radius[w] + 0.5;
     const speed = def.throwSpeed * charge.speedMul;
     remove(item, C.Held);
@@ -198,12 +221,42 @@ export function throwSystem(): void {
     Thrown.dmg[item] = def.throwDmg * dmgMul(w) * charge.dmgMul;
     Thrown.wearMul[item] = charge.wearMul;
     Thrown.ticksLeft[item] = def.throwTicks;
+    Thrown.bounces[item] = Item.kind[item] === WeaponKind.Sword && hasPerk(w, Perk.Ricochet) ? RICOCHET_BOUNCES : 0;
     Wielder.held[w] = NOBODY;
   }
 }
 
+// Final shot: the rest of the magazine leaves as one heavy shot, as hard as the
+// gauge says. Past the gauge's end the gun can't take it: it blows up in your
+// hands, hurting you, and is gone (the stock brings a new one later).
+function finalShot(w: EntityId, gun: EntityId, charge: ThrowCharge): void {
+  const def = defOf(gun);
+  if (charge.zone === ChargeZone.Overcharged) {
+    Shake.trauma = Math.max(Shake.trauma, 0.6);
+    hurt(w, FINAL_SHOT_BLOWUP_DMG, toHandle(w));
+    breakItem(gun);
+    return;
+  }
+  const muzzle = Collider.radius[w] + 0.35;
+  spawnProjectile(
+    Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
+    PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
+    Team.id[w], toHandle(w), times(def.dmg, Ammo.count[gun] * charge.dmgMul * dmgMul(w)), BULLET_LIFE,
+    ShapeKind.HeavyBullet,
+  );
+  Ammo.count[gun] = 0;
+  Ammo.reload[gun] = def.reloadTime;
+}
+
+function reachOf(w: EntityId, def: WeaponDef): number {
+  const item = heldItem(w);
+  const spear = item !== -1 && Item.kind[item] === WeaponKind.Spear;
+  return spear && hasPerk(w, Perk.LongReach) ? def.reach * LONG_REACH_MUL : def.reach;
+}
+
 // Every target in reach and inside the arc, so one sword swing can hit several.
 function meleeHit(w: EntityId, def: WeaponDef): boolean {
+  const reach = reachOf(w, def);
   let hit = false;
   const targets = query(targetBuf, TARGETS, UNHITTABLE);
   for (let j = 0; j < targets; j++) {
@@ -212,7 +265,7 @@ function meleeHit(w: EntityId, def: WeaponDef): boolean {
     const dx = Transform.x[t] - Transform.x[w];
     const dz = Transform.z[t] - Transform.z[w];
     const d = Math.hypot(dx, dz);
-    if (d > def.reach + Collider.radius[t]) continue;
+    if (d > reach + Collider.radius[t]) continue;
     // Measured to the target's centre; a target you are touching is always in the arc.
     if (d > Collider.radius[t] && (dx * PlayerInput.aimX + dz * PlayerInput.aimZ) / d < def.arcCos) continue;
     hurt(t, def.dmg * dmgMul(w), toHandle(w));
@@ -285,15 +338,28 @@ export function flightSystem(): void {
       struck = t;
     }
     if (struck !== -1) { stick(f, struck); continue; }
+    // The surface it hit, if any, so a ricochet knows which way to bounce.
+    let nx = 0;
+    let nz = 0;
     for (let j = 0; j < solids && !landed; j++) {
       const s = entityAt(solidBuf, j);
       if (has(s, C.Health)) continue;
       const r = Collider.radius[s] + 0.2;
       const dx = x - Transform.x[s];
       const dz = z - Transform.z[s];
-      if (dx * dx + dz * dz <= r * r) landed = true;
+      if (dx * dx + dz * dz > r * r) continue;
+      landed = true;
+      const d = Math.hypot(dx, dz) || 1;
+      nx = dx / d;
+      nz = dz / d;
     }
-    if (Math.abs(x) > Arena.half - 0.3 || Math.abs(z) > Arena.half - 0.3) landed = true;
+    const edge = Arena.half - 0.3;
+    if (Math.abs(x) > edge) { landed = true; nx = -Math.sign(x); }
+    if (Math.abs(z) > edge) { landed = true; nz = -Math.sign(z); }
+    if (landed && Thrown.bounces[f] > 0) {
+      bounce(f, nx, nz);
+      landed = false;
+    }
     if (Thrown.ticksLeft[f] > 0) Thrown.ticksLeft[f]--;
     if (Thrown.ticksLeft[f] === 0) landed = true;
 
@@ -328,6 +394,7 @@ export function pickupSystem(): void {
       const d2 = dx * dx + dz * dz;
       if (d2 > PICKUP_RADIUS * PICKUP_RADIUS) continue;
       if (has(it, C.BuffPickup)) { applyBuff(w, BuffPickup.kind[it]); despawn(it); continue; }
+      if (has(it, C.PerkPickup)) { addPerk(w, PerkPickup.kind[it]); despawn(it); continue; }
       if (world.tick < Item.pickupAt[it] || d2 >= best) continue;
       nearest = it;
       best = d2;
@@ -358,36 +425,8 @@ export function durabilitySystem(dt: Seconds): void {
   }
 }
 
-function clearSpot(x: number, z: number): boolean {
-  const solids = query(helperBuf, SOLIDS, C.Dead);
-  for (let i = 0; i < solids; i++) {
-    const s = entityAt(helperBuf, i);
-    const keepOut = Collider.radius[s] + (has(s, C.Boss) ? 3 : 1.2);
-    if (Math.hypot(x - Transform.x[s], z - Transform.z[s]) < keepOut) return false;
-  }
-  const players = query(helperBuf, LIVE_PLAYERS);
-  for (let i = 0; i < players; i++) {
-    const p = entityAt(helperBuf, i);
-    if (Math.hypot(x - Transform.x[p], z - Transform.z[p]) < 2.5) return false;
-  }
-  return true;
-}
-
 const spot = { x: 0, z: 0 };
 
-// Draws from the seeded RNG only, so the same seed gives the same spots.
-function randomClearSpot(out: { x: number; z: number }): boolean {
-  const limit = Arena.half - 2;
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const x = randomRange(-limit, limit);
-    const z = randomRange(-limit, limit);
-    if (!clearSpot(x, z)) continue;
-    out.x = x;
-    out.z = z;
-    return true;
-  }
-  return false;
-}
 
 const stockCounts = new Int32Array(WEAPON_STOCK.length);
 
