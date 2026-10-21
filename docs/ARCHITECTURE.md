@@ -67,16 +67,22 @@ Every request, in every state the rules can be in. Row numbers are permanent: te
 
 | # | Area | State | Request | Facts | Status | Test |
 | --- | --- | --- | --- | --- | --- | --- |
-| R1 | run | new run |  | Fighting, arena 1, carrying the gun | accepted | `run.test`: starts in arena 1 |
+| R1 | run | new run |  | Fighting, arena 1, carrying the gun, 3 revives, nothing on offer | accepted | `run.test`: starts in arena 1; `run.test`: a run starts with three, and holds at most eight |
 | R2 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared` | accepted | `run.test`: clearing a boss before the last arena |
 | R3 | run | Cleared, not the last arena | `TunnelEntered(loadout)` | `ArenaEntered(next, loadout)` | accepted | `run.test`: entering the tunnel after a clear |
 | R4 | run | Fighting | `TunnelEntered` | `TunnelRefused(NotCleared)` | accepted | `run.test`: refuses the tunnel |
 | R5 | run | Fighting, the last arena | `BossCleared` | `RunWon` | accepted | `run.test`: clearing the last arena |
-| R6 | run | Fighting | `PlayerDowned` | `RunLost` | accepted | `run.test`: going down loses |
+| R6 | run | Fighting, no revives left | `PlayerDowned` | `RunLost` | accepted | `run.test`: going down with no revives left loses the run |
 | R7 | run | Lost (earlier the same tick) | `BossCleared` | none: the first outcome stands | accepted | `run.test`: a trade on the same tick |
-| R8 | run | Cleared | `PlayerDowned` | `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | accepted | `run.test`: going down after the clear; `transition.test`: nothing hurts you once the arena is cleared |
-| R9 | run | Won, this tick | `PlayerDowned` | `RunLost`: if we die, we die. A trade loses whichever death was reported first | accepted | `run.test`: a trade with the last boss; `flow.test`: a trade with the last boss loses the run |
+| R8 | run | Cleared | `PlayerDowned` | With a revive left, `PlayerRevived`; with none, `RunLost`. Unreachable in this game's current design, because nothing hurts you after a clear; answered so that the design can change | accepted | `run.test`: going down after the clear with no revives left; `run.test`: going down after the clear with a revive left; `transition.test`: nothing hurts you once the arena is cleared |
+| R9 | run | Won, this tick | `PlayerDowned` | With a revive left, `PlayerRevived`: the win stands and the revive is spent. With none, `RunLost`: if we die, we die. Either way, whichever death was reported first | accepted | `run.test`: a trade with the last boss on your last life; `run.test`: a trade with the last boss with a revive left; `flow.test`: a trade with the last boss loses the run |
 | R10 | run | Cleared, not the last arena | `TunnelEntered(loadout with perks)` | `ArenaEntered(next, loadout)`: perks carry over, oldest first. A loadout holds at most three, never the same one twice (`loadoutOf` throws otherwise) | accepted | `run.test`: carry over with the loadout, oldest first; `run.test`: are never more than three, and never the same one twice |
+| R11 | run | Fighting, revives left | `PlayerDowned` | `PlayerRevived(revives - 1)`: back up where you fell, at full hp (the projector) | accepted | `run.test`: going down with a revive left gets you back up |
+| R12 | run | Fighting, not the last arena | `BossCleared` | `ArenaCleared`, then `RewardsOffered`: three different rewards drawn from the run's seed and arena; no revive when you hold 8 | accepted | `run.test`: clearing a boss before the last arena offers three; `run.test`: never offers a revive when you already hold eight |
+| R13 | run | Cleared, an offer open | `RewardChosen(i)` | `RewardTaken(offer[i])`, and the offer closes | accepted | `run.test`: choosing one takes it and closes the offer |
+| R14 | run | No offer open, or no such option | `RewardChosen` | none: already answered | accepted | `run.test`: choosing one takes it and closes the offer; `run.test`: ignores a choice with nothing on offer |
+| R15 | run | Cleared, an offer open | `RewardTaken(revive)` | revives + 1, never past 8 | accepted | `run.test`: a revive reward adds one, never past eight |
+| R16 | run | Cleared, an offer open | `TunnelEntered` | `ArenaEntered`; the offer is left behind | experimental | `run.test`: walking into the tunnel without choosing forfeits the offer |
 | B1 | boss | (removed: the phase moved to the simulation) |  |  |  |  |
 | B2 | boss | (removed) |  |  |  |  |
 | B3 | boss | alive | `BossDowned` | `BossDefeated` | accepted | `boss.test`: defeated once |

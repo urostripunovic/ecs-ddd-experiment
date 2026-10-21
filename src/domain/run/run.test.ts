@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import type { BossId, PlayerId, Tick, WeaponId } from '../shared/types';
-import { carriedWeapon, decide, evolve, initialRun, loadoutOf, STARTING_LOADOUT, type Loadout, type RunCommand, type RunState } from './run';
+import {
+  carriedWeapon, decide, evolve, initialRun, loadoutOf, MAX_REVIVES, offerFor, STARTING_LOADOUT, STARTING_REVIVES,
+  type Loadout, type RunCommand, type RunState,
+} from './run';
 
 const BOSS = 'warden' as BossId;
 const PLAYER = 'player-1' as PlayerId;
 const t = (n: number) => n as Tick;
 const run = (s: RunState, cmd: RunCommand) => decide(cmd, s).reduce(evolve, s);
+// Most loss rules are about the last life: no revives left.
+const lastLife = (s: RunState): RunState => ({ ...s, revives: 0 });
+const BASE = { seed: 1, revives: 0, offer: null };
 
 const CARRIED: Loadout = {
   hp: 64,
   weapon: { id: 'w-7' as WeaponId, kind: 'spear', durability: 41, ammo: 0 },
   perks: ['adrenaline'],
+  armor: 1,
 };
 
 describe('run', () => {
@@ -43,23 +50,23 @@ describe('run', () => {
     expect(run(last, { kind: 'BossCleared', boss: BOSS, tick: t(900) })).toMatchObject({ status: 'Won', endedAt: t(900) });
   });
 
-  it('going down loses the run, and a trade on the same tick keeps the first outcome', () => {
-    const lost = run(initialRun(2), { kind: 'PlayerDowned', player: PLAYER, tick: t(42) });
+  it('going down with no revives left loses the run, and a trade on the same tick keeps the first outcome', () => {
+    const lost = run(lastLife(initialRun(2)), { kind: 'PlayerDowned', player: PLAYER, tick: t(42) });
     expect(lost).toMatchObject({ status: 'Lost', endedAt: t(42) });
     expect(decide({ kind: 'BossCleared', boss: BOSS, tick: t(42) }, lost)).toHaveLength(0);
   });
 
   // R8: unreachable while the simulation stops damage after a clear, but answered
   // anyway, so that design can change without leaving the run stuck.
-  it('going down after the clear still loses the run', () => {
-    const cleared = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
+  it('going down after the clear with no revives left still loses the run', () => {
+    const cleared = run(lastLife(initialRun(2)), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
     expect(run(cleared, { kind: 'PlayerDowned', player: PLAYER, tick: t(530) })).toMatchObject({ status: 'Lost', endedAt: t(530) });
   });
 
   // R9: if we die, we die. A trade on the tick of the win loses, whichever
   // death the simulation happened to report first.
-  it('a trade with the last boss loses the run, in either order', () => {
-    const last: RunState = { ...initialRun(2), arena: 2 };
+  it('a trade with the last boss on your last life loses the run, in either order', () => {
+    const last: RunState = { ...lastLife(initialRun(2)), arena: 2 };
     const down = { kind: 'PlayerDowned', player: PLAYER, tick: t(900) } as const;
     const clear = { kind: 'BossCleared', boss: BOSS, tick: t(900) } as const;
     expect(run(run(last, clear), down)).toMatchObject({ status: 'Lost', endedAt: t(900) });
@@ -74,9 +81,9 @@ describe('run', () => {
   describe('shape', () => {
     it('only a finished run has an end tick, and the compiler says so', () => {
       // @ts-expect-error a won run without its end tick can't be written down
-      const unended: RunState = { status: 'Won', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
+      const unended: RunState = { ...BASE, status: 'Won', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
       // @ts-expect-error a run still going has no end tick
-      const early: RunState = { status: 'Fighting', arena: 1, arenas: 2, loadout: STARTING_LOADOUT, endedAt: t(5) };
+      const early: RunState = { ...BASE, status: 'Fighting', arena: 1, arenas: 2, loadout: STARTING_LOADOUT, endedAt: t(5) };
       expect([unended, early]).toHaveLength(2);
     });
 
@@ -86,7 +93,7 @@ describe('run', () => {
     });
 
     it('never enters an arena past the last one', () => {
-      const cleared: RunState = { status: 'Cleared', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
+      const cleared: RunState = { ...BASE, status: 'Cleared', arena: 2, arenas: 2, loadout: STARTING_LOADOUT };
       expect(() => evolve(cleared, { kind: 'ArenaEntered', arena: 3, loadout: CARRIED, tick: t(1) })).toThrow(RangeError);
     });
   });
@@ -96,7 +103,7 @@ describe('run', () => {
   describe('loadout', () => {
     it('accepts what a living player can carry', () => {
       expect(loadoutOf(61, carriedWeapon('w-1' as WeaponId, 'gun', 0, 7))).toEqual({
-        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 }, perks: [],
+        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 }, perks: [], armor: 0,
       });
       expect(loadoutOf(1, null).weapon).toBeNull();
     });
@@ -107,6 +114,8 @@ describe('run', () => {
       expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, -1)).toThrow(RangeError);
       expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 2.5)).toThrow(RangeError);
       expect(() => carriedWeapon('w-1' as WeaponId, 'sword', -3, 0)).toThrow(RangeError);
+      expect(() => loadoutOf(10, null, [], 4)).toThrow(RangeError);
+      expect(() => loadoutOf(10, null, [], -1)).toThrow(RangeError);
     });
   });
 });
@@ -126,5 +135,80 @@ describe('perks', () => {
   it('are never more than three, and never the same one twice', () => {
     expect(() => loadoutOf(50, null, ['lastStand', 'adrenaline', 'finalShot', 'ricochet'])).toThrow(RangeError);
     expect(() => loadoutOf(50, null, ['lastStand', 'lastStand'])).toThrow(RangeError);
+  });
+});
+
+describe('revives', () => {
+  const down = (tick: number) => ({ kind: 'PlayerDowned', player: PLAYER, tick: t(tick) }) as const;
+
+  it('a run starts with three, and holds at most eight', () => {
+    expect(initialRun(2).revives).toBe(STARTING_REVIVES);
+    expect(STARTING_REVIVES).toBe(3);
+    expect(MAX_REVIVES).toBe(8);
+  });
+
+  it('going down with a revive left gets you back up instead of losing', () => {
+    const s = initialRun(2);
+    expect(decide(down(40), s)).toEqual([{ kind: 'PlayerRevived', player: PLAYER, revivesLeft: 2, tick: t(40) }]);
+    expect(run(s, down(40))).toMatchObject({ status: 'Fighting', revives: 2 });
+  });
+
+  it('going down after the clear with a revive left revives too', () => {
+    const cleared = run(initialRun(2), { kind: 'BossCleared', boss: BOSS, tick: t(500) });
+    expect(run(cleared, down(530))).toMatchObject({ status: 'Cleared', revives: 2 });
+  });
+
+  it('a trade with the last boss with a revive left: the win stands, and the revive is spent, in either order', () => {
+    const last: RunState = { ...initialRun(2), arena: 2 };
+    const clear = { kind: 'BossCleared', boss: BOSS, tick: t(900) } as const;
+    expect(run(run(last, clear), down(900))).toMatchObject({ status: 'Won', endedAt: t(900), revives: 2 });
+    expect(run(run(last, down(900)), clear)).toMatchObject({ status: 'Won', endedAt: t(900), revives: 2 });
+  });
+});
+
+describe('rewards', () => {
+  const clear = (s: RunState) => run(s, { kind: 'BossCleared', boss: BOSS, tick: t(300) });
+  const choose = (option: number) => ({ kind: 'RewardChosen', player: PLAYER, option, tick: t(320) }) as const;
+
+  it('clearing a boss before the last arena offers three different rewards, drawn from the seed', () => {
+    const s = clear(initialRun(3, 7));
+    expect(s.offer).toHaveLength(3);
+    expect(new Set(s.offer).size).toBe(3);
+    expect(clear(initialRun(3, 7)).offer).toEqual(s.offer);
+    expect(offerFor(7, 1, 3)).toEqual(s.offer);
+  });
+
+  it('never offers a revive when you already hold eight', () => {
+    for (let seed = 1; seed < 40; seed++) expect(offerFor(seed, 1, MAX_REVIVES)).not.toContain('revive');
+  });
+
+  it('the last arena wins instead, with no offer', () => {
+    expect(clear({ ...initialRun(2), arena: 2 }).offer).toBeNull();
+  });
+
+  it('choosing one takes it and closes the offer; asking again is already answered', () => {
+    const s = clear(initialRun(3, 7));
+    const reward = s.offer![1];
+    expect(decide(choose(1), s)).toEqual([{ kind: 'RewardTaken', reward, tick: t(320) }]);
+    const taken = run(s, choose(1));
+    expect(taken.offer).toBeNull();
+    expect(decide(choose(0), taken)).toHaveLength(0);
+  });
+
+  it('ignores a choice with nothing on offer, or one that isn\'t there', () => {
+    expect(decide(choose(0), initialRun(3))).toHaveLength(0);
+    expect(decide(choose(3), clear(initialRun(3, 7)))).toHaveLength(0);
+  });
+
+  it('a revive reward adds one, never past eight', () => {
+    const offered: RunState = { ...initialRun(3), status: 'Cleared', revives: MAX_REVIVES, offer: ['revive', 'armor', 'heal'] };
+    expect(run(offered, choose(0)).revives).toBe(MAX_REVIVES);
+    expect(run({ ...offered, revives: 4 }, choose(0)).revives).toBe(5);
+  });
+
+  it('walking into the tunnel without choosing forfeits the offer', () => {
+    const s = clear(initialRun(3, 7));
+    const entered = run(s, { kind: 'TunnelEntered', player: PLAYER, loadout: CARRIED, tick: t(400) });
+    expect(entered).toMatchObject({ arena: 2, offer: null });
   });
 });
