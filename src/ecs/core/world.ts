@@ -71,7 +71,16 @@ export function spawn(): EntityId {
   return e as EntityId;
 }
 
+// Dev builds and tests only. world.ts can't know the component columns (they
+// import it), so the components module registers the check that needs them.
+let checkDespawn: ((e: EntityId) => void) | null = null;
+export function onDespawn(check: (e: EntityId) => void): void {
+  checkDespawn = check;
+}
+
 export function despawn(e: EntityId): void {
+  // Before anything changes, so a failed check leaves the world as it was.
+  if (import.meta.env.DEV) checkDespawn?.(e);
   world.alive[e] = 0;
   world.mask[e] = 0;
   world.generation[e]++;
