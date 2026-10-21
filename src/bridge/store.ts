@@ -8,8 +8,8 @@ import { ARENAS } from '../ecs/arenas';
 export const store = {
   bosses: new Map<BossId, BossState>(),
   run: initialRun(ARENAS.length) as RunState,
-  reset(): void {
+  reset(seed = 1): void {
     this.bosses.clear();
-    this.run = initialRun(ARENAS.length);
+    this.run = initialRun(ARENAS.length, seed);
   },
 };

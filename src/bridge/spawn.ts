@@ -2,7 +2,7 @@ import { initialBoss, type BossState } from '../domain/boss/boss';
 import type { Loadout, RunState, RunStatus as RunStatusName } from '../domain/run/run';
 import type { BossId } from '../domain/shared/types';
 import { ARENAS, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
-import { Ammo, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
+import { Ammo, Armor, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
@@ -15,6 +15,7 @@ import { WEAPON_STOCK } from '../ecs/weapons/defs';
 import { bossIdFor, PLAYER_ID } from './ids';
 import { idMap } from './id-map';
 import { KIND_NUMBER, PERK_NUMBER } from './run/loadout';
+import { spawnPedestals } from './run/rewards';
 import { setPerks } from '../ecs/systems/perks';
 import { store } from './store';
 import { clearTickLog } from './tick-log';
@@ -50,7 +51,7 @@ export function startRun(opts: RunOptions = {}): RunHandles {
   clearOutbox();
   clearTickLog();
   idMap.clear();
-  store.reset();
+  store.reset(opts.seed ?? 1);
   seedRng(opts.seed ?? 1);
   buildArena(store.run.arena, store.run.loadout);
   return handles;
@@ -84,6 +85,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   const p = spawnPlayer(px, pz);
   Health.hp[p] = loadout.hp;
   setPerks(p, loadout.perks.map((name) => PERK_NUMBER[name]));
+  Armor.gained[p] = loadout.armor;
   idMap.bind(toHandle(p), { context: 'player', id: PLAYER_ID });
 
   let carriedKind = 0;
@@ -128,6 +130,9 @@ export function buildArena(arena: number, loadout: Loadout): void {
   RunViewWritable.endedAt = store.run.status === 'Won' || store.run.status === 'Lost' ? store.run.endedAt : 0;
   // The run projector opens it on ArenaCleared; a loaded clear must open it too.
   RunViewWritable.tunnelOpen = store.run.status === 'Cleared';
+  RunViewWritable.revives = store.run.revives;
+  // An offer still open on a cleared arena stands on its pedestals, as a load would find it.
+  if (store.run.status === 'Cleared' && store.run.offer) spawnPedestals(store.run.offer);
   handles.player = toHandle(p);
   handles.boss = toHandle(b);
 }

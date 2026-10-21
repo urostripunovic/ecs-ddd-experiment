@@ -49,6 +49,7 @@ function handle(cmd: Command): void {
     case 'PlayerDowned':
     case 'BossCleared':
     case 'TunnelEntered':
+    case 'RewardChosen':
       return handleRun(cmd);
     default:
       return assertNever(cmd);

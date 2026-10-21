@@ -20,6 +20,8 @@ describe('boss flow', () => {
     expect(readTickLog()).toEqual([
       'tick 0: BossDowned(warden) -> BossDefeated -> no component change',
       'tick 0: BossCleared -> ArenaCleared -> RunView=Cleared, tunnel open',
+      // The same clear offers three rewards, drawn from the run's seed (R12).
+      expect.stringMatching(/^tick 0: BossCleared -> RewardsOffered -> pedestals for \w+ and \w+ and \w+$/),
     ]);
   });
 

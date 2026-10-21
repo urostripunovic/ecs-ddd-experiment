@@ -1,5 +1,6 @@
 import { C, RunStatus, RunView } from '../../ecs/components';
-import { has, indexOf, isLive } from '../../ecs/core/world';
+import { helperBuf } from '../../ecs/core/buffers';
+import { has, indexOf, isLive, mask, query } from '../../ecs/core/world';
 import { bossIdFor } from '../ids';
 import { handles } from '../spawn';
 import { store } from '../store';
@@ -16,6 +17,10 @@ export function disagreements(): string[] {
   if (RunView.tunnelOpen !== (run.status === 'Cleared')) out.push(`tunnel open: ${RunView.tunnelOpen} while ${run.status}`);
   const defeated = store.bosses.get(bossIdFor(run.arena))?.defeated ?? false;
   if (isLive(handles.boss) && has(indexOf(handles.boss), C.Dead) !== defeated) out.push(`boss down: world ${!defeated}, rules ${defeated}`);
+  if (RunView.revives !== run.revives) out.push(`revives: world ${RunView.revives}, rules ${run.revives}`);
+  const pedestals = query(helperBuf, mask(C.RewardPickup));
+  const offered = run.status === 'Cleared' && run.offer ? run.offer.length : 0;
+  if (pedestals !== offered) out.push(`reward pedestals: world ${pedestals}, rules ${offered}`);
   const lost = run.status === 'Lost';
   if (isLive(handles.player) && has(indexOf(handles.player), C.Dead) !== lost) out.push(`player down: world ${!lost}, rules ${lost}`);
   return out;

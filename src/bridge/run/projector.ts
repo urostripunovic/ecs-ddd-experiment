@@ -2,9 +2,19 @@ import type { Loadout, RunEvent } from '../../domain/run/run';
 import { assertNever } from '../../domain/shared/types';
 import { C, RunStatus } from '../../ecs/components';
 import { RunViewWritable } from '../../ecs/components/run-view';
-import { indexOf, isLive, remove } from '../../ecs/core/world';
+import { indexOf, isLive, remove, type EntityId } from '../../ecs/core/world';
+import { applyReward, clearRewards, revivePlayer } from '../../ecs/systems/rewards';
 import { idMap } from '../id-map';
 import { PLAYER_ID } from '../ids';
+import { store } from '../store';
+import { REWARD_KIND } from './loadout';
+import { spawnPedestals } from './rewards';
+
+// The player as the world has them now, or -1 if they're gone this tick.
+function livePlayer(): EntityId | -1 {
+  const h = idMap.handleOfPlayer(PLAYER_ID);
+  return h !== undefined && isLive(h) ? indexOf(h) : -1;
+}
 
 // Entering an arena rebuilds the whole world, which can't happen halfway through
 // draining the outbox. The projector records it; dispatch builds it once the step ends.
@@ -39,6 +49,24 @@ export function projectRun(e: RunEvent): string {
       const h = idMap.handleOfPlayer(PLAYER_ID);
       if (h !== undefined && isLive(h)) remove(indexOf(h), C.TunnelPending);
       return `latch released (${e.reason})`;
+    }
+    case 'PlayerRevived': {
+      const p = livePlayer();
+      if (p !== -1) revivePlayer(p);
+      RunViewWritable.revives = store.run.revives;
+      return `back up (${e.revivesLeft} revives left)`;
+    }
+    case 'RewardsOffered':
+      spawnPedestals(e.options);
+      return `pedestals for ${e.options.join(' and ')}`;
+    case 'RewardTaken': {
+      const p = livePlayer();
+      if (p !== -1) {
+        clearRewards(p);
+        applyReward(p, REWARD_KIND[e.reward]);
+      }
+      RunViewWritable.revives = store.run.revives;
+      return `took ${e.reward}`;
     }
     default:
       return assertNever(e);

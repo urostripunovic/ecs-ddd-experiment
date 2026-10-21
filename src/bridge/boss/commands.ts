@@ -15,6 +15,7 @@ export function toBossCommand(slot: OutboxSlot): BossCommand | null {
       return { kind: 'BossDowned', boss: ref.id, by: by?.context === 'player' ? by.id : null, tick };
     }
     case 'TunnelEntered':
+    case 'RewardTouched':
       return null;
     default:
       return assertNever(slot.kind);

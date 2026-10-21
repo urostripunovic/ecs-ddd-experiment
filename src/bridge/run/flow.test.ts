@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  Ammo, Arena, C, Health, Item, Jump, PlayerInput, RunStatus, RunView, Transform, Wielder,
+  Ammo, Arena, C, Health, Item, Jump, PlayerInput, RewardPickup, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
-import { has, indexOf, isLive, NOBODY, world, type EntityId } from '../../ecs/core/world';
+import { has, indexOf, isLive, NOBODY, query, world, type EntityId } from '../../ecs/core/world';
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
 import { addPerk, Perk, perkSlots } from '../../ecs/systems/perks';
+import { rewardSensorSystem } from '../../ecs/systems/rewards';
+import { buf } from '../../ecs/core/buffers';
 import { domainStep } from '../dispatch';
 import { idMap } from '../id-map';
 import { bossIdFor } from '../ids';
@@ -21,17 +23,59 @@ const countKind = (kind: number) => {
   return n;
 };
 
+const pedestals = () => query(buf, C.RewardPickup);
+
 describe('run flow', () => {
   let h: RunHandles;
   beforeEach(() => { h = startRun(); });
 
-  it('the player going down loses the run', () => {
+  // Uses up the revives the run starts with, so the next down is the last.
+  const spendRevives = () => {
+    while (store.run.revives > 0) {
+      send('EntityDowned', h.player, h.boss, 0);
+      domainStep();
+    }
+  };
+
+  it('going down with a revive left gets you back up where you fell, at full hp', () => {
+    const p = indexOf(h.player);
+    Transform.x[p] = 6;
+    Health.hp[p] = 0;
+    send('EntityDowned', h.player, h.boss, 0);
+    domainStep();
+    expect(RunView).toMatchObject({ status: RunStatus.Fighting, revives: 2 });
+    expect(has(p, C.Dead)).toBe(false);
+    expect(Health.hp[p]).toBe(Health.max[p]);
+    expect(Transform.x[p]).toBe(6);
+  });
+
+  it('the player going down on the last life loses the run', () => {
+    spendRevives();
+    expect(store.run.revives).toBe(0);
     send('EntityDowned', h.player, h.boss, 0);
     domainStep();
     expect(RunView.status).toBe(RunStatus.Lost);
   });
 
+  it('clearing a boss puts three rewards on pedestals; stepping on one takes it, and the rest go', () => {
+    send('EntityDowned', h.boss, h.player, 0);
+    domainStep();
+    expect(pedestals()).toBe(3);
+    const offer = store.run.offer!;
+    const p = indexOf(h.player);
+    const first = buf[0] as EntityId;
+    Transform.x[p] = Transform.x[first];
+    Transform.z[p] = Transform.z[first];
+    rewardSensorSystem();
+    domainStep();
+    expect(readTickLog().some((line) => line.includes(`RewardTaken`) && line.includes(offer[RewardPickup.option[first]]))).toBe(true);
+    expect(store.run.offer).toBeNull();
+    expect(pedestals()).toBe(0);
+    expect(has(p, C.RewardPending)).toBe(false);
+  });
+
   it('a trade on the same tick keeps the first outcome', () => {
+    spendRevives();
     send('EntityDowned', h.player, h.boss, 0);
     send('EntityDowned', h.boss, NOBODY, 0);
     domainStep();
@@ -108,9 +152,11 @@ describe('run flow', () => {
     expect(Wielder.throwSeen[indexOf(h.player)]).toBe(5);
   });
 
-  // R9: in the last arena, a trade loses whichever death the outbox holds first.
+  // R9: in the last arena, a trade on your last life loses whichever death the
+  // outbox holds first; with a revive left, the win stands and costs the revive.
   for (const bossFirst of [true, false]) {
     it(`a trade with the last boss loses the run (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
+      spendRevives();
       send('EntityDowned', h.boss, h.player, 0);
       domainStep();
       Transform.z[indexOf(h.player)] = -(Arena.half + 4);
@@ -122,6 +168,21 @@ describe('run flow', () => {
       if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);
       domainStep();
       expect(RunView.status).toBe(RunStatus.Lost);
+    });
+  }
+
+  for (const bossFirst of [true, false]) {
+    it(`a trade with the last boss with a revive left wins, and spends it (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
+      send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
+      tunnelSystem();
+      domainStep();
+      if (bossFirst) send('EntityDowned', h.boss, h.player, 0);
+      send('EntityDowned', h.player, h.boss, 0);
+      if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+      expect(RunView).toMatchObject({ status: RunStatus.Won, revives: 2 });
     });
   }
 });

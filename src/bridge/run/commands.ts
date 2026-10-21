@@ -6,6 +6,7 @@ import type { OutboxSlot } from '../../ecs/core/outbox';
 import { handleAt, indexOf, isLive, type EntityId } from '../../ecs/core/world';
 import { idMap } from '../id-map';
 import { perkSlots } from '../../ecs/systems/perks';
+import { armorPlates } from '../../ecs/systems/armor';
 import { KIND_NAME, PERK_NAME } from './loadout';
 
 // What the player has on them, in the run's terms. Read on the tick the sensor
@@ -15,9 +16,10 @@ function snapshotLoadout(p: EntityId): Loadout {
   const perks = perkSlots(p).map((k) => PERK_NAME[k]).filter((name): name is PerkName => name !== null);
   const h = handleAt(Wielder.held, p);
   const kind = isLive(h) ? KIND_NAME[Item.kind[indexOf(h)]] : null;
-  if (!kind) return loadoutOf(Health.hp[p], null, perks);
+  const armor = armorPlates(p);
+  if (!kind) return loadoutOf(Health.hp[p], null, perks, armor);
   const w = indexOf(h);
-  return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w]), perks);
+  return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w]), perks, armor);
 }
 
 // The run hears about the player directly from the simulation.
@@ -29,6 +31,7 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
     case 'EntityDowned': return { kind: 'PlayerDowned', player: ref.id, tick };
     case 'TunnelEntered':
       return { kind: 'TunnelEntered', player: ref.id, loadout: snapshotLoadout(indexOf(slot.subject)), tick };
+    case 'RewardTouched': return { kind: 'RewardChosen', player: ref.id, option: slot.value, tick };
     default: return assertNever(slot.kind);
   }
 }

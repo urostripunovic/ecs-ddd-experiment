@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { BossState } from '../../domain/boss/boss';
 import type { RunState } from '../../domain/run/run';
 import type { BossId } from '../../domain/shared/types';
-import { Arena, Transform } from '../../ecs/components';
+import { Arena, C, Transform } from '../../ecs/components';
+import { buf } from '../../ecs/core/buffers';
+import { rewardSensorSystem } from '../../ecs/systems/rewards';
 import { send } from '../../ecs/core/outbox';
-import { indexOf } from '../../ecs/core/world';
+import { indexOf, query, type EntityId } from '../../ecs/core/world';
 import { deathSystem } from '../../ecs/systems/combat';
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { domainStep } from '../dispatch';
@@ -37,6 +39,15 @@ function expectWorldAgrees(saved: Saved): void {
 }
 
 const downBoss = () => { send('EntityDowned', handles.boss, handles.player, 0); domainStep(); };
+const downPlayer = () => { send('EntityDowned', handles.player, handles.boss, 0); domainStep(); };
+const takeReward = () => {
+  const p = indexOf(handles.player);
+  const first = buf[query(buf, C.RewardPickup) - 1] as EntityId;
+  Transform.x[p] = Transform.x[first];
+  Transform.z[p] = Transform.z[first];
+  rewardSensorSystem();
+  domainStep();
+};
 const intoTunnel = () => {
   Transform.x[indexOf(handles.player)] = 0;
   Transform.z[indexOf(handles.player)] = -(Arena.half + 4);
@@ -47,10 +58,12 @@ const intoTunnel = () => {
 // One per state in docs/ARCHITECTURE.md's rules examples.
 const STATES: [string, () => void][] = [
   ['fighting in arena 1 (R1)', () => {}],
-  ['arena 1 cleared (R2)', downBoss],
+  ['arena 1 cleared, three rewards on offer (R2, R12)', downBoss],
+  ['arena 1 cleared, a reward taken (R13)', () => { downBoss(); takeReward(); }],
+  ['revived once (R11)', downPlayer],
   ['fighting in arena 2 (R3)', () => { downBoss(); intoTunnel(); }],
   ['won (R5)', () => { downBoss(); intoTunnel(); downBoss(); }],
-  ['lost (R6)', () => { send('EntityDowned', handles.player, handles.boss, 0); domainStep(); }],
+  ['lost, every revive spent (R6)', () => { for (let i = 0; i < 4; i++) downPlayer(); }],
 ];
 
 describe('loading a saved run', () => {
