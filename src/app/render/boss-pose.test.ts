@@ -22,3 +22,17 @@ describe('boss pose', () => {
     expect(bossPose(Action.Idle, 50, 0)).toEqual({ height: 0, sx: 1, sy: 1, lean: 0 });
   });
 });
+
+describe('procedural moves', () => {
+  it('a charge leans back through its windup, forward as it runs, and reels while stunned', () => {
+    expect(bossPose(Action.Charge, 20, 0, 0, 40).lean).toBeLessThan(0);
+    expect(bossPose(Action.Charge, 45, 0, 0, 40).lean).toBeGreaterThan(0.3);
+    const reel = [0, 5, 10].map((t) => bossPose(Action.Charge, 60 + t, 0, 0, 40, true).sy);
+    expect(new Set(reel).size).toBeGreaterThan(1);
+  });
+
+  it('a generated windup sets when the cone stops rearing back', () => {
+    expect(bossPose(Action.Cone, 18, 0, 0, 22).lean).toBeLessThan(0);
+    expect(bossPose(Action.Cone, 23, 0, 0, 22).lean).toBeGreaterThan(0);
+  });
+});

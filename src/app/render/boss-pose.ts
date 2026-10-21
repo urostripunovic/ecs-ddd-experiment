@@ -17,7 +17,11 @@ const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 // elapsed: ticks since the action began, fractional (interpolated between ticks).
 // slamWindup: 0..1 through a slam's telegraph, which drives its own squash.
 // fromHeight: where a jump starts, when it isn't the ground (a perch).
-export function bossPose(kind: number, elapsed: number, slamWindup: number, fromHeight = 0): Pose {
+// windup: the action's own telegraph in ticks, for generated moves; 0 means the hand-made one.
+// stunned: a charge that ran into stone.
+export function bossPose(
+  kind: number, elapsed: number, slamWindup: number, fromHeight = 0, windup = 0, stunned = false,
+): Pose {
   switch (kind) {
     case Action.Jump: {
       if (elapsed < JUMP_CROUCH) {
@@ -39,18 +43,21 @@ export function bossPose(kind: number, elapsed: number, slamWindup: number, from
       return { height: 0, sx: 1 + 0.25 * (1 - r), sy: 1 - 0.35 * (1 - r), lean: 0 };
     }
     case Action.Cone: {
-      if (elapsed < CONE_WINDUP) {
+      const w = windup || CONE_WINDUP;
+      if (elapsed < w) {
         // Rears back while the cone telegraph fills.
-        return { ...REST, lean: -0.3 * ease(clamp01(elapsed / CONE_WINDUP)) };
+        return { ...REST, lean: -0.3 * ease(clamp01(elapsed / w)) };
       }
       // A recoil kick on every volley, settling between them.
-      const since = (elapsed - CONE_WINDUP) % CONE_VOLLEY_GAP;
+      const since = (elapsed - w) % CONE_VOLLEY_GAP;
       return { ...REST, lean: 0.22 * Math.exp(-since * 0.35) };
     }
-    case Action.Burst: {
-      const w = clamp01(elapsed / BURST_WINDUP);
-      // Swells, then snaps back as the ring goes out.
-      const puff = elapsed < BURST_WINDUP ? 0.18 * ease(w) : 0.18 * Math.exp(-(elapsed - BURST_WINDUP) * 0.5);
+    case Action.Burst:
+    case Action.Orbs: {
+      const full = windup || BURST_WINDUP;
+      const w = clamp01(elapsed / full);
+      // Swells, then snaps back as the ring (or the orbs) go out.
+      const puff = elapsed < full ? 0.18 * ease(w) : 0.18 * Math.exp(-(elapsed - full) * 0.5);
       return { height: 0, sx: 1 + puff, sy: 1 + puff, lean: 0 };
     }
     case Action.Roar: {
@@ -66,33 +73,57 @@ export function bossPose(kind: number, elapsed: number, slamWindup: number, from
       return { height: 0, sx: 1 + 0.08 * settle + tremble, sy: 1 + 0.08 * settle - tremble, lean: 0.25 * settle };
     }
     case Action.Ring: {
-      if (elapsed < RING_WINDUP) {
+      const w = windup || RING_WINDUP;
+      if (elapsed < w) {
         // Hunkers down while the floor shows where the gaps will be.
-        const c = ease(clamp01(elapsed / RING_WINDUP));
+        const c = ease(clamp01(elapsed / w));
         return { height: 0, sx: 1 + 0.12 * c, sy: 1 - 0.16 * c, lean: 0 };
       }
       // A puff on every wave, like the burst, settling before the next.
-      const since = (elapsed - RING_WINDUP) % RING_WAVE_GAP;
+      const since = (elapsed - w) % RING_WAVE_GAP;
       const puff = 0.2 * Math.exp(-since * 0.3);
       return { height: 0, sx: 1 + puff, sy: 1 + puff * 0.5, lean: 0 };
     }
     case Action.Spiral: {
-      if (elapsed < SPIRAL_WINDUP) {
-        const r = ease(clamp01(elapsed / SPIRAL_WINDUP));
+      const w = windup || SPIRAL_WINDUP;
+      if (elapsed < w) {
+        const r = ease(clamp01(elapsed / w));
         return { height: 0, sx: 1, sy: 1 + 0.1 * r, lean: -0.2 * r };
       }
       // A steady shudder while the arms pour out.
-      const t = elapsed - SPIRAL_WINDUP;
+      const t = elapsed - w;
       return { height: 0, sx: 1 + Math.sin(t * 1.3) * 0.04, sy: 1.08, lean: 0.08 };
     }
-    case Action.Storm: {
-      if (elapsed < STORM_WINDUP) {
+    case Action.Storm:
+    case Action.Combo: {
+      const w = windup || STORM_WINDUP;
+      if (elapsed < w) {
         // Draws itself up taller than for any other attack: the tell for the big one.
-        const r = ease(clamp01(elapsed / STORM_WINDUP));
+        const r = ease(clamp01(elapsed / w));
         return { height: 0.4 * r, sx: 1 - 0.05 * r, sy: 1 + 0.2 * r, lean: -0.25 * r };
       }
-      const t = elapsed - STORM_WINDUP;
+      const t = elapsed - w;
       return { height: 0.4, sx: 1 + Math.sin(t * 1.7) * 0.05, sy: 1.15, lean: 0.06 * Math.sin(t * 0.9) };
+    }
+    case Action.Charge: {
+      if (stunned) {
+        // Reeling from the pillar: a wobble that says "hit me now".
+        return { height: 0, sx: 1 + Math.sin(elapsed * 0.9) * 0.08, sy: 1 - Math.sin(elapsed * 0.9) * 0.1, lean: -0.2 };
+      }
+      if (elapsed < windup) {
+        // Coils back, lower and lower, while its lane fills on the floor.
+        const c = ease(clamp01(elapsed / windup));
+        return { height: 0, sx: 1 + 0.08 * c, sy: 1 - 0.12 * c, lean: -0.35 * c };
+      }
+      return { height: 0, sx: 0.92, sy: 1.05, lean: 0.5 };
+    }
+    case Action.Sweep: {
+      if (elapsed < windup) {
+        const r = ease(clamp01(elapsed / windup));
+        return { height: 0.3 * r, sx: 1, sy: 1 + 0.12 * r, lean: 0 };
+      }
+      // Holds tall and still while the beam turns, with a faint hum.
+      return { height: 0.3, sx: 1 + Math.sin(elapsed * 3) * 0.02, sy: 1.12, lean: 0 };
     }
     case Action.Slam:
       return { height: 0, sx: 1 + slamWindup * 0.12, sy: 1 - slamWindup * 0.18, lean: 0.12 * slamWindup };

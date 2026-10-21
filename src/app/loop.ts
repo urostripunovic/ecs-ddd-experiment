@@ -10,6 +10,7 @@ import { perkDropSystem } from '../ecs/systems/perks';
 import { rewardSensorSystem } from '../ecs/systems/rewards';
 import { orbitSystem, spikeGrowthSystem, spikeSystem } from '../ecs/systems/pillars';
 import { burnSystem, tracerSystem } from '../ecs/systems/specials';
+import { hazardSystem, homingSystem } from '../ecs/systems/hazards';
 import { tunnelSystem } from '../ecs/systems/tunnel';
 import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
 import {
@@ -27,6 +28,7 @@ export function tick(): void {
   shakeSystem();
   inputSystem();
   bossPhaseSystem();
+  homingSystem();
   movementSystem(DT);
   orbitSystem(DT);
   bodyCollisionSystem();
@@ -40,6 +42,7 @@ export function tick(): void {
   projectileSystem(DT);
   burnSystem();
   slamSystem();
+  hazardSystem();
   spikeSystem();
   durabilitySystem(DT);
   stockSystem();

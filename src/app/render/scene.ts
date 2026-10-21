@@ -1,10 +1,11 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, Burn, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape,
+  Arena, BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jump, Line, LineState, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape,
   ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity, Wielder,
 } from '../../ecs/components';
 import { WEAPONS, WeaponKind } from '../../ecs/weapons/defs';
+import { BossStyleKind } from '../../ecs/bosses/defs';
 import { DOORS } from '../../ecs/arenas';
 import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
 import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
@@ -35,10 +36,14 @@ const COLOR = {
   safe: 0x6fd3b0,
   heavyBullet: 0xfff1a8,
   rail: 0x8fe8ff,
+  orb: 0xc77dff,
+  beam: 0xff4fd8,
   flame: 0xff8a2a,
   burning: 0x7a2c00,
 };
 // One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
+// A procedural boss's body, by Body: the Colossus stone-grey, the Lancer bronze, the Sentinel violet.
+const BODY_COLOR = [0x7c7a74, 0x9a7a4e, 0x6f6596];
 const PERK_COLOR = [0xffffff, 0xe8584a, 0x5fd39a, 0xffd65c, 0x9fb7ff, 0xd99cff];
 // One per RewardKind: revive, armor, heal, Scattergun.
 const REWARD_COLOR = [0xffffff, 0xff7aa8, 0x9fb7ff, 0x5fd39a, 0xffb347];
@@ -47,6 +52,8 @@ const SPIKE_GROW_TICKS = 40;
 const SPIKES_PER_RING = 8;
 
 const SWING_TICKS = 10;
+// Rings have at most four gaps, spirals at most four arms.
+const MAX_WEDGES = 4;
 
 // Two sines at unrelated rates: smooth, so the shake rolls instead of jittering.
 // Render-only, so it may be anything; it never reaches the simulation.
@@ -112,6 +119,9 @@ const geo = {
   flamerNozzle: new THREE.CylinderGeometry(0.05, 0.08, 0.5, 8).rotateX(Math.PI / 2).translate(0, 0, -0.6),
   // A unit box stretched along local z between the beam's two ends each frame.
   beam: new THREE.BoxGeometry(1, 1, 1),
+  orb: new THREE.SphereGeometry(0.42, 16, 12),
+  // A charge's lane: a unit square on the floor, stretched along local z.
+  lane: new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
   // The flamethrower's reach and half-angle, from its definition, opening along -z.
   flame: (() => {
     const def = WEAPONS[WeaponKind.Flamethrower];
@@ -205,6 +215,12 @@ function build(kind: number): Visual {
     case ShapeKind.Warhammer: return weapon([geo.hammerHandle, woodMat], [geo.hammerHead, gunMat]);
     case ShapeKind.Railgun: return weapon([geo.railBody, gunMat], [geo.railCoil, railMat], [geo.gunGrip, gunMat]);
     case ShapeKind.Flamethrower: return weapon([geo.flamerTank, shaded(COLOR.fury)], [geo.flamerNozzle, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Orb: {
+      const m = new THREE.Mesh(
+        geo.orb, new THREE.MeshStandardMaterial({ color: COLOR.orb, emissive: COLOR.orb, emissiveIntensity: 0.8, roughness: 0.3 }),
+      ) as Visual;
+      return m;
+    }
     case ShapeKind.RailBeam: {
       const m = new THREE.Mesh(
         geo.beam, new THREE.MeshBasicMaterial({ color: COLOR.rail, transparent: true, opacity: 0.9, depthWrite: false }),
@@ -395,13 +411,17 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     if (cones[e]) cones[e]!.visible = false;
     if (gapWedges[e]) gapWedges[e]!.visible = false;
     if (armWedges[e]) armWedges[e]!.visible = false;
+    if (lanes[e]) lanes[e]!.visible = false;
+    if (arcs[e]) arcs[e]!.visible = false;
+    if (beams[e]) beams[e]!.visible = false;
   };
 
   const acquire = (e: number, kind: number): Visual => {
     const v = pools[kind].pop() ?? build(kind);
     v.rotation.set(0, 0, 0);
     v.scale.setScalar(1);
-    v.position.y = kind === ShapeKind.Bullet || kind === ShapeKind.EnemyBullet || kind === ShapeKind.HeavyBullet ? AIM_HEIGHT : 0;
+    v.position.y = kind === ShapeKind.Bullet || kind === ShapeKind.EnemyBullet || kind === ShapeKind.HeavyBullet || kind === ShapeKind.Orb
+      ? AIM_HEIGHT : 0;
     scene.add(v);
     visuals[e] = v;
     visualGen[e] = world.generation[e];
@@ -445,6 +465,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       const mat = v.userData.mat;
       if (mat) {
         let color = v.userData.base!;
+        if (kind === ShapeKind.Boss && BossStyle.kind[e] === BossStyleKind.Procedural) color = BODY_COLOR[BossGen.body[e]] ?? color;
         if (kind === ShapeKind.Boss && BossPhase.phase[e] >= 2) color = BossPhase.phase[e] >= 3 ? COLOR.bossFinal : COLOR.bossEnraged;
         if (dead) color = COLOR.dead;
         mat.color.setHex(color);
@@ -469,7 +490,10 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         const slamming = has(e as EntityId, C.Slam);
         const winding = slamming ? 1 - Slam.timer[e] / Slam.windup[e] : 0;
         const elapsed = world.tick - BossAction.startedAt[e] + alpha;
-        const pose = bossPose(dead ? Action.Idle : BossAction.kind[e], elapsed, winding, Jump.fromHeight[e]);
+        const pose = bossPose(
+          dead ? Action.Idle : BossAction.kind[e], elapsed, winding, Jump.fromHeight[e], BossAction.windup[e],
+          Line.state[e] === LineState.Stunned,
+        );
         // Waiting on a perch before its first move: up there, not inside the pillar.
         const perched = BossAction.kind[e] === Action.Idle && has(e as EntityId, C.Airborne) ? Jump.fromHeight[e] : 0;
         v.position.y = dead ? -0.9 : pose.height || perched;
@@ -478,13 +502,15 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         if (!dead) faceFocus(v);
         v.scale.set(pose.sx, pose.sy, pose.sx);
         drawTelegraph(e, winding);
-        drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < CONE_WINDUP, elapsed / CONE_WINDUP);
-        const ringing = BossAction.kind[e] === Action.Ring || BossAction.kind[e] === Action.Storm;
-        drawWedges(e, gapWedges, geo.gap, COLOR.safe, RING_GAPS, !dead && ringing);
+        const windup = BossAction.windup[e];
+        drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < (windup || CONE_WINDUP), elapsed / (windup || CONE_WINDUP));
+        const ringing = BossAction.kind[e] === Action.Ring || BossAction.kind[e] === Action.Storm || BossAction.kind[e] === Action.Combo;
+        drawWedges(e, gapWedges, gapShape(Pattern.gapHalf[e] || RING_GAP_HALF), COLOR.safe, Pattern.gaps[e] || RING_GAPS, !dead && ringing);
         drawWedges(
-          e, armWedges, geo.arm, COLOR.telegraph, SPIRAL_ARMS,
-          !dead && BossAction.kind[e] === Action.Spiral && elapsed < SPIRAL_WINDUP,
+          e, armWedges, geo.arm, COLOR.telegraph, Pattern.arms[e] || SPIRAL_ARMS,
+          !dead && BossAction.kind[e] === Action.Spiral && elapsed < (windup || SPIRAL_WINDUP),
         );
+        drawLine(e, dead ? Action.Idle : BossAction.kind[e], elapsed, windup);
       } else if (kind === ShapeKind.Reward) {
         const color = REWARD_COLOR[RewardPickup.kind[e]] ?? 0xffffff;
         v.userData.gemMat!.color.setHex(color);
@@ -632,13 +658,99 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     e: number, pool: (THREE.Group | null)[], shape: THREE.BufferGeometry, color: number, count: number, active: boolean,
   ): void {
     if (!active && !pool[e]) return;
-    const g = pool[e] ?? (pool[e] = buildWedges(shape, color, count));
+    const g = pool[e] ?? (pool[e] = buildWedges(shape, color, MAX_WEDGES));
     if (!g.parent) scene.add(g);
     g.visible = active;
     if (!active) return;
     g.position.set(visuals[e]!.position.x, 0.03, visuals[e]!.position.z);
     for (let k = 0; k < g.children.length; k++) {
-      g.children[k].rotation.y = -(Pattern.gapAt[e] + (k * 2 * Math.PI) / g.children.length);
+      const wedge = g.children[k] as THREE.Mesh;
+      wedge.visible = k < count;
+      wedge.geometry = shape;
+      wedge.rotation.y = -(Pattern.gapAt[e] + (k * 2 * Math.PI) / count);
+    }
+  }
+
+  // A ring's gap wedge, one geometry per width a ring can have.
+  const gapShapes = new Map<number, THREE.BufferGeometry>();
+  function gapShape(half: number): THREE.BufferGeometry {
+    const key = Math.round(half * 1000);
+    let shape = gapShapes.get(key);
+    if (!shape) {
+      shape = new THREE.CircleGeometry(16, 12, -half, half * 2).rotateX(-Math.PI / 2);
+      gapShapes.set(key, shape);
+    }
+    return shape;
+  }
+
+  // A charge's lane, or a sweep's arc and then its beam, as the floor and the air show them.
+  const lanes: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const arcs: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const beams: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const arcBuiltFor = new Uint32Array(MAX_ENTITIES);
+  function drawLine(e: number, kind: number, elapsed: number, windup: number): void {
+    const state = Line.state[e];
+    const bx = visuals[e]!.position.x;
+    const bz = visuals[e]!.position.z;
+    const charging = kind === Action.Charge && (state === LineState.Telegraph || state === LineState.Live);
+    const sweeping = kind === Action.Sweep && state === LineState.Telegraph;
+    const beaming = kind === Action.Sweep && state === LineState.Live;
+
+    if (charging || lanes[e]) {
+      const lane = lanes[e] ?? (lanes[e] = new THREE.Mesh(geo.lane, new THREE.MeshBasicMaterial({
+        color: COLOR.telegraph, transparent: true, opacity: 0, depthWrite: false,
+      })));
+      if (!lane.parent) scene.add(lane);
+      lane.visible = charging;
+      if (charging) {
+        // Drawn from where the charge started: Line.length runs from there.
+        const a = Line.angle[e];
+        const live = state === LineState.Live;
+        const length = Line.length[e];
+        const ox = live ? (lane.userData.x ?? bx) : bx;
+        const oz = live ? (lane.userData.z ?? bz) : bz;
+        if (!live) { lane.userData.x = bx; lane.userData.z = bz; }
+        lane.position.set(ox + Math.cos(a) * length / 2, 0.025, oz + Math.sin(a) * length / 2);
+        lane.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
+        lane.scale.set(Line.width[e], 1, length);
+        (lane.material as THREE.MeshBasicMaterial).opacity = live ? 0.35 : 0.08 + 0.3 * Math.min(1, elapsed / (windup || 1));
+      }
+    }
+
+    if (sweeping || arcs[e]) {
+      const arc = arcs[e] ?? (arcs[e] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
+        color: COLOR.beam, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
+      })));
+      if (!arc.parent) scene.add(arc);
+      arc.visible = sweeping;
+      if (sweeping) {
+        // Built once per sweep: its arc is fixed when the telegraph starts.
+        if (arcBuiltFor[e] !== BossAction.startedAt[e]) {
+          arc.geometry.dispose();
+          const half = Math.abs(Line.arc[e]) / 2;
+          arc.geometry = new THREE.CircleGeometry(Arena.half * 1.6, 48, -half, half * 2).rotateX(-Math.PI / 2);
+          arc.userData.mid = Line.angle[e] + Line.arc[e] / 2;
+          arcBuiltFor[e] = BossAction.startedAt[e];
+        }
+        arc.position.set(bx, 0.02, bz);
+        arc.rotation.y = -arc.userData.mid;
+        (arc.material as THREE.MeshBasicMaterial).opacity = 0.05 + 0.18 * Math.min(1, elapsed / (windup || 1));
+      }
+    }
+
+    if (beaming || beams[e]) {
+      const beam = beams[e] ?? (beams[e] = new THREE.Mesh(geo.beam, new THREE.MeshBasicMaterial({
+        color: COLOR.beam, transparent: true, opacity: 0.85, depthWrite: false,
+      })));
+      if (!beam.parent) scene.add(beam);
+      beam.visible = beaming;
+      if (beaming) {
+        const a = Line.angle[e];
+        const reach = Line.reach[e] || Arena.half * 2;
+        beam.position.set(bx + Math.cos(a) * reach / 2, AIM_HEIGHT, bz + Math.sin(a) * reach / 2);
+        beam.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
+        beam.scale.set(Line.width[e], 0.25, reach);
+      }
     }
   }
 
