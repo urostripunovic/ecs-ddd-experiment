@@ -1,347 +1,30 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
-import {
-  Arena, BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jump, Line, LineState, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape,
-  ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity, Wielder,
-} from '../../ecs/components';
-import { WEAPONS, WeaponKind } from '../../ecs/weapons/defs';
-import { BossStyleKind } from '../../ecs/bosses/defs';
+import type { Visual } from './meshes';
 import { DOORS } from '../../ecs/arenas';
-import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
-import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
+import { BossStyleKind } from '../../ecs/bosses/defs';
+import { BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jump, Line, LineState, Orbit, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity, Wielder } from '../../ecs/components';
+import { MAX_ENTITIES, NOBODY, handleAt, has, indexOf, isLive, world } from '../../ecs/core/world';
+import type { EntityId, Handle } from '../../ecs/core/world';
+import { Action } from '../../ecs/systems/boss-actions';
 import { dizzy, dodging } from '../../ecs/systems/status';
 import { CHARGE_MAX_TICKS } from '../../ecs/weapons/charge';
 import { bossPose } from './boss-pose';
-import { follow, type Follow } from './camera';
-import { handleAt, has, indexOf, isLive, MAX_ENTITIES, NOBODY, world, type EntityId, type Handle } from '../../ecs/core/world';
-
-const COLOR = {
-  bg: 0x1b1c1e,
-  floor: 0x45484d,
-  wall: 0x5b5f66,
-  pillar: 0x6d7178,
-  player: 0x7fb2d9,
-  boss: 0x8f8c87,
-  bossEnraged: 0xa45a43,
-  bossFinal: 0xc23a2a,
-  bullet: 0xffd65c,
-  enemyBullet: 0xff6b3d,
-  telegraph: 0xd9573b,
-  dead: 0x2f3134,
-  steel: 0xc9ced6,
-  wood: 0x9c7a52,
-  gun: 0x3b4048,
-  haste: 0x5fd39a,
-  fury: 0xe8584a,
-  spiked: 0x8a4f45,
-  safe: 0x6fd3b0,
-  heavyBullet: 0xfff1a8,
-  rail: 0x8fe8ff,
-  orb: 0xc77dff,
-  beam: 0xff4fd8,
-  flame: 0xff8a2a,
-  burning: 0x7a2c00,
-};
-// One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
-// A procedural boss's body, by Body: the Colossus stone-grey, the Lancer bronze, the Sentinel violet.
-const BODY_COLOR = [0x7c7a74, 0x9a7a4e, 0x6f6596];
-const PERK_COLOR = [0xffffff, 0xe8584a, 0x5fd39a, 0xffd65c, 0x9fb7ff, 0xd99cff];
-// One per RewardKind: revive, armor, heal, Scattergun.
-const REWARD_COLOR = [0xffffff, 0xff7aa8, 0x9fb7ff, 0x5fd39a, 0xffb347];
-// Ticks for spikes to grow out, so the roar's threat is visible before it bites.
-const SPIKE_GROW_TICKS = 40;
-const SPIKES_PER_RING = 8;
-
-const SWING_TICKS = 10;
-// Rings have at most four gaps, spirals at most four arms.
-const MAX_WEDGES = 4;
+import { follow } from './camera';
+import type { Follow } from './camera';
+import { AIM_HEIGHT, BODY_COLOR, COLOR, GATE_HEIGHT, HAND_HEIGHT, PERK_COLOR, REWARD_COLOR, SPIKE_GROW_TICKS, SWING_TICKS, build, buildArena, buildGate, flameMat, geo } from './meshes';
+import { Telegraphs } from './telegraphs';
 
 // Two sines at unrelated rates: smooth, so the shake rolls instead of jittering.
 // Render-only, so it may be anything; it never reaches the simulation.
-const wobble = (x: number, seed: number) => (Math.sin(x + seed * 12.9) + Math.sin(x * 1.7 + seed * 4.1)) * 0.5;
-const shakeOffset = new THREE.Vector3(); // matches the attack system; only used to time the animation
-const HAND_HEIGHT = 0.9;
+export const wobble = (x: number, seed: number) => (Math.sin(x + seed * 12.9) + Math.sin(x * 1.7 + seed * 4.1)) * 0.5;
 
-const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
+export const shakeOffset = new THREE.Vector3(); // matches the attack system; only used to time the animation
+
+export const CAMERA_OFFSET = new THREE.Vector3(0, 26, 16);
+
 // Leading the aim a little shows more of where you are shooting than where you have been.
-const LOOK_AHEAD = 3;
-const AIM_HEIGHT = 0.9; // bullets fly at this height, so aim on the same plane
-
-type Visual = THREE.Object3D & {
-  userData: {
-    mat?: THREE.MeshStandardMaterial; base?: number; spikes?: THREE.Group;
-    gem?: THREE.Mesh; gemMat?: THREE.MeshStandardMaterial;
-  };
-};
-
-function shaded(color: number): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 });
-}
-
-function cast<T extends THREE.Object3D>(o: T): T {
-  o.traverse((c) => { c.castShadow = true; c.receiveShadow = true; });
-  return o;
-}
-
-// Shared geometry; per-entity materials only where a hit flash needs its own colour.
-const geo = {
-  playerBody: new THREE.CapsuleGeometry(0.42, 0.7, 6, 14),
-  visor: new THREE.BoxGeometry(0.5, 0.18, 0.3),
-  bossBody: new THREE.BoxGeometry(2.4, 2.8, 2.4),
-  bossCore: new THREE.BoxGeometry(1.0, 0.5, 0.2),
-  bullet: new THREE.CapsuleGeometry(0.11, 0.7, 4, 8).rotateX(Math.PI / 2),
-  enemyBullet: new THREE.SphereGeometry(0.24, 12, 10),
-  pillar: new THREE.CylinderGeometry(1, 1, 3.2, 24),
-  // Weapons point down local -z, the same way the player faces, so one yaw aims both.
-  blade: new THREE.BoxGeometry(0.1, 0.05, 1.3).translate(0, 0, -0.85),
-  guard: new THREE.BoxGeometry(0.42, 0.08, 0.08).translate(0, 0, -0.18),
-  shaft: new THREE.CylinderGeometry(0.04, 0.04, 2.4, 8).rotateX(Math.PI / 2).translate(0, 0, -0.7),
-  tip: new THREE.ConeGeometry(0.1, 0.35, 10).rotateX(-Math.PI / 2).translate(0, 0, -2.05),
-  gunBody: new THREE.BoxGeometry(0.18, 0.2, 0.62).translate(0, 0, -0.25),
-  gunGrip: new THREE.BoxGeometry(0.14, 0.26, 0.14).translate(0, -0.18, 0),
-  buff: new THREE.OctahedronGeometry(0.34),
-  perk: new THREE.IcosahedronGeometry(0.42, 0),
-  pedestal: new THREE.CylinderGeometry(0.7, 0.85, 0.6, 16),
-  rewardGem: new THREE.OctahedronGeometry(0.5),
-  scatterBody: new THREE.BoxGeometry(0.26, 0.22, 0.5).translate(0, 0, -0.2),
-  scatterBarrel: new THREE.CylinderGeometry(0.09, 0.13, 0.4, 10).rotateX(Math.PI / 2).translate(0, 0.02, -0.62),
-  heavyBullet: new THREE.CapsuleGeometry(0.3, 1.2, 4, 10).rotateX(Math.PI / 2),
-  // Base at the origin, pointing +x, so scaling a spike grows it out of the pillar.
-  spike: new THREE.ConeGeometry(0.16, 0.5, 8).translate(0, 0.25, 0).rotateZ(-Math.PI / 2),
-  // A wedge centred on angle 0, flat on the floor: one ring gap.
-  gap: new THREE.CircleGeometry(16, 12, -RING_GAP_HALF, RING_GAP_HALF * 2).rotateX(-Math.PI / 2),
-  arm: new THREE.CircleGeometry(16, 4, -0.05, 0.1).rotateX(-Math.PI / 2),
-  chakram: new THREE.TorusGeometry(0.36, 0.07, 6, 24).rotateX(Math.PI / 2),
-  hammerHandle: new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8).rotateX(Math.PI / 2).translate(0, 0, -0.55),
-  hammerHead: new THREE.BoxGeometry(0.62, 0.36, 0.36).translate(0, 0, -1.2),
-  railBody: new THREE.BoxGeometry(0.16, 0.18, 1.0).translate(0, 0, -0.45),
-  railCoil: new THREE.TorusGeometry(0.15, 0.04, 6, 16).translate(0, 0, -0.7),
-  flamerTank: new THREE.CylinderGeometry(0.15, 0.15, 0.5, 12).rotateX(Math.PI / 2).translate(0, 0, -0.1),
-  flamerNozzle: new THREE.CylinderGeometry(0.05, 0.08, 0.5, 8).rotateX(Math.PI / 2).translate(0, 0, -0.6),
-  // A unit box stretched along local z between the beam's two ends each frame.
-  beam: new THREE.BoxGeometry(1, 1, 1),
-  orb: new THREE.SphereGeometry(0.42, 16, 12),
-  // A charge's lane: a unit square on the floor, stretched along local z.
-  lane: new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-  // The flamethrower's reach and half-angle, from its definition, opening along -z.
-  flame: (() => {
-    const def = WEAPONS[WeaponKind.Flamethrower];
-    const radius = def.reach * Math.tan(Math.acos(def.arcCos));
-    return new THREE.ConeGeometry(radius, def.reach, 20, 1, true).rotateX(Math.PI / 2).translate(0, 0, -def.reach / 2);
-  })(),
-};
-const railMat = new THREE.MeshStandardMaterial({ color: COLOR.rail, emissive: COLOR.rail, emissiveIntensity: 0.5, roughness: 0.3 });
-const flameMat = new THREE.MeshBasicMaterial({
-  color: COLOR.flame, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide,
-});
-const bulletMat = new THREE.MeshBasicMaterial({ color: COLOR.bullet });
-const enemyBulletMat = new THREE.MeshBasicMaterial({ color: COLOR.enemyBullet });
-const steelMat = new THREE.MeshStandardMaterial({ color: COLOR.steel, roughness: 0.35, metalness: 0.6 });
-const woodMat = shaded(COLOR.wood);
-const gunMat = shaded(COLOR.gun);
-
-function weapon(...parts: [THREE.BufferGeometry, THREE.Material][]): Visual {
-  const g = new THREE.Group() as Visual;
-  for (const [geometry, material] of parts) g.add(new THREE.Mesh(geometry, material));
-  return cast(g);
-}
-
-function buffVisual(color: number): Visual {
-  const m = new THREE.Mesh(
-    geo.buff,
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.4 }),
-  ) as Visual;
-  return cast(m);
-}
-
-function build(kind: number): Visual {
-  switch (kind) {
-    case ShapeKind.Player: {
-      const mat = shaded(COLOR.player);
-      const g = new THREE.Group() as Visual;
-      const body = new THREE.Mesh(geo.playerBody, mat);
-      body.position.y = 0.85;
-      const visor = new THREE.Mesh(geo.visor, shaded(0x22313d));
-      visor.position.set(0, 1.15, -0.38);
-      g.add(body, visor);
-      g.userData = { mat, base: COLOR.player };
-      return cast(g);
-    }
-    case ShapeKind.Boss: {
-      const mat = shaded(COLOR.boss);
-      const g = new THREE.Group() as Visual;
-      const body = new THREE.Mesh(geo.bossBody, mat);
-      body.position.y = 1.4;
-      const core = new THREE.Mesh(geo.bossCore, new THREE.MeshBasicMaterial({ color: COLOR.telegraph }));
-      core.position.set(0, 2.0, 1.21);
-      g.add(body, core);
-      g.userData = { mat, base: COLOR.boss };
-      // Yaw first, then pitch, so leaning back and forth follows the way it faces.
-      g.rotation.order = 'YXZ';
-      return cast(g);
-    }
-    case ShapeKind.Bullet: {
-      const m = new THREE.Mesh(geo.bullet, bulletMat) as Visual;
-      m.position.y = AIM_HEIGHT;
-      return m;
-    }
-    case ShapeKind.EnemyBullet:
-      return new THREE.Mesh(geo.enemyBullet, enemyBulletMat) as Visual;
-    case ShapeKind.Pillar: {
-      // Own material, so a spiked pillar can glow without tinting the rest.
-      const mat = shaded(COLOR.pillar);
-      const g = new THREE.Group() as Visual;
-      const column = new THREE.Mesh(geo.pillar, mat);
-      column.position.y = 1.6;
-      const spikes = new THREE.Group();
-      for (let row = 0; row < 2; row++) {
-        for (let i = 0; i < SPIKES_PER_RING; i++) {
-          const a = ((i + row * 0.5) / SPIKES_PER_RING) * Math.PI * 2;
-          const spike = new THREE.Mesh(geo.spike, steelMat);
-          spike.position.set(Math.cos(a), 0.9 + row * 1.3, Math.sin(a));
-          spike.rotation.y = -a;
-          spikes.add(spike);
-        }
-      }
-      spikes.visible = false;
-      g.add(column, spikes);
-      g.userData = { mat, base: COLOR.pillar, spikes } as Visual['userData'];
-      return cast(g);
-    }
-    case ShapeKind.Sword: return weapon([geo.blade, steelMat], [geo.guard, gunMat]);
-    case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
-    case ShapeKind.Gun: return weapon([geo.gunBody, gunMat], [geo.gunGrip, gunMat]);
-    case ShapeKind.Scattergun: return weapon([geo.scatterBody, woodMat], [geo.scatterBarrel, gunMat], [geo.gunGrip, gunMat]);
-    case ShapeKind.Chakram: return weapon([geo.chakram, steelMat]);
-    case ShapeKind.Warhammer: return weapon([geo.hammerHandle, woodMat], [geo.hammerHead, gunMat]);
-    case ShapeKind.Railgun: return weapon([geo.railBody, gunMat], [geo.railCoil, railMat], [geo.gunGrip, gunMat]);
-    case ShapeKind.Flamethrower: return weapon([geo.flamerTank, shaded(COLOR.fury)], [geo.flamerNozzle, gunMat], [geo.gunGrip, gunMat]);
-    case ShapeKind.Orb: {
-      const m = new THREE.Mesh(
-        geo.orb, new THREE.MeshStandardMaterial({ color: COLOR.orb, emissive: COLOR.orb, emissiveIntensity: 0.8, roughness: 0.3 }),
-      ) as Visual;
-      return m;
-    }
-    case ShapeKind.RailBeam: {
-      const m = new THREE.Mesh(
-        geo.beam, new THREE.MeshBasicMaterial({ color: COLOR.rail, transparent: true, opacity: 0.9, depthWrite: false }),
-      ) as Visual;
-      return m;
-    }
-    case ShapeKind.Reward: {
-      const g = new THREE.Group() as Visual;
-      const stand = new THREE.Mesh(geo.pedestal, shaded(0x55585e));
-      stand.position.y = 0.3;
-      const gemMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.7, roughness: 0.3 });
-      const gem = new THREE.Mesh(geo.rewardGem, gemMat);
-      gem.position.y = 1.4;
-      g.add(stand, gem);
-      g.userData = { gem, gemMat } as Visual['userData'];
-      return cast(g);
-    }
-    case ShapeKind.Perk: {
-      const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.5, roughness: 0.3 });
-      return cast(new THREE.Mesh(geo.perk, mat)) as Visual;
-    }
-    case ShapeKind.HeavyBullet: {
-      const m = new THREE.Mesh(geo.heavyBullet, new THREE.MeshBasicMaterial({ color: COLOR.heavyBullet })) as Visual;
-      m.position.y = AIM_HEIGHT;
-      return m;
-    }
-    case ShapeKind.Haste: return buffVisual(COLOR.haste);
-    case ShapeKind.Fury: return buffVisual(COLOR.fury);
-    default:
-      return new THREE.Object3D() as Visual;
-  }
-}
-
-function buildArena(scene: THREE.Scene): void {
-  const size = Arena.half * 2;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(size, size), shaded(COLOR.floor));
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-
-  // Greybox grid: 2 m squares make distances readable while tuning.
-  const grid = new THREE.GridHelper(size, size / 2, 0x5d6168, 0x52565c);
-  grid.position.y = 0.01;
-  scene.add(grid);
-
-  const wallMat = shaded(COLOR.wall);
-  const h = 1.2;
-  const t = 0.6;
-  // The north wall has a gap for each door; the gates (drawn per frame) fill them.
-  const gap = DOORS.halfWidth;
-  const doorXs = [DOORS.onward.x, DOORS.final.x];
-  const edges = [-Arena.half - t, ...doorXs.flatMap((x) => [x - gap, x + gap]), Arena.half + t];
-  const walls: number[][] = [
-    [0, Arena.half + t / 2, size + t * 2, t],
-    [-Arena.half - t / 2, 0, t, size],
-    [Arena.half + t / 2, 0, t, size],
-  ];
-  for (let i = 0; i < edges.length; i += 2) {
-    walls.push([(edges[i] + edges[i + 1]) / 2, -Arena.half - t / 2, edges[i + 1] - edges[i], t]);
-  }
-  for (const x of doorXs) {
-    // Each corridor's sides.
-    walls.push([x - gap - t / 2, -Arena.half - DOORS.depth / 2, t, DOORS.depth]);
-    walls.push([x + gap + t / 2, -Arena.half - DOORS.depth / 2, t, DOORS.depth]);
-  }
-  for (const [x, z, w, d] of walls) {
-    const wall = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat));
-    wall.position.set(x, h / 2, z);
-    scene.add(wall);
-  }
-  // Fading to black down each corridor: you walk into the dark, and come out in
-  // the next arena. The final's ends in the Keeper's red, so it reads as the end.
-  for (const [x, end] of [[DOORS.onward.x, 0x000000], [DOORS.final.x, COLOR.bossFinal]]) {
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(gap * 2, DOORS.depth), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(x, 0.005, -Arena.half - DOORS.depth / 2);
-    scene.add(floor);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + t * 2, 4, 0.5), new THREE.MeshBasicMaterial({ color: end }));
-    back.position.set(x, 2, -Arena.half - DOORS.depth);
-    scene.add(back);
-  }
-}
-
-const GATE_HEIGHT = 1.6;
-function buildGate(scene: THREE.Scene, x: number, color: number): THREE.Mesh {
-  const gate = cast(new THREE.Mesh(new THREE.BoxGeometry(DOORS.halfWidth * 2, GATE_HEIGHT, 0.5), shaded(color)));
-  gate.position.set(x, GATE_HEIGHT / 2, -Arena.half - 0.25);
-  scene.add(gate);
-  return gate;
-}
-
-// A flat wedge pointing down +x, turned toward the player while a cone winds up.
-const CONE_HALF_ANGLE = 0.4;
-const CONE_LENGTH = 11;
-function buildConeTelegraph(): THREE.Mesh {
-  const m = new THREE.Mesh(
-    new THREE.CircleGeometry(CONE_LENGTH, 24, -CONE_HALF_ANGLE, CONE_HALF_ANGLE * 2).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ color: COLOR.telegraph, transparent: true, opacity: 0, depthWrite: false }),
-  );
-  m.position.y = 0.025;
-  return m;
-}
-
-function buildTelegraph(): THREE.Group {
-  const g = new THREE.Group();
-  const edge = new THREE.Mesh(
-    new THREE.RingGeometry(0.96, 1, 64),
-    new THREE.MeshBasicMaterial({ color: COLOR.telegraph, transparent: true, opacity: 0.9, depthWrite: false }),
-  );
-  const fill = new THREE.Mesh(
-    new THREE.CircleGeometry(1, 64),
-    new THREE.MeshBasicMaterial({ color: COLOR.telegraph, transparent: true, opacity: 0.28, depthWrite: false }),
-  );
-  edge.rotation.x = fill.rotation.x = -Math.PI / 2;
-  edge.position.y = 0.03;
-  fill.position.y = 0.02;
-  g.add(edge, fill);
-  g.userData.fill = fill;
-  return g;
-}
+export const LOOK_AHEAD = 3;
 
 export type ArenaView = {
   render(alpha: number): void;
@@ -396,11 +79,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const visualGen = new Uint32Array(MAX_ENTITIES);
   const visualKind = new Uint8Array(MAX_ENTITIES);
   const pools: Visual[][] = Object.values(ShapeKind).map(() => []);
-  const telegraphs: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
-  const cones: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
-  // Floor wedges: where a ring leaves its gaps, and where a spiral's arms start.
-  const gapWedges: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
-  const armWedges: (THREE.Group | null)[] = new Array(MAX_ENTITIES).fill(null);
+  const telegraphs = new Telegraphs(scene, visuals, focus);
   let highWater = 0;
 
   const release = (e: number) => {
@@ -408,13 +87,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     scene.remove(v);
     pools[visualKind[e]].push(v);
     visuals[e] = null;
-    if (telegraphs[e]) telegraphs[e]!.visible = false;
-    if (cones[e]) cones[e]!.visible = false;
-    if (gapWedges[e]) gapWedges[e]!.visible = false;
-    if (armWedges[e]) armWedges[e]!.visible = false;
-    if (lanes[e]) lanes[e]!.visible = false;
-    if (arcs[e]) arcs[e]!.visible = false;
-    if (beams[e]) beams[e]!.visible = false;
+    telegraphs.hide(e);
   };
 
   const acquire = (e: number, kind: number): Visual => {
@@ -505,16 +178,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         v.rotation.x = pose.lean;
         if (!dead) faceFocus(v);
         v.scale.set(pose.sx, pose.sy, pose.sx);
-        drawTelegraph(e, winding);
-        const windup = BossAction.windup[e];
-        drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < (windup || CONE_WINDUP), elapsed / (windup || CONE_WINDUP));
-        const ringing = BossAction.kind[e] === Action.Ring || BossAction.kind[e] === Action.Storm || BossAction.kind[e] === Action.Combo;
-        drawWedges(e, gapWedges, gapShape(Pattern.gapHalf[e] || RING_GAP_HALF), COLOR.safe, Pattern.gaps[e] || RING_GAPS, !dead && ringing);
-        drawWedges(
-          e, armWedges, geo.arm, COLOR.telegraph, Pattern.arms[e] || SPIRAL_ARMS,
-          !dead && BossAction.kind[e] === Action.Spiral && elapsed < (windup || SPIRAL_WINDUP),
-        );
-        drawLine(e, dead ? Action.Idle : BossAction.kind[e], elapsed, windup);
+        telegraphs.draw(e, dead, elapsed, winding);
       } else if (kind === ShapeKind.Reward) {
         const color = REWARD_COLOR[RewardPickup.kind[e]] ?? 0xffffff;
         v.userData.gemMat!.color.setHex(color);
@@ -649,145 +313,6 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   }
 
   // Drawn at the slam's own centre, so a jump shows where it will land the moment it takes off.
-  function drawTelegraph(e: number, progress: number): void {
-    const active = has(e as EntityId, C.Slam);
-    if (!active && !telegraphs[e]) return;
-    const g = telegraphs[e] ?? (telegraphs[e] = buildTelegraph());
-    if (!g.parent) scene.add(g);
-    g.visible = active;
-    if (!active) return;
-    const r = Slam.radius[e];
-    g.position.set(Slam.x[e], 0, Slam.z[e]);
-    g.scale.set(r, 1, r);
-    const fill = g.userData.fill as THREE.Mesh;
-    fill.scale.setScalar(Math.max(0.001, progress));
-  }
-
-  // Pattern.gapAt is the same number the ring's bullets are fired from, so the
-  // floor can't show a gap the bullets don't leave.
-  function drawWedges(
-    e: number, pool: (THREE.Group | null)[], shape: THREE.BufferGeometry, color: number, count: number, active: boolean,
-  ): void {
-    if (!active && !pool[e]) return;
-    const g = pool[e] ?? (pool[e] = buildWedges(shape, color, MAX_WEDGES));
-    if (!g.parent) scene.add(g);
-    g.visible = active;
-    if (!active) return;
-    g.position.set(visuals[e]!.position.x, 0.03, visuals[e]!.position.z);
-    for (let k = 0; k < g.children.length; k++) {
-      const wedge = g.children[k] as THREE.Mesh;
-      wedge.visible = k < count;
-      wedge.geometry = shape;
-      wedge.rotation.y = -(Pattern.gapAt[e] + (k * 2 * Math.PI) / count);
-    }
-  }
-
-  // A ring's gap wedge, one geometry per width a ring can have.
-  const gapShapes = new Map<number, THREE.BufferGeometry>();
-  function gapShape(half: number): THREE.BufferGeometry {
-    const key = Math.round(half * 1000);
-    let shape = gapShapes.get(key);
-    if (!shape) {
-      shape = new THREE.CircleGeometry(16, 12, -half, half * 2).rotateX(-Math.PI / 2);
-      gapShapes.set(key, shape);
-    }
-    return shape;
-  }
-
-  // A charge's lane, or a sweep's arc and then its beam, as the floor and the air show them.
-  const lanes: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
-  const arcs: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
-  const beams: (THREE.Mesh | null)[] = new Array(MAX_ENTITIES).fill(null);
-  const arcBuiltFor = new Uint32Array(MAX_ENTITIES);
-  function drawLine(e: number, kind: number, elapsed: number, windup: number): void {
-    const state = Line.state[e];
-    const bx = visuals[e]!.position.x;
-    const bz = visuals[e]!.position.z;
-    const charging = kind === Action.Charge && (state === LineState.Telegraph || state === LineState.Live);
-    const sweeping = kind === Action.Sweep && state === LineState.Telegraph;
-    const beaming = kind === Action.Sweep && state === LineState.Live;
-
-    if (charging || lanes[e]) {
-      const lane = lanes[e] ?? (lanes[e] = new THREE.Mesh(geo.lane, new THREE.MeshBasicMaterial({
-        color: COLOR.telegraph, transparent: true, opacity: 0, depthWrite: false,
-      })));
-      if (!lane.parent) scene.add(lane);
-      lane.visible = charging;
-      if (charging) {
-        // Drawn from where the charge started: Line.length runs from there.
-        const a = Line.angle[e];
-        const live = state === LineState.Live;
-        const length = Line.length[e];
-        const ox = live ? (lane.userData.x ?? bx) : bx;
-        const oz = live ? (lane.userData.z ?? bz) : bz;
-        if (!live) { lane.userData.x = bx; lane.userData.z = bz; }
-        lane.position.set(ox + Math.cos(a) * length / 2, 0.025, oz + Math.sin(a) * length / 2);
-        lane.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
-        lane.scale.set(Line.width[e], 1, length);
-        (lane.material as THREE.MeshBasicMaterial).opacity = live ? 0.35 : 0.08 + 0.3 * Math.min(1, elapsed / (windup || 1));
-      }
-    }
-
-    if (sweeping || arcs[e]) {
-      const arc = arcs[e] ?? (arcs[e] = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({
-        color: COLOR.beam, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide,
-      })));
-      if (!arc.parent) scene.add(arc);
-      arc.visible = sweeping;
-      if (sweeping) {
-        // Built once per sweep: its arc is fixed when the telegraph starts.
-        if (arcBuiltFor[e] !== BossAction.startedAt[e]) {
-          arc.geometry.dispose();
-          const half = Math.abs(Line.arc[e]) / 2;
-          arc.geometry = new THREE.CircleGeometry(Arena.half * 1.6, 48, -half, half * 2).rotateX(-Math.PI / 2);
-          arc.userData.mid = Line.angle[e] + Line.arc[e] / 2;
-          arcBuiltFor[e] = BossAction.startedAt[e];
-        }
-        arc.position.set(bx, 0.02, bz);
-        arc.rotation.y = -arc.userData.mid;
-        (arc.material as THREE.MeshBasicMaterial).opacity = 0.05 + 0.18 * Math.min(1, elapsed / (windup || 1));
-      }
-    }
-
-    if (beaming || beams[e]) {
-      const beam = beams[e] ?? (beams[e] = new THREE.Mesh(geo.beam, new THREE.MeshBasicMaterial({
-        color: COLOR.beam, transparent: true, opacity: 0.85, depthWrite: false,
-      })));
-      if (!beam.parent) scene.add(beam);
-      beam.visible = beaming;
-      if (beaming) {
-        const a = Line.angle[e];
-        const reach = Line.reach[e] || Arena.half * 2;
-        beam.position.set(bx + Math.cos(a) * reach / 2, AIM_HEIGHT, bz + Math.sin(a) * reach / 2);
-        beam.rotation.y = Math.atan2(Math.cos(a), Math.sin(a));
-        beam.scale.set(Line.width[e], 0.25, reach);
-      }
-    }
-  }
-
-  function buildWedges(shape: THREE.BufferGeometry, color: number, count: number): THREE.Group {
-    const g = new THREE.Group();
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false });
-    for (let k = 0; k < count; k++) g.add(new THREE.Mesh(shape, mat));
-    return g;
-  }
-
-  function drawCone(e: number, active: boolean, progress: number): void {
-    if (!active && !cones[e]) return;
-    const m = cones[e] ?? (cones[e] = buildConeTelegraph());
-    if (!m.parent) scene.add(m);
-    m.visible = active;
-    const h = focus();
-    if (!active || !isLive(h)) return;
-    const p = indexOf(h);
-    const bx = visuals[e]!.position.x;
-    const bz = visuals[e]!.position.z;
-    m.position.x = bx;
-    m.position.z = bz;
-    m.rotation.y = -Math.atan2(Transform.z[p] - bz, Transform.x[p] - bx);
-    (m.material as THREE.MeshBasicMaterial).opacity = 0.08 + 0.3 * Math.min(1, progress);
-  }
-
   function followCamera(alpha: number, dt: number): void {
     const h = focus();
     if (isLive(h)) {

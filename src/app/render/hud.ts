@@ -5,7 +5,6 @@ import { Ammo, BossPhase, C, Durability, GodMode, Health, Item, RunStatus, RunVi
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { has, indexOf, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { dizzy, furious, hasted, slowed } from '../../ecs/systems/status';
-import { WeaponKind } from '../../ecs/weapons/defs';
 import { lowHp, Perk, perkSlots } from '../../ecs/systems/perks';
 import { armorPlates } from '../../ecs/systems/armor';
 import { defOf, heldItem } from '../../ecs/systems/weapons';
@@ -145,7 +144,7 @@ export function createHud(root: HTMLElement) {
       if (fill > 0) {
         set(gaugeFill, 'scale', fill.toFixed(3));
         // A spinning hammer's gauge is momentum: no perfect zone to show or hit.
-        const spin = item !== -1 && Item.kind[item] === WeaponKind.Warhammer && Wielder.charge[p] > 0;
+        const spin = item !== -1 && def.heldThrow === 'spin' && Wielder.charge[p] > 0;
         gaugeZone.hidden = spin;
         gaugeFill.className = `gauge-fill ${spin ? 'building' : ZONE_CLASS[throwCharge(fill).zone]}`;
       }
