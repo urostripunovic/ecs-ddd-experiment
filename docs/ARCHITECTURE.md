@@ -121,6 +121,12 @@ The run is the first area that grew because of a feature. Which arena you're in,
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
 
+## The run's plan
+
+Decided with the user: six fights. Arena 1 is always the Warden, the tutorial; arenas 2 to 5 are drawn from a pool of boss-and-arena pairs (`POOL` in `ecs/arenas.ts`); arena 6 is always the final boss. `arenaFor(seed, arena, arenas)` plans each from the run's seed with a pure hash draw, so planning never moves the RNG that a seed's drops depend on, and it never draws the same boss twice in a row when the pool has a choice. Each arena deeper adds 30% hp and 8% pace; pace shortens every chain gap (never under one tick, so two actions can't start together) and speeds bullets by half as much.
+
+The plan is simulation: the run only knows how many arenas there are and which one you're in. Each run gets a random seed (the app picks it; nothing else calls `Math.random`), shown on the end screen; `?seed=123` replays that run exactly.
+
 ## Revives and rewards
 
 Decided with the user. You start with 3 revives and hold at most 8 (run state). Going down with one left is `PlayerRevived`: back up where you fell at full hp, 2 s untouchable, nearby enemy bullets cleared (`revivePlayer`). A trade on the winning tick spends a revive and the win stands; with none left, if we die, we die (R6, R8, R9, R11).

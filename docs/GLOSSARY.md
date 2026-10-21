@@ -15,6 +15,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Revive** | domain (`RunState.revives`) | A spare life: going down with one left gets you back up instead of losing. Start 3, max 8. |
 | **Reward** | domain (`Reward`), pedestals in the ECS | What a cleared boss offers: three to pick one from. `revive`, `armor`, `heal` or `scattergun`. |
 | **Armor plate** | ECS (`Armor`), carried by the loadout | Blocks one hit completely, then breaks. At most three. |
+| **Pool** | ECS (`POOL`) | The boss-and-arena pairs a run draws its middle arenas from. |
+| **Depth** | ECS (`arenaFor`) | How far into the run an arena is (arena 1 is depth 0). Each step adds hp and pace to its boss. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
