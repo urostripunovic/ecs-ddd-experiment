@@ -1,5 +1,5 @@
 // Components: data only, structure of arrays, indexed by EntityId.
-import { MAX } from '../core/world';
+import { MAX, onDespawn, toHandle, world, type ComponentMask, type EntityId } from '../core/world';
 
 import { RunViewWritable } from './run-view';
 import { C } from './tags';
@@ -20,16 +20,18 @@ export const Hurt = { flash: new Uint8Array(MAX) };
 // Handles are plain numbers in an Int32Array, like the input counters. Declaring
 // them here, not in a comment, lets tools (the god menu's inspector) tell
 // "points at Gun #6" from a count, without a second list to keep in step.
-const HANDLE_FIELDS = new WeakSet<Int32Array>();
-function handleField(): Int32Array {
+// countsWhile is the tag a row needs for its cell to mean anything: a reused row
+// keeps its last occupant's cells, and those leftovers point at nothing on purpose.
+const HANDLE_FIELDS = new WeakMap<Int32Array, ComponentMask>();
+function handleField(countsWhile: ComponentMask): Int32Array {
   const a = new Int32Array(MAX);
-  HANDLE_FIELDS.add(a);
+  HANDLE_FIELDS.set(a, countsWhile);
   return a;
 }
 export const holdsHandles = (field: unknown): boolean => field instanceof Int32Array && HANDLE_FIELDS.has(field);
 
 // Remembered so the downed command can say who downed whom.
-export const LastHit = { by: handleField() };
+export const LastHit = { by: handleField(C.Health) };
 
 // held: NO_HANDLE means fists. cooldown is seconds until the next attack;
 // swing is ticks of attack animation left, for the renderer.
@@ -38,7 +40,7 @@ export const LastHit = { by: handleField() };
 // seen values, so an input is never lost or doubled whatever the frame rate.
 // charge: ticks the throw has been held, capped at CHARGE_MAX_TICKS.
 export const Wielder = {
-  held: handleField(), cooldown: new Float32Array(MAX), swing: new Uint8Array(MAX),
+  held: handleField(C.Wielder), cooldown: new Float32Array(MAX), swing: new Uint8Array(MAX),
   throwSeen: new Int32Array(MAX), interactSeen: new Int32Array(MAX), charge: new Uint8Array(MAX),
 };
 
@@ -52,11 +54,11 @@ export const Ammo = { count: new Uint16Array(MAX), reload: new Float32Array(MAX)
 // by is the thrower; dmg and wearMul are fixed at release, so a buff
 // ending mid-flight doesn't change what the throw does.
 export const Thrown = {
-  by: handleField(), dmg: new Float32Array(MAX), wearMul: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX),
+  by: handleField(C.Flying), dmg: new Float32Array(MAX), wearMul: new Float32Array(MAX), ticksLeft: new Uint16Array(MAX),
 };
 
 // angle is where around the host it went in, so it rides there.
-export const StuckIn = { host: handleField(), angle: new Float32Array(MAX) };
+export const StuckIn = { host: handleField(C.Stuck), angle: new Float32Array(MAX) };
 
 export const BuffPickup = { kind: new Uint8Array(MAX) };
 // Tick deadlines rather than countdowns: written once on pickup, read by
@@ -76,7 +78,7 @@ export const Knockback = { x: new Float32Array(MAX), z: new Float32Array(MAX), u
 
 export const Team = { id: new Uint8Array(MAX) };
 export const TeamId = { Player: 0, Enemy: 1, Neutral: 2 } as const;
-export const Projectile = { owner: handleField(), dmg: new Float32Array(MAX), life: new Float32Array(MAX) };
+export const Projectile = { owner: handleField(C.Projectile), dmg: new Float32Array(MAX), life: new Float32Array(MAX) };
 export const Collider = { radius: new Float32Array(MAX) };
 
 // phase: which stage of the fight, written only by bossThresholdSystem.
@@ -152,6 +154,30 @@ export const ARENA_STATE = {
 // them), and RunView is the run's projection, rewritten by every build.
 export const RUN_STATE = { PlayerInput, RunView, GodMode };
 export const CONSTANTS = { C, TeamId, ShapeKind, RunStatus, Arena };
+
+// A note must be cleared before the row it points at is freed, as breakItem does.
+// Otherwise only isLive stands between it and whatever takes the row next: skip
+// that check once and you throw a sword that broke, or a bullet. Dev builds and
+// tests fail at the despawn that leaves one behind, naming both ends; release
+// builds compile this away.
+const NOTES = Object.entries(ARENA_STATE).flatMap(([component, group]) =>
+  Object.entries(group).flatMap(([field, column]) => {
+    const countsWhile = column instanceof Int32Array ? HANDLE_FIELDS.get(column) : undefined;
+    return countsWhile === undefined ? [] : [{ name: `${component}.${field}`, column: column as Int32Array, countsWhile }];
+  }));
+const SHAPE_NAMES = Object.fromEntries(Object.entries(ShapeKind).map(([name, kind]) => [kind, name]));
+const nameOf = (e: number) => `${Shape.kind[e] ? SHAPE_NAMES[Shape.kind[e]] : 'entity'} #${e}`;
+
+function failOnNotesTo(e: EntityId): void {
+  const h = toHandle(e);
+  for (const { name, column, countsWhile } of NOTES) {
+    for (let r = 0; r < world.nextFresh; r++) {
+      if (r === e || !world.alive[r] || (world.mask[r] & countsWhile) !== countsWhile || column[r] !== h) continue;
+      throw new Error(`row ${e} freed while ${name}[${r}] still points at it (${nameOf(e)}, from ${nameOf(r)}). Clear the note first, as breakItem does.`);
+    }
+  }
+}
+if (import.meta.env.DEV) onDespawn(failOnNotesTo);
 
 type Group = Record<string, unknown>;
 
