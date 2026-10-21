@@ -14,7 +14,8 @@ import { equip } from '../ecs/systems/weapons';
 import { WEAPON_STOCK } from '../ecs/weapons/defs';
 import { bossIdFor, PLAYER_ID } from './ids';
 import { idMap } from './id-map';
-import { KIND_NUMBER } from './run/loadout';
+import { KIND_NUMBER, PERK_NUMBER } from './run/loadout';
+import { setPerks } from '../ecs/systems/perks';
 import { store } from './store';
 import { clearTickLog } from './tick-log';
 
@@ -82,6 +83,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   const [px, pz] = layout.playerStart;
   const p = spawnPlayer(px, pz);
   Health.hp[p] = loadout.hp;
+  setPerks(p, loadout.perks.map((name) => PERK_NUMBER[name]));
   idMap.bind(toHandle(p), { context: 'player', id: PLAYER_ID });
 
   let carriedKind = 0;

@@ -7,6 +7,7 @@ import { has, indexOf, isLive, NOBODY, world, type EntityId } from '../../ecs/co
 import { tunnelSystem } from '../../ecs/systems/tunnel';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
+import { addPerk, Perk, perkSlots } from '../../ecs/systems/perks';
 import { domainStep } from '../dispatch';
 import { idMap } from '../id-map';
 import { bossIdFor } from '../ids';
@@ -55,6 +56,8 @@ describe('run flow', () => {
     const gun = indexOf(Wielder.held[p] as never);
     Health.hp[p] = 61;
     Ammo.count[gun] = 7;
+    addPerk(p, Perk.LastStand);
+    addPerk(p, Perk.Ricochet);
 
     send('EntityDowned', h.boss, h.player, 0);
     domainStep();
@@ -79,6 +82,10 @@ describe('run flow', () => {
     // It got a stable name when it crossed, and keeps it in the new arena.
     expect(idMap.refOf(Wielder.held[p2] as never)).toMatchObject({ context: 'weapon' });
     expect(store.run.loadout.weapon?.id).toBe((idMap.refOf(Wielder.held[p2] as never) as { id: string }).id);
+
+    // And its perks, in the order they were picked up.
+    expect(store.run.loadout.perks).toEqual(['lastStand', 'ricochet']);
+    expect(perkSlots(p2)).toEqual([Perk.LastStand, Perk.Ricochet, Perk.None]);
 
     // Still one of each: the carried gun counts toward the stock.
     expect([countKind(WeaponKind.Gun), countKind(WeaponKind.Sword), countKind(WeaponKind.Spear)]).toEqual([1, 1, 1]);
