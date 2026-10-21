@@ -21,7 +21,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Storm** | ECS action | The Keeper's phase 3 attack: two spiral arms and gap rings at once, as one action. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
-| **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |
+| **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, level, and its `WeaponId`). The run starts you with a level-1 gun. |
+| **Weapon level** | ECS (`Item.level`), carried by the domain | The arena a weapon turned up in. Each level past the first adds 15% to every hit it deals; the run weighs it in power. Shown on the HUD. |
 | `RunView` | ECS singleton | Projected copy of the run (status, arena, whether it's the final, which doors are open) that systems and the HUD read. Typed read-only; only `bridge/` can import its writable side (`RunViewWritable`), so only the run projector and the spawn projection write it. |
 | **Command** | bridge | Something the simulation asks the domain, e.g. `BossDowned`. Imperative or attempt. |
 | **Domain event** | domain | A fact the domain decided, e.g. `BossDefeated`. Past tense. |
