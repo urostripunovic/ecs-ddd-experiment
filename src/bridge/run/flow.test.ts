@@ -5,7 +5,7 @@ import {
 import { send } from '../../ecs/core/outbox';
 import { add, has, indexOf, isLive, NOBODY, query, world, type EntityId } from '../../ecs/core/world';
 import { DoorNumber, tunnelSystem } from '../../ecs/systems/tunnel';
-import { DOORS } from '../../ecs/arenas';
+import { DOORS, specialFor } from '../../ecs/arenas';
 import { MAX_ARENAS, MIN_DRAWN } from '../../domain/run/run';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
@@ -219,12 +219,16 @@ describe('run flow', () => {
     const held = indexOf(Wielder.held[p2] as never);
     expect(Item.level[held]).toBe(1);
     let stock = 0;
+    let special = 0;
     for (let e = 0; e < world.nextFresh; e++) {
       if (!world.inUse[e] || !has(e as EntityId, C.Item) || e === held) continue;
       expect(Item.level[e]).toBe(2);
+      if (Item.kind[e] === specialFor(store.run.seed, 2)) special++;
       stock++;
     }
-    expect(stock).toBe(2);
+    // The sword and spear the gun leaves room for, and arena 2's special.
+    expect(stock).toBe(3);
+    expect(special).toBe(1);
   });
 
   it('a level-3 weapon in hand crosses as level 3', () => {

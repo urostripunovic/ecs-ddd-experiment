@@ -2,7 +2,7 @@ import { initialBoss, type BossState } from '../domain/boss/boss';
 import type { Loadout, RunState, RunStatus as RunStatusName } from '../domain/run/run';
 import type { BossId } from '../domain/shared/types';
 import { arenaFor, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
-import { Ammo, Armor, C, Durability, Health, Jump, RunStatus, resetArenaState, resetRunState } from '../ecs/components';
+import { Ammo, Armor, C, Durability, Health, Jump, RunStatus, Stock, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
 import { clearOutbox } from '../ecs/core/outbox';
 import { seedRng } from '../ecs/core/rng';
@@ -11,7 +11,7 @@ import { add, NOBODY, resetWorld, toHandle, type EntityId, type Handle } from '.
 import { spawnBoss, spawnOrbitingPillar, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
 import { equip } from '../ecs/systems/weapons';
-import { WEAPON_STOCK, weaponLevelFor } from '../ecs/weapons/defs';
+import { WEAPON_STOCK, WEAPONS, weaponLevelFor } from '../ecs/weapons/defs';
 import { bossIdFor, PLAYER_ID } from './ids';
 import { idMap } from './id-map';
 import { KIND_NUMBER, PERK_NUMBER } from './run/loadout';
@@ -101,12 +101,15 @@ export function buildArena(arena: number, loadout: Loadout): void {
     idMap.bind(toHandle(w), { context: 'weapon', id: loadout.weapon.id });
   }
 
-  // The rest of the stock, laid out where this arena puts weapons, at its level.
-  // From the arena number, not RunView, which this build only writes further down.
+  // The rest of the stock, laid out where this arena puts weapons, at its level:
+  // the basics, then the arena's special. From the arena number, not RunView,
+  // which this build only writes further down.
+  Stock.special = planned.special;
   const stockLevel = weaponLevelFor(arena);
   let spot = 0;
-  for (let kind = 1; kind < WEAPON_STOCK.length; kind++) {
-    const count = WEAPON_STOCK[kind] - (kind === carriedKind ? 1 : 0);
+  for (let kind = 1; kind < WEAPONS.length; kind++) {
+    const want = WEAPON_STOCK[kind] + (kind === planned.special ? 1 : 0);
+    const count = want - (kind === carriedKind ? 1 : 0);
     for (let n = 0; n < count && spot < layout.weaponSpots.length; n++) {
       const [x, z] = layout.weaponSpots[spot++];
       spawnWeapon(kind, x, z, stockLevel);

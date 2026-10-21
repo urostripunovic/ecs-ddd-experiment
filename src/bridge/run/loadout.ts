@@ -6,8 +6,14 @@ import { WeaponKind } from '../../ecs/weapons/defs';
 // The run names weapons; the simulation numbers them. Only the bridge knows both.
 export const KIND_NUMBER: Record<DomainWeaponKind, number> = {
   sword: WeaponKind.Sword, spear: WeaponKind.Spear, gun: WeaponKind.Gun, scattergun: WeaponKind.Scattergun,
+  chakram: WeaponKind.Chakram, warhammer: WeaponKind.Warhammer, railgun: WeaponKind.Railgun, flamethrower: WeaponKind.Flamethrower,
 };
-export const KIND_NAME: readonly (DomainWeaponKind | null)[] = [null, 'sword', 'spear', 'gun', 'scattergun'];
+// Indexed by the simulation's WeaponKind; built from KIND_NUMBER so the two can't disagree.
+export const KIND_NAME: readonly (DomainWeaponKind | null)[] = (() => {
+  const names: (DomainWeaponKind | null)[] = [null];
+  for (const [name, kind] of Object.entries(KIND_NUMBER) as [DomainWeaponKind, number][]) names[kind] = name;
+  return names;
+})();
 
 // And for rewards: the run names them, the pedestals number them.
 export const REWARD_KIND: Record<Reward, number> = {
