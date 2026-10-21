@@ -30,16 +30,18 @@ Written down in `src/app/loop.ts`:
 8. `heldFollowSystem`: held items sit at their wielder
 9. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
 10. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
-11. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear
-12. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s
+11. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear; the railgun charges on fire and fires on the release; the flamethrower sets what's in its cone burning
+12. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s; a chakram flies through and comes home; a warhammer smashes where it stops
 13. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
 14. `projectileCollisionSystem`: bullets stop on pillars and walls
 15. `projectileSystem`: bullets damage the other team, and fly under anything airborne
+15b. `burnSystem`: whatever is burning loses a tick's share of its burn, through `hurt` like any hit
 16. `slamSystem`: a slam or jump landing hits at its stored centre when the telegraph runs out, slows whoever it hurts if the slam says so (only jump landings do), and knocks stuck items loose
 17. `spikeSystem`: a spiked pillar hurts and shoves a player touching it, once per touch (not through a dodge, not in a cutscene)
 18. `durabilitySystem`: held items decay over time; anything at 0 breaks
 19. `stockSystem`: keeps one sword, spear and gun in play; a broken one returns 5 s later in a random clear spot
 20. `hurtFlashSystem`
+20b. `tracerSystem`: spent railgun beams are removed
 21. `dropSystem`: every 7 s, a seeded-random buff in a clear spot
 22. `perkDropSystem`: a perk pickup a few seconds into the fight, then every 20 s, one on the ground at a time, offering one you don't hold
 23. `bossThresholdSystem`: hp at or below 50% moves a phase-1 boss to phase 2 (the only writer of `BossPhase.phase`)
@@ -151,6 +153,15 @@ Clearing a boss before the last arena offers three different rewards, drawn from
 ## Weapon levels
 
 Decided with the user (Stage B): weapons found deeper hit harder. A weapon's level is the arena it turned up in, so the Warden's are level 1; each level past the first adds 15% to every hit it deals (swings, each pellet, throws and so ricochets, the Final shot), which is 1 plus 0.15 per arena of depth. Fists never level, and ammo, wear and the Final shot's blow-up on yourself don't change. Stock and given weapons (the Scattergun reward, the dev menu) come at the arena's level (`weaponLevelFor`); the one you carry keeps its own (R20), so the starting gun stays level 1 and a fresh pickup deeper in is how you level up. The level is simulation (`Item.level`, written only by `spawnWeapon`); the run carries it in the loadout and weighs it in power (R17). The HUD shows it; it never shows power. The whole-number levels, the 15% step and power counting the damage it adds rather than the level are experimental.
+
+## Special weapons
+
+Decided with the user. Beside the sword, spear and gun, every arena from the second (the final too) keeps one special stocked, drawn from the seed (`specialFor`, a hash draw that never moves the drop RNG): the chakram, the warhammer, the railgun or the flamethrower. The tutorial keeps to the basics. Specials come at the arena's level like everything else, and carry over in the loadout like any weapon.
+
+- **Chakram:** a light, wide swing. Thrown, it flies through what it hits and turns home at the end of its flight or on stone, hitting each target once going out and once coming back. Caught, it gives 1.5 s of haste; with your hands full by then, it lands at your feet.
+- **Warhammer:** slow, heavy swings that wear it fast. Thrown, it smashes where it stops (on a body or the ground): everything of the other side within 3 m is hit once and loses whatever was lodged in it.
+- **Railgun:** the Final shot as a weapon. Holding fire fills the throw's gauge (`Wielder.fireCharge`), the release fires one beam that pierces every body in its line and stops at a pillar or the wall. Perfect hits hardest; overcharged, it overheats and vents for 2 s with no shot. The release is a counter (`PlayerInput.fireReleases`), like throws, so a tap is never lost.
+- **Flamethrower:** while fire is held, everything in a short cone burns at 45 hp a second for 2 s after it last caught (`Burn`, a deadline). Its fuel is its durability.
 
 ## Perks
 
