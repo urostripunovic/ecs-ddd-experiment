@@ -2,7 +2,7 @@
 // Equipping, wear and throwing are pure simulation: no rule or save reacts to
 // them yet, so none of this crosses the bridge. Promote it when one does.
 import {
-  Ammo, Arena, Buffs, BuffPickup, C, Collider, Durability, GodMode, Item, PerkPickup, RunStatus, RunView, PlayerInput,
+  Ammo, Arena, Buffs, BuffPickup, C, Collider, Dizzy, Durability, GodMode, Item, PerkPickup, RunStatus, RunView, PlayerInput,
   Shake, ShapeKind, Stock, StuckIn, Team, TeamId, Thrown, Transform, Velocity, Wielder,
 } from '../components';
 import { buf, helperBuf, itemBuf, solidBuf, targetBuf } from '../core/buffers';
@@ -14,10 +14,11 @@ import {
 } from '../core/world';
 import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
 import {
-  BUFF_TICKS, BuffKind, BURN_TICKS, CATCH_HASTE_TICKS, levelDmgMul, RAIL_VENT, RESPAWN_TICKS, RETURN_TICKS, SMASH_RADIUS,
+  BUFF_TICKS, BuffKind, BURN_TICKS, CATCH_HASTE_TICKS, DIZZY_TICKS, levelDmgMul, RESPAWN_TICKS, RETURN_TICKS, SMASH_RADIUS,
+  SPIN_DMG_SHARE, SPIN_HIT_TICKS,
   WEAPON_STOCK, WEAPONS, WeaponKind, weaponLevelFor, type WeaponDef,
 } from '../weapons/defs';
-import { CHARGE_MAX_TICKS, ChargeZone, throwCharge, type ThrowCharge } from '../weapons/charge';
+import { CHARGE_MAX_TICKS, ChargeZone, railBloom, spinThrow, throwCharge, type ThrowCharge } from '../weapons/charge';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
 import { dmgMul } from './status';
@@ -118,6 +119,18 @@ function putOnGround(item: EntityId, x: number, z: number, lock: Ticks): void {
   Transform.z[item] = z;
 }
 
+// A hammer that breaks mid-spin leaves whoever spun it dizzy (decided with the user).
+function dizzyIfSpinning(hammer: EntityId): void {
+  const h = toHandle(hammer);
+  const n = query(helperBuf, C.Wielder);
+  for (let i = 0; i < n; i++) {
+    const w = entityAt(helperBuf, i);
+    if (Wielder.held[w] !== h || !spinning(w)) continue;
+    Dizzy.until[w] = after(DIZZY_TICKS);
+    Dizzy.angle[w] = random() * Math.PI * 2;
+  }
+}
+
 function breakItem(item: EntityId): void {
   const h = toHandle(item);
   const n = query(helperBuf, C.Wielder);
@@ -198,6 +211,7 @@ export function heldFollowSystem(): void {
 }
 
 // reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo, Item.level | writes Wielder.charge, Thrown, Velocity, item state;
+// a spinning hammer writes Health (via hurt) and Durability;
 // with Final shot instead: Ammo, Shake, Health (via hurt), spawns a heavy bullet or breaks the gun
 // Holding fills the gauge; the release throws with whatever it reached, so a
 // tap is a weak throw and timing the perfect zone is the skill.
@@ -209,13 +223,17 @@ export function throwSystem(): void {
     Wielder.throwSeen[w] = PlayerInput.throwReleases;
     const item = heldItem(w);
     if (controlsLocked() || item === -1) { Wielder.charge[w] = 0; continue; }
+    const hammer = Item.kind[item] === WeaponKind.Warhammer;
     if (!released) {
       if (PlayerInput.throwHeld && Wielder.charge[w] < CHARGE_MAX_TICKS) Wielder.charge[w]++;
+      if (hammer && spinning(w)) spin(w, item);
       continue;
     }
 
     const def = defOf(item);
-    const charge = throwCharge(Wielder.charge[w] / CHARGE_MAX_TICKS);
+    // The hammer's gauge is momentum, with no perfect zone; every other throw is timed.
+    const fill = Wielder.charge[w] / CHARGE_MAX_TICKS;
+    const charge = hammer ? spinThrow(fill) : throwCharge(fill);
     Wielder.charge[w] = 0;
     if (Item.kind[item] === WeaponKind.Gun && Ammo.count[item] > 0 && hasPerk(w, Perk.FinalShot)) {
       finalShot(w, item, charge);
@@ -238,6 +256,31 @@ export function throwSystem(): void {
     Thrown.lastHit[item] = NOBODY;
     Wielder.held[w] = NOBODY;
   }
+}
+
+// Holding throw with a warhammer spins it round you (decided with the user).
+export const spinning = (w: EntityId): boolean => PlayerInput.throwHeld && Wielder.charge[w] > 0;
+
+// A spinning hammer hits everything of the other side within reach, all round
+// you, every SPIN_HIT_TICKS, harder as its momentum builds.
+function spin(w: EntityId, hammer: EntityId): void {
+  if (world.tick % SPIN_HIT_TICKS !== 0) return;
+  const def = defOf(hammer);
+  const momentum = spinThrow(Wielder.charge[w] / CHARGE_MAX_TICKS).dmgMul;
+  const dmg = def.dmg * SPIN_DMG_SHARE * momentum * dmgMul(w) * levelMul(hammer);
+  let hit = false;
+  const targets = query(targetBuf, TARGETS, UNHITTABLE);
+  for (let j = 0; j < targets; j++) {
+    const t = entityAt(targetBuf, j);
+    if (Team.id[t] === Team.id[w]) continue;
+    const dx = Transform.x[t] - Transform.x[w];
+    const dz = Transform.z[t] - Transform.z[w];
+    if (Math.hypot(dx, dz) > def.reach + Collider.radius[t]) continue;
+    hurt(t, dmg, toHandle(w));
+    hit = true;
+  }
+  // Half a swing's wear a connecting turn: a long spin costs the hammer.
+  if (hit) wear(hammer, def.wearPerHit / 2);
 }
 
 // Final shot: the rest of the magazine leaves as one heavy shot, as hard as the
@@ -292,7 +335,7 @@ function meleeHit(w: EntityId, def: WeaponDef): boolean {
 }
 
 // The railgun: holding fire fills the gauge, the release fires. Perfect hits
-// hardest; overcharged, it overheats and vents instead of firing.
+// hardest; overcharged, the shot blooms off your aim.
 function railgun(w: EntityId, gun: EntityId, def: WeaponDef, released: boolean): void {
   if (controlsLocked()) { Wielder.fireCharge[w] = 0; return; }
   if (!released) {
@@ -303,13 +346,19 @@ function railgun(w: EntityId, gun: EntityId, def: WeaponDef, released: boolean):
   Wielder.fireCharge[w] = 0;
   if (fill === 0) return;
   const charge = throwCharge(fill);
-  if (charge.zone === ChargeZone.Overcharged) { Ammo.reload[gun] = RAIL_VENT; return; }
   if (!(import.meta.env.DEV && GodMode.keepWeapons)) Ammo.count[gun]--;
   if (Ammo.count[gun] === 0) Ammo.reload[gun] = def.reloadTime;
   Wielder.swing[w] = SWING_TICKS;
+  // Overcharged, it still fires, at full power, but blooms off your aim like
+  // hip-fire: the further into the overcharge, the wider. Seeded, so it replays.
+  const bloom = railBloom(fill);
+  const off = bloom > 0 ? (random() * 2 - 1) * bloom : 0;
+  const aim = Math.atan2(PlayerInput.aimZ, PlayerInput.aimX) + off;
+  const dx = Math.cos(aim);
+  const dz = Math.sin(aim);
   const muzzle = Collider.radius[w] + 0.35;
   fireBeam(
-    Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle, PlayerInput.aimX, PlayerInput.aimZ,
+    Transform.x[w] + dx * muzzle, Transform.z[w] + dz * muzzle, dx, dz,
     Team.id[w], toHandle(w), def.dmg * charge.dmgMul * dmgMul(w) * levelMul(gun),
   );
 }
@@ -600,7 +649,7 @@ export function pickupSystem(): void {
   }
 }
 
-// reads Held items, Durability, RunView | writes Durability; breaks worn-out items wherever they are
+// reads Held items, Durability, RunView, Wielder (a spin) | writes Durability, Dizzy; breaks worn-out items wherever they are
 export function durabilitySystem(dt: Seconds): void {
   // Time stops wearing things once the fight is over, so the end screen shows what you finished with.
   const held = fighting() ? query(buf, HELD_ITEMS) : 0;
@@ -611,7 +660,9 @@ export function durabilitySystem(dt: Seconds): void {
   const n = query(buf, C.Item);
   for (let i = 0; i < n; i++) {
     const it = entityAt(buf, i);
-    if (defOf(it).durability > 0 && Durability.value[it] <= 0) breakItem(it);
+    if (defOf(it).durability <= 0 || Durability.value[it] > 0) continue;
+    if (Item.kind[it] === WeaponKind.Warhammer && has(it, C.Held)) dizzyIfSpinning(it);
+    breakItem(it);
   }
 }
 

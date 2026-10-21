@@ -81,6 +81,9 @@ export const BuffPickup = { kind: new Uint8Array(MAX_ENTITIES) };
 // whoever needs the effect, and nothing has to decrement them.
 export const Buffs = { hasteUntil: new Uint32Array(MAX_ENTITIES), furyUntil: new Uint32Array(MAX_ENTITIES) };
 export const Slowed = { until: new Uint32Array(MAX_ENTITIES), factor: new Float32Array(MAX_ENTITIES) };
+// Dizzy after a hammer breaks mid-spin: until a tick, your feet wander toward
+// angle, which inputSystem turns a little at random every tick (its only writer).
+export const Dizzy = { until: new Uint32Array(MAX_ENTITIES), angle: new Float32Array(MAX_ENTITIES) };
 // A dash. until: when it ends; readyAt: when the next may start; x/z: its
 // direction, fixed at the start. seen: the PlayerInput.dodgePresses this player
 // has acted on, so a press is never lost or doubled (see Wielder.throwSeen).
@@ -222,7 +225,7 @@ export const Stock = { respawnAt: new Uint32Array(16), special: 0 };
 // in two, so a new singleton can't silently leak from one arena into the next.
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, Burn, Tracer, StuckIn, BuffPickup, Buffs,
-  Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
+  Slowed, Dizzy, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
   Stock, BossStyle, BossPace, BossGen, Line, LineHit, Homing, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop, Armor, Revive, RewardPickup,
 };
 // The input counters must keep counting (a new player starts caught up with

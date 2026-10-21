@@ -1,10 +1,11 @@
 // The header line of each system is its design doc: reads -> writes.
-import { C, Dodge, Knockback, PlayerInput, Transform, Velocity } from '../components';
+import { C, Dizzy, Dodge, Knockback, PlayerInput, Transform, Velocity } from '../components';
+import { random } from '../core/rng';
 import { buf } from '../core/buffers';
 import { after, inTicks, plus, seconds, ticks, type Seconds } from '../core/units';
 import { entityAt, mask, query, world, type EntityId } from '../core/world';
 import { controlsLocked } from './cutscene';
-import { dodging, speedMul } from './status';
+import { dizzy, dodging, speedMul } from './status';
 
 export const PLAYER_SPEED = 6;
 // About 3 m in a fifth of a second, invulnerable all the way.
@@ -12,6 +13,9 @@ export const DODGE_TICKS = ticks(12);
 export const DODGE_SPEED = 15;
 // From the end of one dash to the start of the next.
 export const DODGE_COOLDOWN = inTicks(seconds(0.75));
+// How far a dizzy wander turns a tick at most, and how hard it pulls: 0.7 of a full stick.
+const DIZZY_TURN = 0.5;
+const DIZZY_PULL = 0.7;
 
 const PLAYER_MOVERS = mask(C.Velocity, C.PlayerControlled);
 const MOVERS = mask(C.Transform, C.Velocity);
@@ -37,7 +41,8 @@ function startDodge(entity: EntityId): void {
   Dodge.readyAt[entity] = after(plus(DODGE_TICKS, DODGE_COOLDOWN));
 }
 
-// reads PlayerInput, RunView, Cutscene, Buffs, Slowed, Knockback, Dodge | writes Velocity (player-controlled only), Dodge
+// reads PlayerInput, RunView, Cutscene, Buffs, Slowed, Knockback, Dodge, Dizzy, rng | writes Velocity (player-controlled only),
+// Dodge, Dizzy.angle
 // The only writer of a player's velocity: every other effect arrives as its own field.
 export function inputSystem(): void {
   const locked = controlsLocked();
@@ -59,8 +64,19 @@ export function inputSystem(): void {
     }
     const speed = speedBase * speedMul(e);
     const shoved = world.tick < Knockback.until[e];
-    Velocity.x[e] = PlayerInput.moveX * speed + (shoved ? Knockback.x[e] : 0);
-    Velocity.z[e] = PlayerInput.moveZ * speed + (shoved ? Knockback.z[e] : 0);
+    let mx = PlayerInput.moveX;
+    let mz = PlayerInput.moveZ;
+    // Dizzy: your feet wander off in a direction that turns at random, added to
+    // whatever you press, so standing still drifts and walking goes off line.
+    if (dizzy(e) && !locked) {
+      Dizzy.angle[e] += (random() - 0.5) * DIZZY_TURN;
+      mx += Math.cos(Dizzy.angle[e]) * DIZZY_PULL;
+      mz += Math.sin(Dizzy.angle[e]) * DIZZY_PULL;
+      const len = Math.hypot(mx, mz);
+      if (len > 1) { mx /= len; mz /= len; }
+    }
+    Velocity.x[e] = mx * speed + (shoved ? Knockback.x[e] : 0);
+    Velocity.z[e] = mz * speed + (shoved ? Knockback.z[e] : 0);
   }
 }
 

@@ -110,8 +110,13 @@ export const CATCH_HASTE_TICKS = inTicks(seconds(1.5));
 // A chakram coming home gives up and lands after this long.
 export const RETURN_TICKS = inTicks(seconds(3));
 export const SMASH_RADIUS = meters(3);
-// Overcharging the railgun costs this long venting, with no shot.
-export const RAIL_VENT = seconds(2);
+export { RAIL_BLOOM_MAX } from './charge';
+// A warhammer spinning on held throw hits all round you this often, for this
+// share of a swing's damage, scaled by its momentum.
+export const SPIN_HIT_TICKS = ticks(15);
+export const SPIN_DMG_SHARE = 0.35;
+// Breaking a hammer mid-spin leaves you dizzy this long.
+export const DIZZY_TICKS = inTicks(seconds(2));
 export const RAIL_TRACER_TICKS = ticks(10);
 export const BURN_TICKS = inTicks(seconds(2));
 
