@@ -77,12 +77,15 @@ export function paceGap(boss: EntityId, gap: Ticks): Ticks {
   return gap === 0 ? gap : ticks(Math.max(1, Math.round(gap / pace)));
 }
 
-// Waits out the chain gap, then marks the action as running.
-export function* begin(boss: EntityId, kind: ActionKind): Script {
+// Waits out the chain gap, then marks the action as running. windup: its
+// telegraph in ticks, so the renderer times it as the script does (0 for
+// actions whose telegraph lives elsewhere, like a slam's).
+export function* begin(boss: EntityId, kind: ActionKind, windup: Ticks = ticks(0)): Script {
   const gap = paceGap(boss, chainGap(BossPhase.phase[boss], BossAction.lastKind[boss] as ActionKind, kind, BossStyle.kind[boss]));
   while (world.tick < BossAction.lastEnd[boss] + gap) yield;
   BossAction.kind[boss] = kind;
   BossAction.startedAt[boss] = world.tick;
+  BossAction.windup[boss] = windup;
 }
 
 export function finish(boss: EntityId): void {

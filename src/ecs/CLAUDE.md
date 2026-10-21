@@ -12,3 +12,5 @@ The real-time simulation. Imports nothing from `domain/`, `bridge/`, `app/` or t
 - Clear a handle before freeing what it points at, as `breakItem` does. In dev builds and tests, `despawn` fails if a live note still points at the row, naming both ends.
 - Every component and singleton is listed in exactly one of `ARENA_STATE`, `RUN_STATE` or `CONSTANTS`. Adding one means choosing its lifetime.
 - Numbers with a unit are branded at the edges (`core/units.ts`): definitions, constructors and function signatures. Make deadlines with `after()`, never `world.tick + n`; turn seconds into ticks with `inTicks(seconds(n))`, never `* 60`.
+- A file stops at 400 lines (`structure.test.ts`). A system file that outgrows its job becomes a folder of modules by job, re-exported from the old file so importers don't change (`systems/weapons/`, `systems/boss-scripts/`).
+- How a weapon behaves is a field on its definition (`WeaponDef`), never a check of its kind in a system.

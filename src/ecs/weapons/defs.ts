@@ -38,6 +38,13 @@ export type WeaponDef = {
   readonly throwStyle: 'stick' | 'return' | 'smash';
   // spray: fuel (durability) burned per second of spraying.
   readonly fuelPerSec: number;
+  // What holding throw does: charge the timed gauge, or spin it round you (the warhammer).
+  readonly heldThrow: 'charge' | 'spin';
+  // Which perks this weapon carries out: Final shot turns its throw into the
+  // rest of the magazine, Ricochet bounces it off walls, Long reach lengthens its thrusts.
+  readonly finalShot: boolean;
+  readonly ricochet: boolean;
+  readonly longReach: boolean;
 };
 
 const cosDeg = (deg: number) => Math.cos((deg * Math.PI) / 180);
@@ -46,6 +53,7 @@ const base = {
   reach: meters(0), arcCos: 1, durability: 0, wearPerHit: 0, decayPerSec: 0,
   mag: 0, pellets: 1, spread: 0, reloadTime: seconds(0), throwSpeed: 0, throwDmg: hp(0), throwTicks: ticks(0), throwWear: 0,
   throwLockTicks: ticks(0), throwStyle: 'stick' as const, fuelPerSec: 0,
+  heldThrow: 'charge' as const, finalShot: false, ricochet: false, longReach: false,
 };
 
 // Indexed by WeaponKind.
@@ -55,15 +63,18 @@ export const WEAPONS: readonly WeaponDef[] = [
     ...base, name: 'Sword', attack: 'arc', dmg: hp(55), cooldown: seconds(0.4), reach: meters(2.4), arcCos: cosDeg(55),
     durability: 100, wearPerHit: 7, decayPerSec: 0.6,
     throwSpeed: 18, throwDmg: hp(60), throwTicks: ticks(40), throwWear: 35, throwLockTicks: inTicks(seconds(1.5)),
+    ricochet: true,
   },
   {
     ...base, name: 'Spear', attack: 'arc', dmg: hp(60), cooldown: seconds(0.5), reach: meters(3.4), arcCos: cosDeg(15),
     durability: 100, wearPerHit: 6, decayPerSec: 0.5,
     throwSpeed: 26, throwDmg: hp(95), throwTicks: ticks(45), throwWear: 40, throwLockTicks: inTicks(seconds(1.5)),
+    longReach: true,
   },
   {
     ...base, name: 'Gun', attack: 'shoot', dmg: hp(25), cooldown: seconds(1 / 8), mag: 16, reloadTime: seconds(1.1),
     throwSpeed: 16, throwDmg: hp(20), throwTicks: ticks(35), throwLockTicks: inTicks(seconds(1)),
+    finalShot: true,
   },
   {
     // A boss reward, never stocked: six pellets in a fan, brutal up close, poor at range.
@@ -85,7 +96,7 @@ export const WEAPONS: readonly WeaponDef[] = [
     ...base, name: 'Warhammer', attack: 'arc', dmg: hp(90), cooldown: seconds(0.9), reach: meters(2.6), arcCos: cosDeg(65),
     durability: 100, wearPerHit: 10, decayPerSec: 0.4,
     throwSpeed: 13, throwDmg: hp(110), throwTicks: ticks(30), throwWear: 30, throwLockTicks: inTicks(seconds(1.5)),
-    throwStyle: 'smash',
+    throwStyle: 'smash', heldThrow: 'spin',
   },
   {
     // The Final shot as a weapon: charge on fire, release one beam that pierces
