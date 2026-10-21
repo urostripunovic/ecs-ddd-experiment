@@ -16,7 +16,7 @@ describe('release build', () => {
     const chunks = outputs.flatMap((r) => r.output).filter((o) => o.type === 'chunk');
     expect(chunks.length).toBeGreaterThan(0);
     const code = chunks.map((c) => c.code ?? '').join('\n');
-    for (const marker of ['God mode', 'god mode', 'killBoss', 'applyDevCommands', 'GodMode.keepWeapons', 'freezeBoss&&']) {
+    for (const marker of ['God mode', 'god mode', 'killBoss', 'applyDevCommands', 'GodMode.keepWeapons', 'freezeBoss&&', 'Clear the note first']) {
       expect(code.includes(marker), marker).toBe(false);
     }
     // The game itself is in there.
