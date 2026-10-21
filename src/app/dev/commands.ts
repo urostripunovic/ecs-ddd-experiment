@@ -21,7 +21,7 @@ import { indexOf, isLive, MAX_ENTITIES, NOBODY, remove, world, type Handle } fro
 import { giveWeapon } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
 
-export type JumpTarget = 'arena1' | 'arena1Cleared' | 'arena2' | 'arena2Phase2' | 'won';
+export type JumpTarget = 'arena1' | 'arena1Cleared' | 'arena2' | 'arena2Phase2' | 'final' | 'finalPhase3' | 'won';
 export type ArenaComponent = keyof typeof ARENA_STATE;
 
 export type DevCommand =
@@ -134,7 +134,8 @@ function apply(cmd: DevCommand): void {
 // A jump is a load: build the run the rules would be in, then the world from it.
 function jump(to: JumpTarget): void {
   const arenas = store.run.arenas;
-  const arena = to === 'arena1' || to === 'arena1Cleared' ? 1 : to === 'won' ? arenas : 2;
+  const last = to === 'won' || to === 'final' || to === 'finalPhase3';
+  const arena = to === 'arena1' || to === 'arena1Cleared' ? 1 : last ? arenas : 2;
   const bosses = new Map<BossId, BossState>();
   const beaten = to === 'arena1' ? 0 : to === 'arena1Cleared' ? 1 : to === 'won' ? arenas : arena - 1;
   for (let a = 1; a <= arenas; a++) {
@@ -147,12 +148,13 @@ function jump(to: JumpTarget): void {
     : { ...base, status: 'Fighting' };
   loadRunState(run, bosses);
 
-  if (to === 'arena2Phase2' && isLive(handles.boss)) {
-    // Off the perch and at half hp, so phase 2 opens on the next tick.
+  if ((to === 'arena2Phase2' || to === 'finalPhase3') && isLive(handles.boss)) {
+    // Off the perch and low enough that the next phase opens on the next tick
+    // (the Keeper steps through phase 2 into 3, a tick each).
     const b = indexOf(handles.boss);
     remove(b, C.Airborne);
     Jump.fromHeight[b] = 0;
-    Health.hp[b] = Health.max[b] / 2;
+    Health.hp[b] = Health.max[b] * (to === 'finalPhase3' ? 0.3 : 0.5);
   }
   lastCheck = disagreements();
   if (lastCheck.length > 0) logChain(`cheat check: world and rules disagree: ${lastCheck.join('; ')}`);

@@ -3,7 +3,7 @@
 // when, so animation can be tuned here without touching gameplay.
 import {
   Action, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER, RING_WAVE_GAP, RING_WINDUP,
-  ROAR_HOLD, ROAR_REAR, SPIRAL_WINDUP,
+  ROAR_HOLD, ROAR_REAR, SPIRAL_WINDUP, STORM_WINDUP,
 } from '../../ecs/systems/boss-actions';
 
 export type Pose = { height: number; sx: number; sy: number; lean: number };
@@ -84,6 +84,15 @@ export function bossPose(kind: number, elapsed: number, slamWindup: number, from
       // A steady shudder while the arms pour out.
       const t = elapsed - SPIRAL_WINDUP;
       return { height: 0, sx: 1 + Math.sin(t * 1.3) * 0.04, sy: 1.08, lean: 0.08 };
+    }
+    case Action.Storm: {
+      if (elapsed < STORM_WINDUP) {
+        // Draws itself up taller than for any other attack: the tell for the big one.
+        const r = ease(clamp01(elapsed / STORM_WINDUP));
+        return { height: 0.4 * r, sx: 1 - 0.05 * r, sy: 1 + 0.2 * r, lean: -0.25 * r };
+      }
+      const t = elapsed - STORM_WINDUP;
+      return { height: 0.4, sx: 1 + Math.sin(t * 1.7) * 0.05, sy: 1.15, lean: 0.06 * Math.sin(t * 0.9) };
     }
     case Action.Slam:
       return { height: 0, sx: 1 + slamWindup * 0.12, sy: 1 - slamWindup * 0.18, lean: 0.12 * slamWindup };

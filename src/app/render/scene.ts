@@ -20,6 +20,7 @@ const COLOR = {
   player: 0x7fb2d9,
   boss: 0x8f8c87,
   bossEnraged: 0xa45a43,
+  bossFinal: 0xc23a2a,
   bullet: 0xffd65c,
   enemyBullet: 0xff6b3d,
   telegraph: 0xd9573b,
@@ -404,7 +405,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       const mat = v.userData.mat;
       if (mat) {
         let color = v.userData.base!;
-        if (kind === ShapeKind.Boss && BossPhase.phase[e] === 2) color = COLOR.bossEnraged;
+        if (kind === ShapeKind.Boss && BossPhase.phase[e] >= 2) color = BossPhase.phase[e] >= 3 ? COLOR.bossFinal : COLOR.bossEnraged;
         if (dead) color = COLOR.dead;
         mat.color.setHex(color);
         // A dodge glows for exactly its invulnerable ticks, so you can learn the timing by eye.
@@ -436,7 +437,8 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         v.scale.set(pose.sx, pose.sy, pose.sx);
         drawTelegraph(e, winding);
         drawCone(e, !dead && BossAction.kind[e] === Action.Cone && elapsed < CONE_WINDUP, elapsed / CONE_WINDUP);
-        drawWedges(e, gapWedges, geo.gap, COLOR.safe, RING_GAPS, !dead && BossAction.kind[e] === Action.Ring);
+        const ringing = BossAction.kind[e] === Action.Ring || BossAction.kind[e] === Action.Storm;
+        drawWedges(e, gapWedges, geo.gap, COLOR.safe, RING_GAPS, !dead && ringing);
         drawWedges(
           e, armWedges, geo.arm, COLOR.telegraph, SPIRAL_ARMS,
           !dead && BossAction.kind[e] === Action.Spiral && elapsed < SPIRAL_WINDUP,

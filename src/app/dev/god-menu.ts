@@ -9,7 +9,7 @@ import { timeControl } from '../loop';
 import { inspect, lastJumpCheck, nameOf, queueDev, type ArenaComponent, type DevCommand, type JumpTarget } from './commands';
 const JUMPS: [JumpTarget, string][] = [
   ['arena1', 'arena 1'], ['arena1Cleared', 'arena 1 cleared'], ['arena2', 'arena 2'],
-  ['arena2Phase2', 'arena 2, phase 2'], ['won', 'won'],
+  ['arena2Phase2', 'arena 2, phase 2'], ['final', 'final boss'], ['finalPhase3', 'final, phase 3'], ['won', 'won'],
 ];
 
 export function createGodMenu(root: HTMLElement) {
