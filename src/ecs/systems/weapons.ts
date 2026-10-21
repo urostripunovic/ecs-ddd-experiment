@@ -300,11 +300,15 @@ export function attackSystem(dt: Seconds): void {
       if (Ammo.count[item] === 0) Ammo.reload[item] = def.reloadTime;
       // Spawned at the muzzle, not the centre, so point-blank shots still read as leaving the gun.
       const muzzle = Collider.radius[w] + 0.35;
-      spawnProjectile(
-        Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
-        PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
-        Team.id[w], toHandle(w), times(def.dmg, dmgMul(w)), BULLET_LIFE, ShapeKind.Bullet,
-      );
+      const aim = Math.atan2(PlayerInput.aimZ, PlayerInput.aimX);
+      for (let k = 0; k < def.pellets; k++) {
+        const a = def.pellets === 1 ? aim : aim - def.spread + (2 * def.spread * k) / (def.pellets - 1);
+        spawnProjectile(
+          Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
+          Math.cos(a), Math.sin(a), BULLET_SPEED,
+          Team.id[w], toHandle(w), times(def.dmg, dmgMul(w)), BULLET_LIFE, ShapeKind.Bullet,
+        );
+      }
       continue;
     }
     Wielder.swing[w] = SWING_TICKS;

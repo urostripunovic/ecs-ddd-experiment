@@ -114,7 +114,7 @@ export const Pressure = {
 
 export const ShapeKind = {
   None: 0, Player: 1, Boss: 2, Bullet: 3, EnemyBullet: 4, Pillar: 5,
-  Sword: 6, Spear: 7, Gun: 8, Haste: 9, Fury: 10, Perk: 11, HeavyBullet: 12,
+  Sword: 6, Spear: 7, Gun: 8, Haste: 9, Fury: 10, Perk: 11, HeavyBullet: 12, Reward: 13, Scattergun: 14,
 } as const;
 export const Shape = { kind: new Uint8Array(MAX_ENTITIES) };
 
@@ -138,6 +138,13 @@ export const Perks = { s0: new Uint8Array(MAX_ENTITIES), s1: new Uint8Array(MAX_
 export const PerkPickup = { kind: new Uint8Array(MAX_ENTITIES) };
 // When the next perk may drop; 0 until the arena schedules its first.
 export const PerkDrop = { nextAt: 0 };
+// Plates = gained - broken: the bridge grants them, a hit breaks one, so each
+// field has one writer and neither can erase the other.
+export const Armor = { gained: new Uint8Array(MAX_ENTITIES), broken: new Uint8Array(MAX_ENTITIES) };
+// Untouchable until this tick after getting back up.
+export const Revive = { shieldUntil: new Uint32Array(MAX_ENTITIES) };
+// option: its index in the run's offer; kind: RewardKind, for the look and the effect.
+export const RewardPickup = { option: new Uint8Array(MAX_ENTITIES), kind: new Uint8Array(MAX_ENTITIES) };
 
 // Singletons: one local player, one match, one arena.
 // throwReleases/interactPresses/dodgePresses only ever count up (see Wielder.throwSeen).
@@ -171,7 +178,7 @@ export const Stock = { respawnAt: new Uint32Array(4) };
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, StuckIn, BuffPickup, Buffs,
   Slowed, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,
-  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop,
+  Stock, BossStyle, Pattern, Orbit, Spikes, SpikeHit, Perks, PerkPickup, PerkDrop, Armor, Revive, RewardPickup,
 };
 // The input counters must keep counting (a new player starts caught up with
 // them), and RunView is the run's projection, rewritten by every build.

@@ -1,5 +1,6 @@
-import { C, GodMode, Health, Hurt, LastHit, RunStatus, RunView } from '../components';
-import { has, type EntityId, type Handle } from '../core/world';
+import { Armor, C, GodMode, Health, Hurt, LastHit, Revive, RunStatus, RunView } from '../components';
+import { has, world, type EntityId, type Handle } from '../core/world';
+import { armorPlates } from './armor';
 import { dodging } from './status';
 
 const HURT_FLASH_TICKS = 6;
@@ -18,6 +19,14 @@ export function hurt(target: EntityId, dmg: number, by: Handle): boolean {
   if (has(target, C.Invulnerable) || dodging(target)) return false;
   // Dev builds only: release compiles this check away.
   if (import.meta.env.DEV && GodMode.invulnerable && has(target, C.PlayerControlled)) return false;
+  // Just revived: a moment to get your bearings.
+  if (world.tick < Revive.shieldUntil[target]) return false;
+  // A plate takes the whole hit, whatever its size, and breaks. After the
+  // god-mode check, so cheating doesn't cost you plates.
+  if (armorPlates(target) > 0) {
+    Armor.broken[target]++;
+    return false;
+  }
   Health.hp[target] -= dmg;
   LastHit.by[target] = by;
   return true;

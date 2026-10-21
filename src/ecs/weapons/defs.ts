@@ -3,7 +3,7 @@
 // Each number carries its unit, because this table mixes four of them.
 import { hp, inTicks, meters, seconds, ticks, type Hp, type Meters, type Seconds, type Ticks } from '../core/units';
 
-export const WeaponKind = { Fists: 0, Sword: 1, Spear: 2, Gun: 3 } as const;
+export const WeaponKind = { Fists: 0, Sword: 1, Spear: 2, Gun: 3, Scattergun: 4 } as const;
 
 export type WeaponDef = {
   readonly name: string;
@@ -19,6 +19,9 @@ export type WeaponDef = {
   readonly decayPerSec: number;
   // shoot attacks
   readonly mag: number;
+  // Bullets per shot, spread evenly over `spread` radians either side of the aim.
+  readonly pellets: number;
+  readonly spread: number;
   readonly reloadTime: Seconds;
   // throwing
   readonly throwSpeed: number;
@@ -32,7 +35,7 @@ const cosDeg = (deg: number) => Math.cos((deg * Math.PI) / 180);
 
 const base = {
   reach: meters(0), arcCos: 1, durability: 0, wearPerHit: 0, decayPerSec: 0,
-  mag: 0, reloadTime: seconds(0), throwSpeed: 0, throwDmg: hp(0), throwTicks: ticks(0), throwWear: 0,
+  mag: 0, pellets: 1, spread: 0, reloadTime: seconds(0), throwSpeed: 0, throwDmg: hp(0), throwTicks: ticks(0), throwWear: 0,
   throwLockTicks: ticks(0),
 };
 
@@ -53,12 +56,18 @@ export const WEAPONS: readonly WeaponDef[] = [
     ...base, name: 'Gun', attack: 'shoot', dmg: hp(25), cooldown: seconds(1 / 8), mag: 16, reloadTime: seconds(1.1),
     throwSpeed: 16, throwDmg: hp(20), throwTicks: ticks(35), throwLockTicks: inTicks(seconds(1)),
   },
+  {
+    // A boss reward, never stocked: six pellets in a fan, brutal up close, poor at range.
+    ...base, name: 'Scattergun', attack: 'shoot', dmg: hp(14), cooldown: seconds(0.55), mag: 6, reloadTime: seconds(1.4),
+    pellets: 6, spread: 0.2,
+    throwSpeed: 15, throwDmg: hp(30), throwTicks: ticks(35), throwLockTicks: inTicks(seconds(1)),
+  },
 ];
 
 // How many of each kind the arena keeps in play, whatever state they are in
 // (held, lying, flying or stuck). Indexed by WeaponKind; fists are never stocked.
 // A broken one is replaced RESPAWN_TICKS later, somewhere clear.
-export const WEAPON_STOCK: readonly number[] = [0, 1, 1, 1];
+export const WEAPON_STOCK: readonly number[] = [0, 1, 1, 1, 0];
 export const RESPAWN_TICKS = inTicks(seconds(5));
 
 export const BuffKind = { Haste: 1, Fury: 2 } as const;

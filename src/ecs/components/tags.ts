@@ -27,4 +27,6 @@ export const C = {
   Orbiting: bit(23),     // a pillar that circles the arena (Orbit); it still blocks like any pillar
   Spiked: bit(24),       // an orbiting pillar while a boss is in phase 2: touching it hurts
   PerkPickup: bit(25),   // lying in the arena; walking over it fills a perk slot
+  RewardPickup: bit(26), // a boss's reward on its pedestal; stepping on it chooses it
+  RewardPending: bit(27), // latch: the player chose a reward and the run hasn't answered yet
 } as const;

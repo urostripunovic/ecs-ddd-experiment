@@ -1,5 +1,5 @@
 import {
-  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, Pressure, Projectile,
+  Ammo, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
   Shape, ShapeKind, Team, TeamId, Transform, Velocity, Wielder,
 } from './components';
 import type { OrbitDef } from './arenas';
@@ -16,8 +16,9 @@ const PROJECTILE = mask(C.Transform, C.Velocity, C.Team, C.Projectile, C.Shape);
 const ITEM = mask(C.Transform, C.Velocity, C.Team, C.Item, C.Shape, C.Grounded);
 const BUFF = mask(C.Transform, C.BuffPickup, C.Shape, C.Grounded);
 const PERK = mask(C.Transform, C.PerkPickup, C.Shape, C.Grounded);
+const REWARD = mask(C.Transform, C.RewardPickup, C.Shape);
 
-const WEAPON_SHAPE = [ShapeKind.None, ShapeKind.Sword, ShapeKind.Spear, ShapeKind.Gun];
+const WEAPON_SHAPE = [ShapeKind.None, ShapeKind.Sword, ShapeKind.Spear, ShapeKind.Gun, ShapeKind.Scattergun];
 const BUFF_SHAPE = [ShapeKind.None, ShapeKind.Haste, ShapeKind.Fury];
 
 // A recycled slot still holds its old previous-position; without resetting it
@@ -135,4 +136,14 @@ export function spawnPerk(kind: number, x: number, z: number): EntityId {
   PerkPickup.kind[perk] = kind;
   Shape.kind[perk] = ShapeKind.Perk;
   return perk;
+}
+
+export function spawnReward(option: number, kind: number, x: number, z: number): EntityId {
+  const reward = spawn();
+  add(reward, REWARD);
+  place(reward, x, z);
+  RewardPickup.option[reward] = option;
+  RewardPickup.kind[reward] = kind;
+  Shape.kind[reward] = ShapeKind.Reward;
+  return reward;
 }
