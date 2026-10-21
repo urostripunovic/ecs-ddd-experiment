@@ -108,6 +108,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - **The bot is code too.** When a playtest goes badly, check the bot before tuning the game.
 - **A scan that lists files at build time can go stale.** A cached transform keeps the old file list, so a new file is never scanned. Turn the cache off, and prove the scan by planting a violation in a new file.
 - **A dev tool that throws can stop the game loop.** Guard it so a bug in the tool can't freeze the game it inspects.
+- **The checker can be blind too.** A mutation run that reports every bug as missed is more likely misreading its tool than proof the tests are blind: judge by the test runner's exit code, and break one thing by hand before trusting a run that catches nothing (or everything).
 
 ## Review checklist
 
