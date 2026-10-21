@@ -1,4 +1,4 @@
-import type { Loadout, RunEvent } from '../../domain/run/run';
+import type { Doors, Loadout, RunEvent } from '../../domain/run/run';
 import { assertNever } from '../../domain/shared/types';
 import { C, RunStatus } from '../../ecs/components';
 import { RunViewWritable } from '../../ecs/components/run-view';
@@ -7,6 +7,7 @@ import { applyReward, clearRewards, revivePlayer } from '../../ecs/systems/rewar
 import { idMap } from '../id-map';
 import { PLAYER_ID } from '../ids';
 import { REWARD_KIND } from './loadout';
+import { openDoors } from './doors';
 import { spawnPedestals } from './rewards';
 
 // The player as the world has them now, or -1 if they're gone this tick.
@@ -25,6 +26,8 @@ export function takePendingArena(): { arena: number; loadout: Loadout } | null {
   return next;
 }
 
+const DOORS_OPENED: Record<Doors, string> = { onward: 'tunnel open', both: 'tunnel and final door open', final: 'final door open' };
+
 // Writes domain truth into components; never sends commands.
 export function projectRun(e: RunEvent): string {
   switch (e.kind) {
@@ -32,10 +35,13 @@ export function projectRun(e: RunEvent): string {
       RunViewWritable.status = RunStatus.Lost;
       RunViewWritable.endedAt = e.tick;
       return 'RunView=Lost';
-    case 'ArenaCleared':
+    case 'ArenaCleared': {
+      const doors = openDoors(e.doors);
       RunViewWritable.status = RunStatus.Cleared;
-      RunViewWritable.tunnelOpen = true;
-      return 'RunView=Cleared, tunnel open';
+      RunViewWritable.tunnelOpen = doors.onward;
+      RunViewWritable.finalDoorOpen = doors.final;
+      return `RunView=Cleared, ${DOORS_OPENED[e.doors]}`;
+    }
     case 'RunWon':
       RunViewWritable.status = RunStatus.Won;
       RunViewWritable.endedAt = e.tick;

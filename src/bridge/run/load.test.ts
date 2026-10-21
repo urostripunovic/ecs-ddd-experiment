@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { BossState } from '../../domain/boss/boss';
 import type { RunState } from '../../domain/run/run';
 import type { BossId } from '../../domain/shared/types';
-import { Arena, C, Transform } from '../../ecs/components';
+import { MIN_DRAWN, type Door } from '../../domain/run/run';
+import { DOORS } from '../../ecs/arenas';
+import { Arena, Armor, C, Transform } from '../../ecs/components';
+import { Perk, setPerks } from '../../ecs/systems/perks';
 import { buf } from '../../ecs/core/buffers';
 import { rewardSensorSystem } from '../../ecs/systems/rewards';
 import { send } from '../../ecs/core/outbox';
@@ -48,11 +51,19 @@ const takeReward = () => {
   rewardSensorSystem();
   domainStep();
 };
-const intoTunnel = () => {
-  Transform.x[indexOf(handles.player)] = 0;
+const intoTunnel = (door: Door = 'onward') => {
+  Transform.x[indexOf(handles.player)] = DOORS[door].x;
   Transform.z[indexOf(handles.player)] = -(Arena.half + 4);
   tunnelSystem();
   domainStep();
+};
+
+// Strong enough for the fork: three perks and three plates on top of the start.
+const strong = () => {
+  const p = indexOf(handles.player);
+  setPerks(p, [Perk.LastStand, Perk.Adrenaline, Perk.Ricochet]);
+  Armor.gained[p] = 3;
+  Armor.broken[p] = 0;
 };
 
 // One per state in docs/ARCHITECTURE.md's rules examples.
@@ -62,7 +73,17 @@ const STATES: [string, () => void][] = [
   ['arena 1 cleared, a reward taken (R13)', () => { downBoss(); takeReward(); }],
   ['revived once (R11)', downPlayer],
   ['fighting in arena 2 (R3)', () => { downBoss(); intoTunnel(); }],
-  ['won (R5)', () => { while (store.run.arena < store.run.arenas) { downBoss(); intoTunnel(); } downBoss(); }],
+  ['cleared with the final door open beside the onward one (R17)', () => {
+    for (let i = 0; i <= MIN_DRAWN; i++) { if (i > 0) intoTunnel(); strong(); downBoss(); }
+  }],
+  ['fighting the final (R17)', () => {
+    for (let i = 0; i <= MIN_DRAWN; i++) { if (i > 0) intoTunnel(); strong(); downBoss(); }
+    intoTunnel('final');
+  }],
+  ['won (R5)', () => {
+    while (!store.run.final) { downBoss(); intoTunnel(store.run.doors === 'final' ? 'final' : 'onward'); }
+    downBoss();
+  }],
   ['lost, every revive spent (R6)', () => { for (let i = 0; i < 4; i++) downPlayer(); }],
 ];
 

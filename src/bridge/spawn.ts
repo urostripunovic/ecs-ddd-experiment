@@ -15,6 +15,7 @@ import { WEAPON_STOCK } from '../ecs/weapons/defs';
 import { bossIdFor, PLAYER_ID } from './ids';
 import { idMap } from './id-map';
 import { KIND_NUMBER, PERK_NUMBER } from './run/loadout';
+import { openDoors } from './run/doors';
 import { spawnPedestals } from './run/rewards';
 import { setPerks } from '../ecs/systems/perks';
 import { store } from './store';
@@ -74,7 +75,7 @@ export function buildArena(arena: number, loadout: Loadout): void {
   resetArenaState();
   resetScripts();
   idMap.unbindHandles();
-  const planned = arenaFor(store.run.seed, arena, store.run.arenas);
+  const planned = arenaFor(store.run.seed, arena, store.run.final);
   const layout = planned.layout;
 
   // Pillars are pure simulation (cover), so the domain never hears of them.
@@ -126,11 +127,13 @@ export function buildArena(arena: number, loadout: Loadout): void {
   if (store.run.status === 'Lost') downed(p);
 
   RunViewWritable.arena = arena;
-  RunViewWritable.arenas = store.run.arenas;
+  RunViewWritable.final = store.run.final;
   RunViewWritable.status = VIEW_STATUS[store.run.status];
   RunViewWritable.endedAt = store.run.status === 'Won' || store.run.status === 'Lost' ? store.run.endedAt : 0;
-  // The run projector opens it on ArenaCleared; a loaded clear must open it too.
-  RunViewWritable.tunnelOpen = store.run.status === 'Cleared';
+  // The run projector opens them on ArenaCleared; a loaded clear must open them too.
+  const doors = openDoors(store.run.status === 'Cleared' ? store.run.doors : null);
+  RunViewWritable.tunnelOpen = doors.onward;
+  RunViewWritable.finalDoorOpen = doors.final;
   RunViewWritable.revives = store.run.revives;
   RunViewWritable.seed = store.run.seed;
   // An offer still open on a cleared arena stands on its pedestals, as a load would find it.

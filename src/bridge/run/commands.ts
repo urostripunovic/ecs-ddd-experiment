@@ -1,9 +1,11 @@
 import type { BossEvent } from '../../domain/boss/boss';
-import { carriedWeapon, loadoutOf, type Loadout, type PerkName, type RunCommand } from '../../domain/run/run';
+import { carriedWeapon, loadoutOf, type Door, type Loadout, type PerkName, type RunCommand } from '../../domain/run/run';
 import { assertNever, type Tick } from '../../domain/shared/types';
-import { Ammo, Durability, Health, Item, Wielder } from '../../ecs/components';
+import { Ammo, C, Durability, Health, Item, Wielder } from '../../ecs/components';
 import type { OutboxSlot } from '../../ecs/core/outbox';
-import { handleAt, indexOf, isLive, type EntityId } from '../../ecs/core/world';
+import { handleAt, has, indexOf, isLive, type EntityId } from '../../ecs/core/world';
+import { DoorNumber } from '../../ecs/systems/tunnel';
+import { PLAYER_ID } from '../ids';
 import { idMap } from '../id-map';
 import { perkSlots } from '../../ecs/systems/perks';
 import { armorPlates } from '../../ecs/systems/armor';
@@ -22,6 +24,13 @@ function snapshotLoadout(p: EntityId): Loadout {
   return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w]), perks, armor);
 }
 
+function standingLoadout(): Loadout | null {
+  const h = idMap.handleOfPlayer(PLAYER_ID);
+  if (h === undefined || !isLive(h)) return null;
+  const p = indexOf(h);
+  return has(p, C.Dead) || Health.hp[p] <= 0 ? null : snapshotLoadout(p);
+}
+
 // The run hears about the player directly from the simulation.
 export function toRunCommand(slot: OutboxSlot): RunCommand | null {
   const ref = idMap.refOf(slot.subject);
@@ -29,8 +38,10 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
   const tick = slot.tick as Tick;
   switch (slot.kind) {
     case 'EntityDowned': return { kind: 'PlayerDowned', player: ref.id, tick };
-    case 'TunnelEntered':
-      return { kind: 'TunnelEntered', player: ref.id, loadout: snapshotLoadout(indexOf(slot.subject)), tick };
+    case 'TunnelEntered': {
+      const door: Door = slot.value === DoorNumber.Final ? 'final' : 'onward';
+      return { kind: 'TunnelEntered', player: ref.id, door, loadout: snapshotLoadout(indexOf(slot.subject)), tick };
+    }
     case 'RewardTouched': return { kind: 'RewardChosen', player: ref.id, option: slot.value, tick };
     default: return assertNever(slot.kind);
   }
@@ -40,7 +51,9 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
 // request to the run rather than the boss reaching into it.
 export function runCommandFromBoss(e: BossEvent): RunCommand | null {
   switch (e.kind) {
-    case 'BossDefeated': return { kind: 'BossCleared', boss: e.boss, tick: e.tick };
+    // What you have on you at the kill decides the doors, so it's read now; down
+    // on this tick (a trade), there's nothing to carry and the run says what then.
+    case 'BossDefeated': return { kind: 'BossCleared', boss: e.boss, loadout: standingLoadout(), tick: e.tick };
     default: return assertNever(e.kind);
   }
 }

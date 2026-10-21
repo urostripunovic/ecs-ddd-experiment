@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  Ammo, Arena, C, Health, Item, Jump, PlayerInput, RewardPickup, RunStatus, RunView, Transform, Wielder,
+  Ammo, Arena, Armor, C, Health, Item, Jump, PlayerInput, RewardPickup, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
 import { send } from '../../ecs/core/outbox';
 import { add, has, indexOf, isLive, NOBODY, query, world, type EntityId } from '../../ecs/core/world';
-import { tunnelSystem } from '../../ecs/systems/tunnel';
+import { DoorNumber, tunnelSystem } from '../../ecs/systems/tunnel';
+import { DOORS } from '../../ecs/arenas';
+import { MAX_ARENAS, MIN_DRAWN } from '../../domain/run/run';
 import { stockSystem } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
-import { addPerk, Perk, perkSlots } from '../../ecs/systems/perks';
+import { addPerk, Perk, perkSlots, setPerks } from '../../ecs/systems/perks';
 import { rewardSensorSystem } from '../../ecs/systems/rewards';
 import { buf } from '../../ecs/core/buffers';
 import { domainStep } from '../dispatch';
@@ -29,11 +31,13 @@ describe('run flow', () => {
   let h: RunHandles;
   beforeEach(() => { h = startRun(); });
 
-  // Beats each boss and takes each tunnel until the run's last arena.
+  // Beats each boss and takes the onward door until only the final's is left,
+  // then takes that: the starting loadout is never strong enough for the fork.
   const toLastArena = () => {
-    while (store.run.arena < store.run.arenas) {
+    while (!store.run.final) {
       send('EntityDowned', h.boss, h.player, 0);
       domainStep();
+      Transform.x[indexOf(h.player)] = store.run.doors === 'final' ? DOORS.final.x : DOORS.onward.x;
       Transform.z[indexOf(h.player)] = -(Arena.half + 4);
       tunnelSystem();
       domainStep();
@@ -116,6 +120,41 @@ describe('run flow', () => {
     expect(has(indexOf(h.player), C.TunnelPending)).toBe(false);
   });
 
+  // R17: strong enough at the kill, with enough bosses behind you, and a second door opens.
+  it('a strong clear deep enough opens the final door, a closed one is refused, and the open one leads to the final', () => {
+    const through = (x: number) => {
+      Transform.x[indexOf(h.player)] = x;
+      Transform.z[indexOf(h.player)] = -(Arena.half + 4);
+      tunnelSystem();
+      domainStep();
+    };
+    // Arena 1: the final door stays shut, and walking at it from inside is refused.
+    send('EntityDowned', h.boss, h.player, 0);
+    domainStep();
+    expect(RunView).toMatchObject({ tunnelOpen: true, finalDoorOpen: false });
+    send('TunnelEntered', h.player, NOBODY, DoorNumber.Final);
+    domainStep();
+    expect(readTickLog().at(-1)).toContain('TunnelRefused -> latch released (DoorClosed)');
+    expect(has(indexOf(h.player), C.TunnelPending)).toBe(false);
+
+    for (let drawn = 1; drawn <= MIN_DRAWN; drawn++) {
+      through(DOORS.onward.x);
+      const p = indexOf(h.player);
+      setPerks(p, [Perk.LastStand, Perk.Adrenaline, Perk.Ricochet]);
+      Armor.gained[p] = 3;
+      send('EntityDowned', h.boss, h.player, 0);
+      domainStep();
+    }
+    expect(RunView).toMatchObject({ status: RunStatus.Cleared, tunnelOpen: true, finalDoorOpen: true });
+    expect(readTickLog().join('\n')).not.toMatch(/power/i);
+
+    through(DOORS.final.x);
+    expect(RunView).toMatchObject({ arena: MIN_DRAWN + 2, final: true, status: RunStatus.Fighting, finalDoorOpen: false });
+    send('EntityDowned', h.boss, h.player, 0);
+    domainStep();
+    expect(RunView.status).toBe(RunStatus.Won);
+  });
+
   it('clearing arena 1 and walking into the tunnel builds arena 2 from what the run carried', () => {
     const p = indexOf(h.player);
     const gun = indexOf(Wielder.held[p] as never);
@@ -179,7 +218,7 @@ describe('run flow', () => {
     it(`a trade with the last boss loses the run (${bossFirst ? 'boss' : 'player'} reported first)`, () => {
       spendRevives();
       toLastArena();
-      expect(RunView.arena).toBe(RunView.arenas);
+      expect(RunView).toMatchObject({ final: true, arena: MAX_ARENAS });
       if (bossFirst) send('EntityDowned', h.boss, h.player, 0);
       send('EntityDowned', h.player, h.boss, 0);
       if (!bossFirst) send('EntityDowned', h.boss, h.player, 0);
