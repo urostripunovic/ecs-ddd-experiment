@@ -322,7 +322,7 @@ export function pickupSystem(): void {
     for (let j = 0; j < items; j++) {
       const it = entityAt(itemBuf, j);
       // A buff consumed earlier in this loop is gone; an item picked up is no longer on the ground.
-      if (!world.alive[it] || !has(it, C.Grounded)) continue;
+      if (!world.inUse[it] || !has(it, C.Grounded)) continue;
       const dx = Transform.x[it] - Transform.x[w];
       const dz = Transform.z[it] - Transform.z[w];
       const d2 = dx * dx + dz * dz;

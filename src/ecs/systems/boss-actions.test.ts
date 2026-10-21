@@ -143,7 +143,7 @@ describe('boss choreography', () => {
     const bullet = spawnProjectile(Transform.x[b], Transform.z[b], 0, 1, 0, TeamId.Player, toHandle(p), hp(25), seconds(1), 0);
     projectileSystem(DT);
     expect(Health.hp[b]).toBe(before);
-    expect(world.alive[bullet]).toBe(1); // flew on, not spent on the boss
+    expect(world.inUse[bullet]).toBe(1); // flew on, not spent on the boss
   });
 });
 

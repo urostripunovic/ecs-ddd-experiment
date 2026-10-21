@@ -172,7 +172,7 @@ function failOnNotesTo(entity: EntityId): void {
   const h = toHandle(entity);
   for (const { name, column, countsWhile } of NOTES) {
     for (let r = 0; r < world.nextFresh; r++) {
-      if (r === entity || !world.alive[r] || (world.signature[r] & countsWhile) !== countsWhile || column[r] !== h) continue;
+      if (r === entity || !world.inUse[r] || (world.signature[r] & countsWhile) !== countsWhile || column[r] !== h) continue;
       throw new Error(`row ${entity} freed while ${name}[${r}] still points at it (${nameOf(entity)}, from ${nameOf(r)}). Clear the note first, as breakItem does.`);
     }
   }

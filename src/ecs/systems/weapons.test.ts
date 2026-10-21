@@ -112,7 +112,7 @@ describe('durability', () => {
     Durability.value[spear] = 0.004;
     durabilitySystem(DT);
     expect(Wielder.held[p]).toBe(NOBODY);
-    expect(world.alive[spear]).toBe(0);
+    expect(world.inUse[spear]).toBe(0);
   });
 
   it('only wears while held: on the ground, flying or stuck it waits to be picked up', () => {
@@ -256,7 +256,7 @@ describe('status', () => {
 describe('stock', () => {
   const count = (kind: number) => {
     let n = 0;
-    for (let e = 0; e < world.nextFresh; e++) if (world.alive[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
+    for (let e = 0; e < world.nextFresh; e++) if (world.inUse[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
     return n;
   };
   const stockArena = () => {
