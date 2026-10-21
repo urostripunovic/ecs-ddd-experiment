@@ -4,7 +4,7 @@ import { ARENAS, PILLAR_RADIUS } from '../arenas';
 import { UNCHAINED } from '../bosses/defs';
 import { BossPhase, C, Collider, Dodge, Health, Knockback, Orbit, resetArenaState, resetRunState, RunStatus, Transform } from '../components';
 import { RunViewWritable } from '../components/run-view';
-import { inSeconds, meters, ticks } from '../core/units';
+import { after, inSeconds, meters, ticks } from '../core/units';
 import { add, has, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnOrbitingPillar, spawnPlayer } from '../prefabs';
 import { bodyCollisionSystem } from './collision';
@@ -129,7 +129,7 @@ describe('spikes', () => {
   it('miss a dodge, like every other hit', () => {
     BossPhase.phase[boss] = 2;
     step();
-    Dodge.until[player] = world.tick + 20;
+    Dodge.until[player] = after(ticks(20));
     touching();
     step();
     expect(Health.hp[player]).toBe(100);

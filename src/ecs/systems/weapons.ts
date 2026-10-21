@@ -119,18 +119,18 @@ function breakItem(item: EntityId): void {
 
 // Ricochet: mirror the velocity off the surface, step back off it, and fly on
 // harder, with a fresh flight time.
-function bounce(f: EntityId, nx: number, nz: number): void {
-  const along = Velocity.x[f] * nx + Velocity.z[f] * nz;
+function bounce(item: EntityId, nx: number, nz: number): void {
+  const along = Velocity.x[item] * nx + Velocity.z[item] * nz;
   if (along < 0) {
-    Velocity.x[f] -= 2 * along * nx;
-    Velocity.z[f] -= 2 * along * nz;
+    Velocity.x[item] -= 2 * along * nx;
+    Velocity.z[item] -= 2 * along * nz;
   }
   const edge = Arena.half - 0.3;
-  Transform.x[f] = Math.max(-edge, Math.min(edge, Transform.x[f] + nx * 0.3));
-  Transform.z[f] = Math.max(-edge, Math.min(edge, Transform.z[f] + nz * 0.3));
-  Thrown.bounces[f]--;
-  Thrown.dmg[f] *= RICOCHET_DMG_MUL;
-  Thrown.ticksLeft[f] = defOf(f).throwTicks;
+  Transform.x[item] = Math.max(-edge, Math.min(edge, Transform.x[item] + nx * 0.3));
+  Transform.z[item] = Math.max(-edge, Math.min(edge, Transform.z[item] + nz * 0.3));
+  Thrown.bounces[item]--;
+  Thrown.dmg[item] *= RICOCHET_DMG_MUL;
+  Thrown.ticksLeft[item] = defOf(item).throwTicks;
 }
 
 // A thrown weapon that hits lodges in its target and rides along with it.
@@ -186,7 +186,8 @@ export function heldFollowSystem(): void {
   }
 }
 
-// reads PlayerInput.throwHeld/throwReleases, Wielder | writes Wielder.charge, Thrown, Velocity, item state
+// reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo | writes Wielder.charge, Thrown, Velocity, item state;
+// with Final shot instead: Ammo, Shake, Health (via hurt), spawns a heavy bullet or breaks the gun
 // Holding fills the gauge; the release throws with whatever it reached, so a
 // tap is a weak throw and timing the perfect zone is the skill.
 export function throwSystem(): void {
@@ -229,29 +230,31 @@ export function throwSystem(): void {
 // Final shot: the rest of the magazine leaves as one heavy shot, as hard as the
 // gauge says. Past the gauge's end the gun can't take it: it blows up in your
 // hands, hurting you, and is gone (the stock brings a new one later).
-function finalShot(w: EntityId, gun: EntityId, charge: ThrowCharge): void {
+function finalShot(wielder: EntityId, gun: EntityId, charge: ThrowCharge): void {
   const def = defOf(gun);
   if (charge.zone === ChargeZone.Overcharged) {
+    // Shake has several writers (the roar, this) on purpose: each only raises it and
+    // shakeSystem decays it, so the strongest shake wins and none erases another.
     Shake.trauma = Math.max(Shake.trauma, 0.6);
-    hurt(w, FINAL_SHOT_BLOWUP_DMG, toHandle(w));
+    hurt(wielder, FINAL_SHOT_BLOWUP_DMG, toHandle(wielder));
     breakItem(gun);
     return;
   }
-  const muzzle = Collider.radius[w] + 0.35;
+  const muzzle = Collider.radius[wielder] + 0.35;
   spawnProjectile(
-    Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
+    Transform.x[wielder] + PlayerInput.aimX * muzzle, Transform.z[wielder] + PlayerInput.aimZ * muzzle,
     PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
-    Team.id[w], toHandle(w), times(def.dmg, Ammo.count[gun] * charge.dmgMul * dmgMul(w)), BULLET_LIFE,
+    Team.id[wielder], toHandle(wielder), times(def.dmg, Ammo.count[gun] * charge.dmgMul * dmgMul(wielder)), BULLET_LIFE,
     ShapeKind.HeavyBullet,
   );
   Ammo.count[gun] = 0;
   Ammo.reload[gun] = def.reloadTime;
 }
 
-function reachOf(w: EntityId, def: WeaponDef): number {
-  const item = heldItem(w);
+function reachOf(wielder: EntityId, def: WeaponDef): number {
+  const item = heldItem(wielder);
   const spear = item !== -1 && Item.kind[item] === WeaponKind.Spear;
-  return spear && hasPerk(w, Perk.LongReach) ? def.reach * LONG_REACH_MUL : def.reach;
+  return spear && hasPerk(wielder, Perk.LongReach) ? def.reach * LONG_REACH_MUL : def.reach;
 }
 
 // Every target in reach and inside the arc, so one sword swing can hit several.
@@ -317,7 +320,8 @@ export function attackSystem(dt: Seconds): void {
   }
 }
 
-// reads Thrown, Transform, Team, Collider | writes Health, Durability, item state
+// reads Thrown, Transform, Team, Collider | writes Health, Durability, item state; a ricochet writes Velocity,
+// Transform, Thrown.dmg/ticksLeft/bounces
 // A hit lodges the weapon in the target; a miss lands it, locked for a while.
 export function flightSystem(): void {
   const targets = query(targetBuf, TARGETS, UNHITTABLE);
@@ -376,7 +380,7 @@ function applyBuff(w: EntityId, kind: number): void {
   else if (kind === BuffKind.Fury) Buffs.furyUntil[w] = after(BUFF_TICKS);
 }
 
-// reads Grounded items, PlayerInput.interactPresses, Wielder | writes Wielder, Buffs, item state
+// reads Grounded items, PlayerInput.interactPresses, Wielder | writes Wielder, Buffs, Perks, item state
 // Empty hands pick up by walking over; full hands swap only on purpose (interact).
 export function pickupSystem(): void {
   if (controlsLocked()) return;

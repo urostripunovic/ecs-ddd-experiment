@@ -8,7 +8,7 @@ import {
 import { RunViewWritable } from '../components/run-view';
 import { buf } from '../core/buffers';
 import { seedRng } from '../core/rng';
-import { hp, inSeconds, ticks } from '../core/units';
+import { hp, inSeconds, inTicks, seconds, ticks } from '../core/units';
 import { has, query, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPerk, spawnPlayer, spawnWeapon } from '../prefabs';
 import { CHARGE_MAX_TICKS } from '../weapons/charge';
@@ -187,7 +187,7 @@ describe('Long reach', () => {
 describe('perk drops', () => {
   it('one perk pickup at a time, seeded, while fighting', () => {
     seedRng(3);
-    for (let i = 0; i < 60 * 60; i++) {
+    for (let i = 0; i < inTicks(seconds(60)); i++) {
       perkDropSystem();
       world.tick++;
     }

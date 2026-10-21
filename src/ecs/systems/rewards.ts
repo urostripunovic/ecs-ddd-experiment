@@ -5,7 +5,7 @@ import {
 } from '../components';
 import { buf, helperBuf } from '../core/buffers';
 import { send } from '../core/outbox';
-import { after, inTicks, seconds } from '../core/units';
+import { after, inTicks, meters, seconds } from '../core/units';
 import { add, despawn, entityAt, mask, NOBODY, query, remove, toHandle, type EntityId } from '../core/world';
 import { WeaponKind } from '../weapons/defs';
 import { armorPlates, MAX_PLATES } from './armor';
@@ -15,16 +15,20 @@ export const RewardKind = { None: 0, Revive: 1, Armor: 2, Heal: 3, Scattergun: 4
 
 export const REVIVE_SHIELD = inTicks(seconds(2));
 // Enemy bullets this close are cleared when you get back up.
-const REVIVE_CLEAR_RADIUS = 6;
-const PICKUP_RADIUS = 1.3;
+const REVIVE_CLEAR_RADIUS = meters(6);
+const PICKUP_RADIUS = meters(1.3);
 
 const ENEMY_SHOTS = mask(C.Projectile, C.Transform, C.Team);
 const PEDESTALS = mask(C.RewardPickup, C.Transform);
+const ANY_PEDESTAL = mask(C.RewardPickup);
 const CHOOSERS = mask(C.PlayerControlled, C.Transform);
 const NOT_CHOOSING = mask(C.Dead, C.RewardPending);
 
 // Back up where you fell, at full hp, untouchable for a moment, with the bullets
 // that would have hit you on the spot gone.
+// A second writer of Health.hp and Knockback, on purpose: like the spawn
+// projection setting hp when it builds an arena, a revive is the rules' decision
+// shown in the world, and it happens on one tick, never alongside a hit.
 export function revivePlayer(player: EntityId): void {
   remove(player, C.Dead);
   Health.hp[player] = Health.max[player];
@@ -62,7 +66,7 @@ export function rewardSensorSystem(): void {
 
 // The offer is closed: every pedestal goes, and the latch is released.
 export function clearRewards(player: EntityId): void {
-  const n = query(helperBuf, mask(C.RewardPickup));
+  const n = query(helperBuf, ANY_PEDESTAL);
   for (let i = n - 1; i >= 0; i--) despawn(entityAt(helperBuf, i));
   remove(player, C.RewardPending);
 }
@@ -74,6 +78,7 @@ export function applyReward(player: EntityId, kind: number): void {
       if (armorPlates(player) < MAX_PLATES) Armor.gained[player]++;
       return;
     case RewardKind.Heal:
+      // The same deliberate second writer of hp as revivePlayer, for the same reason.
       Health.hp[player] = Health.max[player];
       return;
     case RewardKind.Scattergun:

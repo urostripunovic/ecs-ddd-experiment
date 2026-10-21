@@ -26,6 +26,7 @@ const FIRST_PERK_AFTER = inTicks(seconds(5));
 const PERK_EVERY = inTicks(seconds(20));
 const LIVE_PLAYERS = mask(C.PlayerControlled, C.Health);
 const LIVE_BOSSES = mask(C.Boss, C.Health);
+const PERKS_ON_GROUND = mask(C.PerkPickup, C.Grounded);
 
 export const hasPerk = (entity: EntityId, kind: number) =>
   Perks.s0[entity] === kind || Perks.s1[entity] === kind || Perks.s2[entity] === kind;
@@ -59,7 +60,7 @@ export function perkDropSystem(): void {
   if (PerkDrop.nextAt === 0) { PerkDrop.nextAt = after(FIRST_PERK_AFTER); return; }
   if (world.tick < PerkDrop.nextAt) return;
   PerkDrop.nextAt = after(PERK_EVERY);
-  if (query(helperBuf, mask(C.PerkPickup, C.Grounded)) > 0) return;
+  if (query(helperBuf, PERKS_ON_GROUND) > 0) return;
 
   const players = query(helperBuf, LIVE_PLAYERS, C.Dead);
   const player = players > 0 ? entityAt(helperBuf, 0) : -1;

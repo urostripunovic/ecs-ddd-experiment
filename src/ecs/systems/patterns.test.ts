@@ -4,7 +4,7 @@ import { UNCHAINED } from '../bosses/defs';
 import { C, Health, Pattern, resetArenaState, resetRunState, RunStatus, Transform, Velocity } from '../components';
 import { RunViewWritable } from '../components/run-view';
 import { buf } from '../core/buffers';
-import { hp, inSeconds, ticks } from '../core/units';
+import { hp, inSeconds, inTicks, seconds, ticks } from '../core/units';
 import { query, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPlayer } from '../prefabs';
 import { RING_WAVE_GAP } from './boss-actions';
@@ -76,7 +76,7 @@ describe('the gap ring', () => {
 
   it('leaves a safe spot shared by every wave in the air at once', () => {
     // At 6 m: the waves still flying when the telegraph moves on, plus the one it shows.
-    const flight = Math.ceil((6 / RING_SPEED) * 60);
+    const flight = inTicks(seconds(6 / RING_SPEED));
     const waves = Math.ceil(flight / RING_WAVE_GAP) + 1;
     const shared = (2 * RING_GAP_HALF - (waves - 1) * RING_TURN) * 6;
     // The player (0.45 m) plus a bullet (0.2 m) on each side.
