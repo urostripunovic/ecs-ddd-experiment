@@ -17,6 +17,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Armor plate** | ECS (`Armor`), carried by the loadout | Blocks one hit completely, then breaks. At most three. |
 | **Pool** | ECS (`POOL`) | The boss-and-arena pairs a run draws its middle arenas from. |
 | **Depth** | ECS (`arenaFor`) | How far into the run an arena is (arena 1 is depth 0). Each step adds hp and pace to its boss. |
+| **Keeper** | ECS (`FINAL`) | The final boss: three phases, the Warden's moves, then rings and the spiral, then the storm. |
+| **Storm** | ECS action | The Keeper's phase 3 attack: two spiral arms and gap rings at once, as one action. |
 | **Slam** | ECS | A telegraphed area attack: windup ticks, radius, damage. Pure simulation. |
 | **Run** | domain (`domain/run`) | A sequence of arenas: which one you're in, whether it's `Fighting`, `Cleared`, `Won` or `Lost`, and the loadout it was entered with. |
 | **Loadout** | domain | What passes between arenas: hp and the held weapon (kind, wear, ammo, and its `WeaponId`). The run starts you with the gun. |

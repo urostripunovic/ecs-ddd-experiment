@@ -104,6 +104,9 @@ Every boss attack (slam, cone, burst, jump, the roar that opens phase 2, and the
 | Unchained | 1 | ring → jump | 1 |
 | Unchained | 2 | cone, ring or spiral → jump | 1 |
 | Unchained | 1, 2 | everything else | 6 |
+| Keeper | 2 | cone, ring or spiral → jump | 1 |
+| Keeper | 3 | cone, ring or storm → jump | 1 |
+| Keeper | 1, 2, 3 | everything else | 8 |
 
 The **roar** is a short cutscene: the boss rears up, then roars; the camera shakes, anyone within 7 m is shoved away, the player's controls are locked, and the boss takes no damage until it ends (hits still flash). The shake is drawn by the renderer and undone before mouse aim, so it never reaches the simulation.
 
@@ -120,6 +123,10 @@ How each action looks is `app/render/boss-pose.ts`, a pure function of the actio
 The run is the first area that grew because of a feature. Which arena you're in, whether it's cleared, and what you carry between arenas have rules other parts depend on (entering the tunnel can be refused, the loadout carries over, the run is won or lost), so they're domain state. That a save would hold them is a hint about their lifetime, not the reason. The *held weapon* is the first simulation concept promoted to the domain: it only gets a stable `WeaponId` when it crosses into the rules (`idMap.weaponIdOf`), the first time a rule (what carries over) reacts to it.
 
 Entering an arena rebuilds the whole ECS world. That can't happen while the outbox is being drained, so the run projector records it and `domainStep` builds the arena once the step is finished. The tick keeps counting across arenas; the input counters carry over, and a new player starts caught up with them, so no press from arena 1 replays in arena 2.
+
+## The final boss
+
+Decided with the user: the Keeper, in its own hall, is the last fight of every run, an exam in three phases, one per lesson. Phase 1 is the Warden's own script. Phase 2 (at 66% hp) opens with a roar and fights with gap rings and the spiral while the pillars spike. Phase 3 (at 33%) opens with a second roar and adds the **storm**: two spiral arms turning while gap rings go out through them, one action, so one attack at a time still holds. Phase thresholds are per boss style (`PHASE_AT` in `systems/boss.ts`); the hall's two rings of pillars turn opposite ways around a centre perch.
 
 ## The run's plan
 
