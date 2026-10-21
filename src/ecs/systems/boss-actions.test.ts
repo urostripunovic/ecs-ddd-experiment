@@ -8,7 +8,7 @@ import { buf } from '../core/buffers';
 import { hp, inSeconds, seconds, ticks } from '../core/units';
 import { has, query, resetWorld, toHandle, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS } from '../arenas';
-import { UNCHAINED, WARDEN, type BossDef } from '../bosses/defs';
+import { FINAL, UNCHAINED, WARDEN, type BossDef } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
 import { Action, chainGap, DEFAULT_GAP, paceGap, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
@@ -181,6 +181,55 @@ describe('the Unchained', () => {
 
   it('waits less between attacks than the Warden', () => {
     expect(chainGap(1, Action.Slam, Action.Cone, UNCHAINED.style)).toBeLessThan(chainGap(1, Action.Slam, Action.Cone));
+  });
+});
+
+describe('the final boss', () => {
+  it('moves through three phases: at two thirds and one third of its hp, only forward', () => {
+    arena(1, FINAL);
+    Health.hp[b] = Health.max[b] * 0.67;
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(1);
+    Health.hp[b] = Health.max[b] * 0.66;
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(2);
+    Health.hp[b] = Health.max[b] * 0.33;
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(3);
+    Health.hp[b] = Health.max[b];
+    bossThresholdSystem();
+    expect(BossPhase.phase[b]).toBe(3);
+  });
+
+  for (const phase of [1, 2, 3]) {
+    it(`phase ${phase}: every action respects its chain gaps, and nothing fires mid-air`, () => {
+      arena(phase, FINAL);
+      const { chains, shotsWhileAirborne } = run(4000, true);
+      expect(chains.length).toBeGreaterThan(10);
+      for (const c of chains) expect(c.gap).toBeGreaterThanOrEqual(chainGap(phase, c.from, c.to, FINAL.style));
+      expect(shotsWhileAirborne).toBe(0);
+    });
+  }
+
+  it('teaches one lesson per phase: the Warden\'s moves, then rings and the spiral, then the storm', () => {
+    arena(1, FINAL);
+    const one = run(4000, true).chains;
+    expect(one.some((c) => c.to === Action.Slam || c.to === Action.Jump)).toBe(true);
+    expect(one.some((c) => c.to === Action.Ring || c.to === Action.Spiral || c.to === Action.Storm)).toBe(false);
+    arena(2, FINAL);
+    const two = run(4000, true).chains;
+    expect(two.some((c) => c.to === Action.Ring)).toBe(true);
+    expect(two.some((c) => c.to === Action.Spiral)).toBe(true);
+    arena(3, FINAL);
+    expect(run(4000, true).chains.some((c) => c.to === Action.Storm)).toBe(true);
+  });
+
+  it('opens phases 2 and 3 with a roar', () => {
+    for (const phase of [2, 3]) {
+      arena(phase, FINAL);
+      run(ROAR_REAR + 2, false);
+      expect(BossAction.kind[b]).toBe(Action.Roar);
+    }
   });
 });
 

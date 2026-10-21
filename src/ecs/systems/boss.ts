@@ -4,7 +4,7 @@ import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
 import { entityAt, mask, MAX_ENTITIES, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
-import { phaseOne, phaseTwo, unchainedOne, unchainedTwo } from './boss-scripts';
+import { keeperOne, keeperThree, keeperTwo, phaseOne, phaseTwo, unchainedOne, unchainedTwo } from './boss-scripts';
 import { releaseStuck } from './weapons';
 
 export const PHASE_TWO_AT = share(0.5);
@@ -16,7 +16,10 @@ const SLAM_SLOW_FACTOR = 0.5;
 const PHASE_SCRIPTS = [
   [null, phaseOne, phaseTwo],
   [null, unchainedOne, unchainedTwo],
+  [null, keeperOne, keeperTwo, keeperThree],
 ] as const;
+// Per style, the shares of max hp at which it moves to its next phase, in order.
+const PHASE_AT: readonly (readonly number[])[] = [[PHASE_TWO_AT], [PHASE_TWO_AT], [share(0.66), share(0.33)]];
 const runningScript: (Script | null)[] = new Array(MAX_ENTITIES).fill(null);
 
 const BOSSES = mask(C.Boss, C.Health);
@@ -82,13 +85,15 @@ export function slamSystem(): void {
 }
 
 // reads Health, BossPhase | writes BossPhase.phase
-// The only writer of the phase. Phase 1 only moves forward, so healing never
-// takes a boss back. Nothing outside the fight reacts to the phase, so the
+// The only writer of the phase. Phases only move forward, one step a tick at
+// most, at the shares PHASE_AT gives its style, so healing never takes a boss back. Nothing outside the fight reacts to the phase, so the
 // rules never hear of it.
 export function bossThresholdSystem(): void {
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    if (BossPhase.phase[e] === 1 && shareOf(Health.hp[e], Health.max[e]) <= PHASE_TWO_AT) BossPhase.phase[e] = 2;
+    const at = PHASE_AT[BossStyle.kind[e]] ?? PHASE_AT[0];
+    const phase = BossPhase.phase[e];
+    if (phase <= at.length && shareOf(Health.hp[e], Health.max[e]) <= at[phase - 1]) BossPhase.phase[e] = phase + 1;
   }
 }

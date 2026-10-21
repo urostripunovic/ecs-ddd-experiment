@@ -7,9 +7,9 @@ import type { Script } from '../core/script';
 import { ticks, type Ticks } from '../core/units';
 import { world, type EntityId } from '../core/world';
 
-export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5, Ring: 6, Spiral: 7 } as const;
+export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5, Ring: 6, Spiral: 7, Storm: 8 } as const;
 export type ActionKind = (typeof Action)[keyof typeof Action];
-const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar', 'ring', 'spiral'] as const;
+const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar', 'ring', 'spiral', 'storm'] as const;
 type Name = (typeof NAMES)[number];
 
 // Ticks from the end of one action to the start of the next, per boss style
@@ -34,6 +34,16 @@ export const CHAIN_GAPS: readonly Gaps[] = [
     phases: {
       1: { 'ring->jump': ticks(1) },
       2: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1) },
+    },
+  },
+  {
+    // The Keeper: the Warden's breath in phase 1, then the Unchained's chains,
+    // then the storm rolling straight into a jump.
+    default: ticks(8),
+    phases: {
+      1: {},
+      2: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1) },
+      3: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'storm->jump': ticks(1) },
     },
   },
 ];
@@ -79,3 +89,5 @@ export const RING_WINDUP = ticks(30);
 export const RING_WAVE_GAP = ticks(26);
 export const SPIRAL_WINDUP = ticks(18);
 export const SPIRAL_LENGTH = ticks(120);
+export const STORM_WINDUP = ticks(24);
+export const STORM_LENGTH = ticks(156);

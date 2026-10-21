@@ -120,6 +120,12 @@ describe('spikes', () => {
     expect(Health.hp[player]).toBe(100 - 2 * SPIKE_DMG);
   });
 
+  it('stay out in a boss\'s third phase', () => {
+    BossPhase.phase[boss] = 3;
+    step();
+    expect(has(pillar, C.Spiked)).toBe(true);
+  });
+
   it('come out straight away when the world is built in phase 2, as a load would', () => {
     BossPhase.phase[boss] = 2;
     spikeGrowthSystem();

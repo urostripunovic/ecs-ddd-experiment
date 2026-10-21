@@ -40,6 +40,12 @@ describe('a run\'s arenas', () => {
     expect(arenas[0].boss.pace).toBe(1);
   });
 
+  it('end on the final boss, in its own hall', () => {
+    const last = arenaFor(5, RUN_LENGTH, RUN_LENGTH);
+    expect(last.boss.style).toBe(BossStyleKind.Final);
+    expect(POOL).not.toContain(FINAL_ARENA);
+  });
+
   it('keep the Warden as it is in arena 1, the tutorial', () => {
     const first = arenaFor(5, 1, RUN_LENGTH);
     expect(first.boss.style).toBe(BossStyleKind.Warden);

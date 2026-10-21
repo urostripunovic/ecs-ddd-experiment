@@ -15,7 +15,7 @@ import { add, entityAt, mask, query, remove, toHandle, world, type EntityId } fr
 import { spawnProjectile } from '../prefabs';
 import {
   Action, begin, BURST_WINDUP, CONE_VOLLEY_GAP, CONE_WINDUP, finish, JUMP_AIR, JUMP_CROUCH, JUMP_RECOVER,
-  RING_WAVE_GAP, RING_WINDUP, ROAR_HOLD, ROAR_REAR, SPIRAL_LENGTH, SPIRAL_WINDUP,
+  RING_WAVE_GAP, RING_WINDUP, ROAR_HOLD, ROAR_REAR, SPIRAL_LENGTH, SPIRAL_WINDUP, STORM_LENGTH, STORM_WINDUP,
 } from './boss-actions';
 import { startCutscene } from './cutscene';
 
@@ -161,6 +161,13 @@ function inGap(angle: number, gapAt: number, half: number): boolean {
   return false;
 }
 
+function ringWave(boss: EntityId, gapAt: number): void {
+  for (let i = 0; i < RING_BULLETS; i++) {
+    const a = gapAt + (i / RING_BULLETS) * Math.PI * 2;
+    if (!inGap(a, gapAt, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);
+  }
+}
+
 export function* ring(boss: EntityId, waves: number, gapAt: number, dir: 1 | -1): Script {
   yield* begin(boss, Action.Ring);
   stop(boss);
@@ -168,12 +175,9 @@ export function* ring(boss: EntityId, waves: number, gapAt: number, dir: 1 | -1)
   Pattern.gapHalf[boss] = RING_GAP_HALF;
   yield* waitTicks(RING_WINDUP);
   for (let w = 0; w < waves; w++) {
-    const at = Pattern.gapAt[boss];
-    for (let i = 0; i < RING_BULLETS; i++) {
-      const a = at + (i / RING_BULLETS) * Math.PI * 2;
-      if (!inGap(a, at, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);
-    }
+    ringWave(boss, Pattern.gapAt[boss]);
     if (w === waves - 1) break;
+    const at = Pattern.gapAt[boss];
     // Shown at once, so the telegraph always says where the next wave's gaps are.
     Pattern.gapAt[boss] = at + RING_TURN * dir;
     yield* waitTicks(RING_WAVE_GAP);
@@ -199,6 +203,33 @@ function* spiral(boss: EntityId, startAt: number, dir: 1 | -1): Script {
     for (let arm = 0; arm < SPIRAL_ARMS; arm++) shoot(boss, at + (arm * 2 * Math.PI) / SPIRAL_ARMS, SPIRAL_SPEED);
     at += SPIRAL_STEP * dir;
     Pattern.gapAt[boss] = at;
+    yield* waitTicks(SPIRAL_EVERY);
+  }
+  finish(boss);
+}
+
+// The storm, the final exam's one new attack: two spiral arms turning while gap
+// rings go out through them. One action, so "one attack at a time" still holds;
+// the floor shows each ring's gaps, and an arm crossing a gap is dodged through.
+const STORM_ARMS = 2;
+
+function* storm(boss: EntityId, gapAt: number, dir: 1 | -1): Script {
+  yield* begin(boss, Action.Storm);
+  stop(boss);
+  Pattern.gapAt[boss] = gapAt;
+  Pattern.gapHalf[boss] = RING_GAP_HALF;
+  yield* waitTicks(STORM_WINDUP);
+  let arm = gapAt + Math.PI / 2;
+  let sinceRing: number = RING_WAVE_GAP;
+  for (let t = 0; t < STORM_LENGTH; t += SPIRAL_EVERY) {
+    for (let k = 0; k < STORM_ARMS; k++) shoot(boss, arm + (k * 2 * Math.PI) / STORM_ARMS, SPIRAL_SPEED);
+    arm += SPIRAL_STEP * dir;
+    sinceRing += SPIRAL_EVERY;
+    if (sinceRing >= RING_WAVE_GAP) {
+      ringWave(boss, Pattern.gapAt[boss]);
+      Pattern.gapAt[boss] += RING_TURN * dir;
+      sinceRing = 0;
+    }
     yield* waitTicks(SPIRAL_EVERY);
   }
   finish(boss);
@@ -422,6 +453,44 @@ export function* unchainedTwo(boss: EntityId): Script {
     yield* jump(boss, 'at');
     const urgency = shareOf(Health.hp[boss], Health.max[boss]) < HURRY_BELOW ? 1.4 : 1;
     yield* approach(boss, ticks(30), 4 * urgency);
+    yield* slam(boss, PHASE_TWO_SLAM);
+  }
+}
+
+// The Keeper, phase 1: the Warden's lesson, move for move.
+export const keeperOne = phaseOne;
+
+// Phase 2: the Unchained's lesson. The roar brings the pillars' spikes out.
+export function* keeperTwo(boss: EntityId): Script {
+  yield* roar(boss);
+  let dir: 1 | -1 = 1;
+  for (;;) {
+    if (shouldEvade(boss)) yield* jump(boss, 'away');
+    yield* ring(boss, 3, angleToPlayer(boss), dir);
+    yield* strafe(boss, ticks(12), 4.5, dir);
+    yield* spiral(boss, angleToPlayer(boss) + Math.PI / 3, dir);
+    dir = dir === 1 ? -1 : 1;
+    yield* cone(boss, 1, 7, 0.14);
+    yield* jump(boss, 'at');
+    yield* approach(boss, ticks(30), 3.8);
+    yield* slam(boss, PHASE_TWO_SLAM);
+  }
+}
+
+// Phase 3: everything at once, as fast as the lessons allow. A second roar, then
+// the storm, straight into a jump, a long ring and a slam.
+export function* keeperThree(boss: EntityId): Script {
+  yield* roar(boss);
+  let dir: 1 | -1 = 1;
+  for (;;) {
+    if (shouldEvade(boss)) yield* jump(boss, 'away');
+    yield* storm(boss, angleToPlayer(boss), dir);
+    yield* jump(boss, 'at');
+    yield* ring(boss, 4, angleToPlayer(boss), dir);
+    dir = dir === 1 ? -1 : 1;
+    yield* cone(boss, 1, 7, 0.14);
+    yield* jump(boss, 'at');
+    yield* approach(boss, ticks(24), 4.4);
     yield* slam(boss, PHASE_TWO_SLAM);
   }
 }

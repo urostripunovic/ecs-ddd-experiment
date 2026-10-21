@@ -38,13 +38,14 @@ export function orbitSystem(dt: Seconds): void {
 }
 
 // reads BossPhase, Dead, RunView | writes Spiked tag, Spikes.since
+// Out from phase 2 on: a boss with a third phase keeps them out.
 // Derived from the boss every tick rather than set by the roar, so a world built
 // straight into phase 2 (a load, a dev jump) has its spikes out too.
 export function spikeGrowthSystem(): void {
   let out = false;
   if (RunView.status === RunStatus.Fighting) {
     const bosses = query(helperBuf, LIVE_BOSSES, C.Dead);
-    for (let i = 0; i < bosses && !out; i++) out = BossPhase.phase[entityAt(helperBuf, i)] === 2;
+    for (let i = 0; i < bosses && !out; i++) out = BossPhase.phase[entityAt(helperBuf, i)] >= 2;
   }
   const n = query(buf, ORBITING);
   for (let i = 0; i < n; i++) {

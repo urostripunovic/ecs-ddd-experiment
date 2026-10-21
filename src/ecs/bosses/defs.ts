@@ -14,7 +14,7 @@ export type BossDef = {
   readonly pace: number;
 };
 
-export const BossStyleKind = { Warden: 0, Unchained: 1 } as const;
+export const BossStyleKind = { Warden: 0, Unchained: 1, Final: 2 } as const;
 
 export const WARDEN: BossDef = {
   name: 'The Warden',
@@ -33,5 +33,16 @@ export const UNCHAINED: BossDef = {
   radius: meters(1.3),
   evadeGrace: inTicks(seconds(3)),
   style: BossStyleKind.Unchained,
+  pace: 1,
+};
+
+// The last fight, always: an exam in three phases, one per lesson. The Warden's
+// slams and jumps, then rings and the spiral among spiked pillars, then the storm.
+export const FINAL: BossDef = {
+  name: 'The Keeper',
+  hp: hp(1400),
+  radius: meters(1.5),
+  evadeGrace: inTicks(seconds(4)),
+  style: BossStyleKind.Final,
   pace: 1,
 };

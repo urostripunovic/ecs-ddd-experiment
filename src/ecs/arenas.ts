@@ -1,6 +1,6 @@
 // Arena layouts as data. The run (domain) decides which arena you're in; what
 // that arena looks like is simulation detail, so it lives here.
-import { UNCHAINED, WARDEN, type BossDef } from './bosses/defs';
+import { FINAL, UNCHAINED, WARDEN, type BossDef } from './bosses/defs';
 import { hashDraw } from './core/rng';
 import { hp, meters, type Meters } from './core/units';
 
@@ -55,8 +55,23 @@ export const GRINDER: ArenaLayout = {
   ],
 };
 
-// The last arena, always. Until the final boss has its own, it's the Grinder's.
-export const FINAL_ARENA: ArenaLayout = { ...GRINDER };
+// The Keeper's hall, the last arena, always: a centre perch and two rings of
+// pillars turning opposite ways, so the gaps in the cover open and close.
+export const FINAL_ARENA: ArenaLayout = {
+  pillars: [[0, 0]],
+  perch: 0,
+  bossStart: [0, 0],
+  playerStart: [0, 16],
+  weaponSpots: [[-4, 17.5], [4, 17.5], [0, 18]],
+  boss: FINAL,
+  orbitCenter: [0, 0],
+  orbiting: [
+    { radius: meters(7), angle: 0, speed: 0.3 },
+    { radius: meters(7), angle: Math.PI, speed: 0.3 },
+    { radius: meters(12), angle: Math.PI / 2, speed: -0.22 },
+    { radius: meters(12), angle: (3 * Math.PI) / 2, speed: -0.22 },
+  ],
+};
 
 // The bosses a run draws its middle arenas from.
 export const POOL: readonly ArenaLayout[] = [GRINDER];
