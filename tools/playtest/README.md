@@ -20,3 +20,8 @@ The recorder prints a status line every second (tick, run status, hp, held weapo
 - `record.py` is generic apart from its `probe`, which reads this game's components; change the probe for another game.
 - `bot.js` is this game's player: aim at the boss, keep a range per weapon, roll out of a slam about to land, walk to the tunnel when cleared. It's code too: when a playtest goes badly, check the bot before tuning the game.
 - `page.screenshot` waits for a real animation frame, which a frozen clock never gives, so the recorder captures frames over CDP instead.
+
+
+## Mutations
+
+`python3 tools/mutations/run.py` breaks each recent feature on purpose, one change at a time, and checks a test catches it, then restores the file. Add an entry when you add a test that guards against a future mistake.
