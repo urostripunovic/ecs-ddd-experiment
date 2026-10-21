@@ -13,8 +13,11 @@ export const MAX_PERKS = 3;
 export const MAX_ARMOR = 3;
 
 // What passes from one arena to the next. The simulation reports it; the run
-// decides it carries.
-export type CarriedWeapon = { readonly id: WeaponId; readonly kind: WeaponKind; readonly durability: number; readonly ammo: number };
+// decides it carries. level: the arena the weapon was found in, which the
+// simulation turns into damage; the run carries it and weighs it in power.
+export type CarriedWeapon = {
+  readonly id: WeaponId; readonly kind: WeaponKind; readonly durability: number; readonly ammo: number; readonly level: number;
+};
 // perks: oldest first, as the slots hold them. armor: plates left.
 export type Loadout = {
   readonly hp: number; readonly weapon: CarriedWeapon | null; readonly perks: readonly PerkName[]; readonly armor: number;
@@ -27,10 +30,11 @@ function check(ok: boolean, what: string, value: number): void {
   if (!ok) throw new RangeError(`not a carriable ${what}: ${value}`);
 }
 
-export function carriedWeapon(id: WeaponId, kind: WeaponKind, durability: number, ammo: number): CarriedWeapon {
+export function carriedWeapon(id: WeaponId, kind: WeaponKind, durability: number, ammo: number, level: number): CarriedWeapon {
   check(Number.isFinite(durability) && durability >= 0, 'durability', durability);
   check(Number.isInteger(ammo) && ammo >= 0, 'ammo count', ammo);
-  return { id, kind, durability, ammo };
+  check(Number.isInteger(level) && level >= 1 && level <= MAX_ARENAS, 'weapon level', level);
+  return { id, kind, durability, ammo, level };
 }
 
 // Only a living player carries anything into the next arena.
@@ -61,11 +65,18 @@ export const MAX_ARENAS = MAX_DRAWN + 2;
 export type Door = 'onward' | 'final';
 export type Doors = 'onward' | 'both' | 'final';
 
+// Each weapon level past the first adds this much to power. It mirrors what a
+// level adds to damage in the simulation, so a weapon weighs what it hits for;
+// the run keeps its own copy because power is its judgment, not the damage maths.
+const POWER_PER_WEAPON_LEVEL = 0.15;
+
 // How strong you are, as the run judges it. Never shown and never in an event:
-// you only see a door open. Each thing you carry adds; a weapon in hand counts
-// as one, until weapons have levels.
+// you only see a door open. Each thing you carry adds. A weapon counts by its
+// level, not the level itself: counting a whole point a level would let one
+// deep pickup outweigh everything else you carry.
 export function powerOf(loadout: Loadout, revives: number): number {
-  return loadout.hp / 100 + 0.5 * revives + 0.4 * loadout.armor + 0.6 * loadout.perks.length + (loadout.weapon ? 1 : 0);
+  const weapon = loadout.weapon ? 1 + POWER_PER_WEAPON_LEVEL * (loadout.weapon.level - 1) : 0;
+  return loadout.hp / 100 + 0.5 * revives + 0.4 * loadout.armor + 0.6 * loadout.perks.length + weapon;
 }
 
 // Which doors clearing arena `arena` opens. Drawn bosses cleared so far is
@@ -122,7 +133,7 @@ export type RunEvent =
 
 export const STARTING_LOADOUT: Loadout = {
   hp: 100,
-  weapon: { id: 'w-start' as WeaponId, kind: 'gun', durability: 0, ammo: 16 },
+  weapon: { id: 'w-start' as WeaponId, kind: 'gun', durability: 0, ammo: 16, level: 1 },
   perks: [],
   armor: 0,
 };

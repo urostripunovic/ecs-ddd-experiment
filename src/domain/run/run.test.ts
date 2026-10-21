@@ -16,7 +16,7 @@ const BASE = { seed: 1, revives: 0, offer: null, doors: null, final: false };
 
 const CARRIED: Loadout = {
   hp: 64,
-  weapon: { id: 'w-7' as WeaponId, kind: 'spear', durability: 41, ammo: 0 },
+  weapon: { id: 'w-7' as WeaponId, kind: 'spear', durability: 41, ammo: 0, level: 2 },
   perks: ['adrenaline'],
   armor: 1,
 };
@@ -25,6 +25,7 @@ describe('run', () => {
   it('starts in arena 1, fighting, with the gun', () => {
     expect(initialRun()).toMatchObject({ arena: 1, status: 'Fighting', loadout: STARTING_LOADOUT });
     expect(STARTING_LOADOUT.weapon?.kind).toBe('gun');
+    expect(STARTING_LOADOUT.weapon?.level).toBe(1);
   });
 
   it('clearing a boss before the last arena clears the arena, not the run', () => {
@@ -98,8 +99,8 @@ describe('run', () => {
   // not on every field inside the rules.
   describe('loadout', () => {
     it('accepts what a living player can carry', () => {
-      expect(loadoutOf(61, carriedWeapon('w-1' as WeaponId, 'gun', 0, 7))).toEqual({
-        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7 }, perks: [], armor: 0,
+      expect(loadoutOf(61, carriedWeapon('w-1' as WeaponId, 'gun', 0, 7, 3))).toEqual({
+        hp: 61, weapon: { id: 'w-1', kind: 'gun', durability: 0, ammo: 7, level: 3 }, perks: [], armor: 0,
       });
       expect(loadoutOf(1, null).weapon).toBeNull();
     });
@@ -107,12 +108,26 @@ describe('run', () => {
     it('refuses numbers no player could carry', () => {
       expect(() => loadoutOf(0, null)).toThrow(RangeError);
       expect(() => loadoutOf(Number.NaN, null)).toThrow(RangeError);
-      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, -1)).toThrow(RangeError);
-      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 2.5)).toThrow(RangeError);
-      expect(() => carriedWeapon('w-1' as WeaponId, 'sword', -3, 0)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, -1, 1)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 2.5, 1)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'sword', -3, 0, 1)).toThrow(RangeError);
+      // A level is the arena it was found in: whole, from 1, never past the last arena.
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 7, 0)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 7, 1.5)).toThrow(RangeError);
+      expect(() => carriedWeapon('w-1' as WeaponId, 'gun', 0, 7, MAX_ARENAS + 1)).toThrow(RangeError);
+      expect(carriedWeapon('w-1' as WeaponId, 'gun', 0, 7, MAX_ARENAS).level).toBe(MAX_ARENAS);
       expect(() => loadoutOf(10, null, [], 4)).toThrow(RangeError);
       expect(() => loadoutOf(10, null, [], -1)).toThrow(RangeError);
     });
+  });
+});
+
+// The carried weapon keeps the level it was found at, through every tunnel (R20).
+describe('weapon levels', () => {
+  it('carry over with the weapon', () => {
+    const s: RunState = { ...initialRun(), status: 'Cleared', doors: 'onward' };
+    const entered = run(s, { kind: 'TunnelEntered', player: PLAYER, door: 'onward', loadout: CARRIED, tick: t(400) });
+    expect(entered.loadout.weapon?.level).toBe(2);
   });
 });
 
@@ -215,7 +230,7 @@ describe('rewards', () => {
 // Hades-style: once you're strong enough, a clear opens a second door, to the
 // final boss. How strong is the run's business and never shown.
 describe('the fork', () => {
-  const STRONG = loadoutOf(100, carriedWeapon('w-9' as WeaponId, 'gun', 0, 10), ['lastStand', 'adrenaline', 'ricochet'], 3);
+  const STRONG = loadoutOf(100, carriedWeapon('w-9' as WeaponId, 'gun', 0, 10, 1), ['lastStand', 'adrenaline', 'ricochet'], 3);
   const WEAK = loadoutOf(20, null);
   // A run in a drawn arena, `drawn` bosses after the Warden counting this one.
   const at = (drawn: number, revives = 3): RunState => ({ ...initialRun(), arena: drawn + 1, revives });
@@ -231,6 +246,15 @@ describe('the fork', () => {
     expect(powerOf({ ...WEAK, armor: 1 }, 0)).toBeGreaterThan(powerOf(WEAK, 0));
     expect(powerOf({ ...WEAK, perks: ['ricochet'] }, 0)).toBeGreaterThan(powerOf(WEAK, 0));
     expect(powerOf({ ...WEAK, weapon: STRONG.weapon }, 0)).toBeGreaterThan(powerOf(WEAK, 0));
+  });
+
+  // A weapon counts what it adds to your damage: a level-1 one counts one, each
+  // level after it as much as it adds to the damage (R17).
+  it('counts a weapon by its level', () => {
+    const at = (level: number) => powerOf({ ...WEAK, weapon: carriedWeapon('w-3' as WeaponId, 'sword', 50, 0, level) }, 0);
+    expect(at(1)).toBeCloseTo(powerOf(WEAK, 0) + 1, 9);
+    expect(at(3)).toBeCloseTo(powerOf(WEAK, 0) + 1.3, 9);
+    expect(at(4)).toBeGreaterThan(at(3));
   });
 
   it('never shows: no event carries a number for it', () => {
