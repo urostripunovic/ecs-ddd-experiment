@@ -11,7 +11,7 @@ import { add, NOBODY, resetWorld, toHandle, type EntityId, type Handle } from '.
 import { spawnBoss, spawnOrbitingPillar, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
 import { resetScripts } from '../ecs/systems/boss';
 import { equip } from '../ecs/systems/weapons';
-import { WEAPON_STOCK } from '../ecs/weapons/defs';
+import { WEAPON_STOCK, weaponLevelFor } from '../ecs/weapons/defs';
 import { bossIdFor, PLAYER_ID } from './ids';
 import { idMap } from './id-map';
 import { KIND_NUMBER, PERK_NUMBER } from './run/loadout';
@@ -93,20 +93,23 @@ export function buildArena(arena: number, loadout: Loadout): void {
   let carriedKind = 0;
   if (loadout.weapon) {
     carriedKind = KIND_NUMBER[loadout.weapon.kind];
-    const w = spawnWeapon(carriedKind, px, pz);
+    // The level it was found at, not this arena's: it travelled here with you.
+    const w = spawnWeapon(carriedKind, px, pz, loadout.weapon.level);
     Durability.value[w] = loadout.weapon.durability;
     Ammo.count[w] = loadout.weapon.ammo;
     equip(p, w);
     idMap.bind(toHandle(w), { context: 'weapon', id: loadout.weapon.id });
   }
 
-  // The rest of the stock, laid out where this arena puts weapons.
+  // The rest of the stock, laid out where this arena puts weapons, at its level.
+  // From the arena number, not RunView, which this build only writes further down.
+  const stockLevel = weaponLevelFor(arena);
   let spot = 0;
   for (let kind = 1; kind < WEAPON_STOCK.length; kind++) {
     const count = WEAPON_STOCK[kind] - (kind === carriedKind ? 1 : 0);
     for (let n = 0; n < count && spot < layout.weaponSpots.length; n++) {
       const [x, z] = layout.weaponSpots[spot++];
-      spawnWeapon(kind, x, z);
+      spawnWeapon(kind, x, z, stockLevel);
     }
   }
 

@@ -202,6 +202,43 @@ describe('run flow', () => {
     expect(Jump.fromHeight[b2]).toBeGreaterThan(0);
   });
 
+  // Stage B (R20): the weapon you carry keeps the level it was found at; what the
+  // new arena lays out comes at its own level.
+  it('the carried weapon keeps its level through the tunnel, and the next arena\'s stock is at that arena\'s level', () => {
+    const p = indexOf(h.player);
+    const gun = indexOf(Wielder.held[p] as never);
+    expect(Item.level[gun]).toBe(1);
+    send('EntityDowned', h.boss, h.player, 0);
+    domainStep();
+    Transform.z[p] = -(Arena.half + 4);
+    tunnelSystem();
+    domainStep();
+
+    expect(store.run.loadout.weapon?.level).toBe(1);
+    const p2 = indexOf(h.player);
+    const held = indexOf(Wielder.held[p2] as never);
+    expect(Item.level[held]).toBe(1);
+    let stock = 0;
+    for (let e = 0; e < world.nextFresh; e++) {
+      if (!world.inUse[e] || !has(e as EntityId, C.Item) || e === held) continue;
+      expect(Item.level[e]).toBe(2);
+      stock++;
+    }
+    expect(stock).toBe(2);
+  });
+
+  it('a level-3 weapon in hand crosses as level 3', () => {
+    const p = indexOf(h.player);
+    Item.level[indexOf(Wielder.held[p] as never)] = 3;
+    send('EntityDowned', h.boss, h.player, 0);
+    domainStep();
+    Transform.z[p] = -(Arena.half + 4);
+    tunnelSystem();
+    domainStep();
+    expect(store.run.loadout.weapon?.level).toBe(3);
+    expect(Item.level[indexOf(Wielder.held[indexOf(h.player)] as never)]).toBe(3);
+  });
+
   it('presses from arena 1 are not replayed in arena 2', () => {
     PlayerInput.throwReleases = 5;
     send('EntityDowned', h.boss, h.player, 0);

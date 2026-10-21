@@ -21,7 +21,7 @@ function snapshotLoadout(p: EntityId): Loadout {
   const armor = armorPlates(p);
   if (!kind) return loadoutOf(Health.hp[p], null, perks, armor);
   const w = indexOf(h);
-  return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w]), perks, armor);
+  return loadoutOf(Health.hp[p], carriedWeapon(idMap.weaponIdOf(h), kind, Durability.value[w], Ammo.count[w], Item.level[w]), perks, armor);
 }
 
 function standingLoadout(): Loadout | null {
