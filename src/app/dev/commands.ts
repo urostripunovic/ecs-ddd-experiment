@@ -7,7 +7,7 @@
 // Never a fact injected into the rules, never a write to RunView: the world and
 // the rules would disagree, which is exactly what the load test guards against.
 import { initialBoss, type BossState } from '../../domain/boss/boss';
-import { initialRun, STARTING_LOADOUT, type PerkName, type RunState } from '../../domain/run/run';
+import { initialRun, MIN_DRAWN, STARTING_LOADOUT, type PerkName, type RunState } from '../../domain/run/run';
 import { PERK_NUMBER } from '../../bridge/run/loadout';
 import { addPerk } from '../../ecs/systems/perks';
 import type { BossId, Tick } from '../../domain/shared/types';
@@ -21,7 +21,7 @@ import { indexOf, isLive, MAX_ENTITIES, NOBODY, remove, world, type Handle } fro
 import { giveWeapon } from '../../ecs/systems/weapons';
 import { WeaponKind } from '../../ecs/weapons/defs';
 
-export type JumpTarget = 'arena1' | 'arena1Cleared' | 'arena2' | 'arena2Phase2' | 'final' | 'finalPhase3' | 'won';
+export type JumpTarget = 'arena1' | 'arena1Cleared' | 'arena2' | 'arena2Phase2' | 'fork' | 'final' | 'finalPhase3' | 'won';
 export type ArenaComponent = keyof typeof ARENA_STATE;
 
 export type DevCommand =
@@ -132,19 +132,22 @@ function apply(cmd: DevCommand): void {
 }
 
 // A jump is a load: build the run the rules would be in, then the world from it.
+// The final is jumped to by the shortest road, the fork at the minimum depth.
 function jump(to: JumpTarget): void {
-  const arenas = store.run.arenas;
-  const last = to === 'won' || to === 'final' || to === 'finalPhase3';
-  const arena = to === 'arena1' || to === 'arena1Cleared' ? 1 : last ? arenas : 2;
+  const fork = MIN_DRAWN + 1;
+  const final = to === 'won' || to === 'final' || to === 'finalPhase3';
+  const arena = to === 'arena1' || to === 'arena1Cleared' ? 1 : to === 'fork' ? fork : final ? fork + 1 : 2;
+  const cleared = to === 'arena1Cleared' || to === 'fork';
   const bosses = new Map<BossId, BossState>();
-  const beaten = to === 'arena1' ? 0 : to === 'arena1Cleared' ? 1 : to === 'won' ? arenas : arena - 1;
-  for (let a = 1; a <= arenas; a++) {
+  const beaten = cleared || to === 'won' ? arena : arena - 1;
+  for (let a = 1; a <= arena; a++) {
     bosses.set(bossIdFor(a), { ...initialBoss(bossIdFor(a)), defeated: a <= beaten });
   }
-  const base = { ...initialRun(arenas, store.run.seed), arena, loadout: STARTING_LOADOUT };
+  const base = { ...initialRun(store.run.seed), arena, final, loadout: STARTING_LOADOUT };
   const run: RunState =
     to === 'won' ? { ...base, status: 'Won', endedAt: world.tick as Tick }
-    : to === 'arena1Cleared' ? { ...base, status: 'Cleared' }
+    : to === 'arena1Cleared' ? { ...base, status: 'Cleared', doors: 'onward' }
+    : to === 'fork' ? { ...base, status: 'Cleared', doors: 'both' }
     : { ...base, status: 'Fighting' };
   loadRunState(run, bosses);
 

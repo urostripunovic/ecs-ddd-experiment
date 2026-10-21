@@ -4,7 +4,7 @@ import {
   Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam,
   Spikes, StuckIn, Transform, Velocity, Wielder,
 } from '../../ecs/components';
-import { TUNNEL } from '../../ecs/arenas';
+import { DOORS } from '../../ecs/arenas';
 import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
 import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
 import { dodging } from '../../ecs/systems/status';
@@ -220,43 +220,45 @@ function buildArena(scene: THREE.Scene): void {
   const wallMat = shaded(COLOR.wall);
   const h = 1.2;
   const t = 0.6;
-  // The north wall has a gap the tunnel opens into; the gate (drawn per frame) fills it.
-  const gap = TUNNEL.halfWidth;
-  const northLen = Arena.half + t - gap;
-  for (const [x, z, w, d] of [
-    [-(gap + northLen / 2), -Arena.half - t / 2, northLen, t],
-    [gap + northLen / 2, -Arena.half - t / 2, northLen, t],
+  // The north wall has a gap for each door; the gates (drawn per frame) fill them.
+  const gap = DOORS.halfWidth;
+  const doorXs = [DOORS.onward.x, DOORS.final.x];
+  const edges = [-Arena.half - t, ...doorXs.flatMap((x) => [x - gap, x + gap]), Arena.half + t];
+  const walls: number[][] = [
     [0, Arena.half + t / 2, size + t * 2, t],
     [-Arena.half - t / 2, 0, t, size],
     [Arena.half + t / 2, 0, t, size],
-    // The tunnel's sides.
-    [-gap - t / 2, -Arena.half - TUNNEL.depth / 2, t, TUNNEL.depth],
-    [gap + t / 2, -Arena.half - TUNNEL.depth / 2, t, TUNNEL.depth],
-  ]) {
+  ];
+  for (let i = 0; i < edges.length; i += 2) {
+    walls.push([(edges[i] + edges[i + 1]) / 2, -Arena.half - t / 2, edges[i + 1] - edges[i], t]);
+  }
+  for (const x of doorXs) {
+    // Each corridor's sides.
+    walls.push([x - gap - t / 2, -Arena.half - DOORS.depth / 2, t, DOORS.depth]);
+    walls.push([x + gap + t / 2, -Arena.half - DOORS.depth / 2, t, DOORS.depth]);
+  }
+  for (const [x, z, w, d] of walls) {
     const wall = cast(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat));
     wall.position.set(x, h / 2, z);
     scene.add(wall);
   }
-  // Fading to black down the tunnel: you walk into the dark, and come out in the next arena.
-  const tunnelFloor = new THREE.Mesh(
-    new THREE.PlaneGeometry(gap * 2, TUNNEL.depth),
-    new THREE.MeshBasicMaterial({ color: 0x000000 }),
-  );
-  tunnelFloor.rotation.x = -Math.PI / 2;
-  tunnelFloor.position.set(0, 0.005, -Arena.half - TUNNEL.depth / 2);
-  scene.add(tunnelFloor);
-  const tunnelEnd = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + t * 2, 4, 0.5), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-  tunnelEnd.position.set(0, 2, -Arena.half - TUNNEL.depth);
-  scene.add(tunnelEnd);
+  // Fading to black down each corridor: you walk into the dark, and come out in
+  // the next arena. The final's ends in the Keeper's red, so it reads as the end.
+  for (const [x, end] of [[DOORS.onward.x, 0x000000], [DOORS.final.x, COLOR.bossFinal]]) {
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(gap * 2, DOORS.depth), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(x, 0.005, -Arena.half - DOORS.depth / 2);
+    scene.add(floor);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(gap * 2 + t * 2, 4, 0.5), new THREE.MeshBasicMaterial({ color: end }));
+    back.position.set(x, 2, -Arena.half - DOORS.depth);
+    scene.add(back);
+  }
 }
 
 const GATE_HEIGHT = 1.6;
-function buildGate(scene: THREE.Scene): THREE.Mesh {
-  const gate = cast(new THREE.Mesh(
-    new THREE.BoxGeometry(TUNNEL.halfWidth * 2, GATE_HEIGHT, 0.5),
-    shaded(COLOR.telegraph),
-  ));
-  gate.position.set(0, GATE_HEIGHT / 2, -Arena.half - 0.25);
+function buildGate(scene: THREE.Scene, x: number, color: number): THREE.Mesh {
+  const gate = cast(new THREE.Mesh(new THREE.BoxGeometry(DOORS.halfWidth * 2, GATE_HEIGHT, 0.5), shaded(color)));
+  gate.position.set(x, GATE_HEIGHT / 2, -Arena.half - 0.25);
   scene.add(gate);
   return gate;
 }
@@ -322,7 +324,8 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   scene.add(sun);
 
   buildArena(scene);
-  const gate = buildGate(scene);
+  const gate = buildGate(scene, DOORS.onward.x, COLOR.telegraph);
+  const finalGate = buildGate(scene, DOORS.final.x, COLOR.bossFinal);
 
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.22, 0.3, 32),
@@ -495,9 +498,10 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     }
 
     drawHeld(alpha);
-    // The gate sinks into the floor when the run opens the tunnel, and rises again in the next arena.
-    const gateY = RunView.tunnelOpen ? -GATE_HEIGHT / 2 - 0.05 : GATE_HEIGHT / 2;
-    gate.position.y += (gateY - gate.position.y) * (1 - Math.exp(-dt * 3));
+    // A gate sinks into the floor when the run opens its door, and rises again in the next arena.
+    const sink = 1 - Math.exp(-dt * 3);
+    gate.position.y += ((RunView.tunnelOpen ? -GATE_HEIGHT / 2 - 0.05 : GATE_HEIGHT / 2) - gate.position.y) * sink;
+    finalGate.position.y += ((RunView.finalDoorOpen ? -GATE_HEIGHT / 2 - 0.05 : GATE_HEIGHT / 2) - finalGate.position.y) * sink;
     followCamera(alpha, dt);
 
     // Trauma squared, so small hits barely move the camera and a roar really does.

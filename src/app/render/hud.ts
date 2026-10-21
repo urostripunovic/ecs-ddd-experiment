@@ -41,10 +41,18 @@ function perkLine(player: EntityId): string {
 
 // The boss's name for this arena of this run, planned once per arena rather than every frame.
 let named = { key: '', name: '' };
-function bossNameOf(seed: number, arena: number, arenas: number): string {
-  const key = `${seed}:${arena}:${arenas}`;
-  if (named.key !== key) named = { key, name: arenaFor(seed, arena, arenas).boss.name };
+function bossNameOf(seed: number, arena: number, final: boolean): string {
+  const key = `${seed}:${arena}:${final}`;
+  if (named.key !== key) named = { key, name: arenaFor(seed, arena, final).boss.name };
   return named.name;
+}
+
+// The doors as the player sees them: which gates went down, never why.
+function doorsLine(afterReward: boolean): string {
+  const take = afterReward ? 'take' : 'Take';
+  if (RunView.tunnelOpen && RunView.finalDoorOpen) return `${take} the tunnel north, or the red door beside it, to the end`;
+  if (RunView.finalDoorOpen) return `${take} the red door: it is the only way on`;
+  return afterReward ? 'take the tunnel north' : 'The tunnel to the north is open';
 }
 
 // Any pedestal still standing means the offer is open. Read once a frame, not per tick.
@@ -113,8 +121,9 @@ export function createHud(root: HTMLElement) {
       const b = indexOf(h.boss);
       const p = indexOf(h.player);
       set(bossHp, 'scale', (Health.hp[b] / Health.max[b]).toFixed(3));
-      set(phase, 'text', `arena ${RunView.arena}/${RunView.arenas} · phase ${BossPhase.phase[b]}`);
-      set(bossName, 'text', bossNameOf(RunView.seed, RunView.arena, RunView.arenas));
+      // No total: how long the run is depends on when you're ready, which is never shown.
+      set(phase, 'text', `${RunView.final ? 'the final' : `arena ${RunView.arena}`} · phase ${BossPhase.phase[b]}`);
+      set(bossName, 'text', bossNameOf(RunView.seed, RunView.arena, RunView.final));
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
       // Revives as hearts, armor plates as diamonds: both readable at a glance mid-dodge.
@@ -141,7 +150,7 @@ export function createHud(root: HTMLElement) {
         const cleared = RunView.status === RunStatus.Cleared;
         set(title, 'text', cleared ? 'ARENA CLEARED' : RunView.status === RunStatus.Won ? 'VICTORY' : 'DEFEATED');
         set(subtitle, 'text', cleared
-          ? (rewardsWaiting() ? 'Pick a reward, then take the tunnel north' : 'The tunnel to the north is open')
+          ? `${rewardsWaiting() ? 'Pick a reward, then ' : ''}${doorsLine(rewardsWaiting())}`
           : `Seed ${RunView.seed} · add ?seed=${RunView.seed} to the address to play it again · Enter for a new run`);
       }
 
