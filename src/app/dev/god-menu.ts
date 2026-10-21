@@ -6,7 +6,7 @@ import { handles } from '../../bridge/spawn';
 import { C, GodMode } from '../../ecs/components';
 import { has, isLive, MAX_ENTITIES, toHandle, world, type EntityId, type Handle } from '../../ecs/core/world';
 import { timeControl } from '../loop';
-import { inspect, lastJumpCheck, nameOf, queueDev, type ArenaComponent, type DevCommand, type JumpTarget } from './commands';
+import { inspect, lastJumpCheck, nameOf, queueDev, type ArenaComponent, type DevCommand, type GiveWeapon, type JumpTarget } from './commands';
 const JUMPS: [JumpTarget, string][] = [
   ['arena1', 'arena 1'], ['arena1Cleared', 'arena 1 cleared'], ['arena2', 'arena 2'],
   ['arena2Phase2', 'arena 2, phase 2'], ['fork', 'the fork'], ['final', 'final boss'], ['finalPhase3', 'final, phase 3'], ['won', 'won'],
@@ -23,6 +23,7 @@ export function createGodMenu(root: HTMLElement) {
       <label><input type="checkbox" data-flag="keepWeapons"> weapons never run dry or wear</label>
       <label><input type="checkbox" data-flag="freezeBoss"> freeze boss</label>
       <div class="row"><button data-give="gun">gun</button><button data-give="sword">sword</button><button data-give="spear">spear</button><button data-cmd="heal">heal</button></div>
+      <div class="row"><button data-give="chakram">chakram</button><button data-give="warhammer">hammer</button><button data-give="railgun">railgun</button><button data-give="flamethrower">flamer</button></div>
       <div class="row"><button data-perk="lastStand">last stand</button><button data-perk="adrenaline">adrenaline</button><button data-perk="finalShot">final shot</button><button data-perk="ricochet">ricochet</button><button data-perk="longReach">long reach</button></div>
     </section>
     <section><h3>Gameplay: through the rules</h3>
@@ -51,7 +52,7 @@ export function createGodMenu(root: HTMLElement) {
     box.addEventListener('change', () => send({ kind: 'god', flag: box.dataset.flag as 'invulnerable', on: box.checked }));
   }
   for (const btn of panel.querySelectorAll<HTMLButtonElement>('[data-give]')) {
-    btn.addEventListener('click', () => send({ kind: 'give', weapon: btn.dataset.give as 'gun' }));
+    btn.addEventListener('click', () => send({ kind: 'give', weapon: btn.dataset.give as GiveWeapon }));
   }
   for (const btn of panel.querySelectorAll<HTMLButtonElement>('[data-perk]')) {
     btn.addEventListener('click', () => send({ kind: 'perk', perk: btn.dataset.perk as 'lastStand' }));

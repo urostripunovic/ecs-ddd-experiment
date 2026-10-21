@@ -136,7 +136,8 @@ export function createHud(root: HTMLElement) {
       set(status, 'text', statusLine(p));
       set(perks, 'text', perkLine(p));
 
-      const fill = Wielder.charge[p] / CHARGE_MAX_TICKS;
+      // One gauge for both: the throw's, or the railgun's while it charges on fire.
+      const fill = Math.max(Wielder.charge[p], Wielder.fireCharge[p]) / CHARGE_MAX_TICKS;
       gauge.hidden = fill === 0;
       if (fill > 0) {
         set(gaugeFill, 'scale', fill.toFixed(3));

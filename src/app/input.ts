@@ -22,6 +22,7 @@ export function createInput(target: HTMLElement) {
     keys.delete(ev.code);
     // Counted at the event: a tap shorter than a frame still throws (weakly).
     if (ev.code === 'KeyQ') PlayerInput.throwReleases++;
+    if (ev.code === 'Space') PlayerInput.fireReleases++;
   });
   // Losing focus mid-press would otherwise leave the player running forever.
   // Clearing without counting a release cancels a charge instead of throwing it.
@@ -32,7 +33,8 @@ export function createInput(target: HTMLElement) {
     if (ev.button === 2) mouse.right = true;
   });
   window.addEventListener('pointerup', (ev) => {
-    if (ev.button === 0) mouse.down = false;
+    // Counted at the event, like throws: a tap shorter than a frame still fires the railgun.
+    if (ev.button === 0 && mouse.down) { mouse.down = false; PlayerInput.fireReleases++; }
     if (ev.button === 2 && mouse.right) { mouse.right = false; PlayerInput.throwReleases++; }
   });
   target.addEventListener('contextmenu', (ev) => ev.preventDefault());

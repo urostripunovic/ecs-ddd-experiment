@@ -26,7 +26,7 @@ export type ArenaComponent = keyof typeof ARENA_STATE;
 
 export type DevCommand =
   | { kind: 'god'; flag: 'invulnerable' | 'keepWeapons' | 'freezeBoss'; on: boolean }
-  | { kind: 'give'; weapon: 'sword' | 'spear' | 'gun' }
+  | { kind: 'give'; weapon: GiveWeapon }
   | { kind: 'perk'; perk: PerkName }
   | { kind: 'heal' }
   | { kind: 'set'; entity: Handle; component: ArenaComponent; field: string; value: number }
@@ -92,7 +92,11 @@ function describe(cmd: DevCommand): string {
   }
 }
 
-const WEAPON = { sword: WeaponKind.Sword, spear: WeaponKind.Spear, gun: WeaponKind.Gun } as const;
+const WEAPON = {
+  sword: WeaponKind.Sword, spear: WeaponKind.Spear, gun: WeaponKind.Gun,
+  chakram: WeaponKind.Chakram, warhammer: WeaponKind.Warhammer, railgun: WeaponKind.Railgun, flamethrower: WeaponKind.Flamethrower,
+} as const;
+export type GiveWeapon = keyof typeof WEAPON;
 
 function apply(cmd: DevCommand): void {
   const p = isLive(handles.player) ? indexOf(handles.player) : -1;

@@ -1,9 +1,10 @@
 // Reads components only. Nothing here can change the simulation.
 import * as THREE from 'three';
 import {
-  Arena, BossAction, BossPhase, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam,
-  Spikes, StuckIn, Transform, Velocity, Wielder,
+  Arena, BossAction, BossPhase, Burn, C, Collider, Hurt, Jump, Orbit, Pattern, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape,
+  ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity, Wielder,
 } from '../../ecs/components';
+import { WEAPONS, WeaponKind } from '../../ecs/weapons/defs';
 import { DOORS } from '../../ecs/arenas';
 import { Action, CONE_WINDUP, SPIRAL_WINDUP } from '../../ecs/systems/boss-actions';
 import { RING_GAP_HALF, RING_GAPS, SPIRAL_ARMS } from '../../ecs/systems/boss-scripts';
@@ -33,6 +34,9 @@ const COLOR = {
   spiked: 0x8a4f45,
   safe: 0x6fd3b0,
   heavyBullet: 0xfff1a8,
+  rail: 0x8fe8ff,
+  flame: 0xff8a2a,
+  burning: 0x7a2c00,
 };
 // One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
 const PERK_COLOR = [0xffffff, 0xe8584a, 0x5fd39a, 0xffd65c, 0x9fb7ff, 0xd99cff];
@@ -99,7 +103,26 @@ const geo = {
   // A wedge centred on angle 0, flat on the floor: one ring gap.
   gap: new THREE.CircleGeometry(16, 12, -RING_GAP_HALF, RING_GAP_HALF * 2).rotateX(-Math.PI / 2),
   arm: new THREE.CircleGeometry(16, 4, -0.05, 0.1).rotateX(-Math.PI / 2),
+  chakram: new THREE.TorusGeometry(0.36, 0.07, 6, 24).rotateX(Math.PI / 2),
+  hammerHandle: new THREE.CylinderGeometry(0.05, 0.05, 1.3, 8).rotateX(Math.PI / 2).translate(0, 0, -0.55),
+  hammerHead: new THREE.BoxGeometry(0.62, 0.36, 0.36).translate(0, 0, -1.2),
+  railBody: new THREE.BoxGeometry(0.16, 0.18, 1.0).translate(0, 0, -0.45),
+  railCoil: new THREE.TorusGeometry(0.15, 0.04, 6, 16).translate(0, 0, -0.7),
+  flamerTank: new THREE.CylinderGeometry(0.15, 0.15, 0.5, 12).rotateX(Math.PI / 2).translate(0, 0, -0.1),
+  flamerNozzle: new THREE.CylinderGeometry(0.05, 0.08, 0.5, 8).rotateX(Math.PI / 2).translate(0, 0, -0.6),
+  // A unit box stretched along local z between the beam's two ends each frame.
+  beam: new THREE.BoxGeometry(1, 1, 1),
+  // The flamethrower's reach and half-angle, from its definition, opening along -z.
+  flame: (() => {
+    const def = WEAPONS[WeaponKind.Flamethrower];
+    const radius = def.reach * Math.tan(Math.acos(def.arcCos));
+    return new THREE.ConeGeometry(radius, def.reach, 20, 1, true).rotateX(Math.PI / 2).translate(0, 0, -def.reach / 2);
+  })(),
 };
+const railMat = new THREE.MeshStandardMaterial({ color: COLOR.rail, emissive: COLOR.rail, emissiveIntensity: 0.5, roughness: 0.3 });
+const flameMat = new THREE.MeshBasicMaterial({
+  color: COLOR.flame, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide,
+});
 const bulletMat = new THREE.MeshBasicMaterial({ color: COLOR.bullet });
 const enemyBulletMat = new THREE.MeshBasicMaterial({ color: COLOR.enemyBullet });
 const steelMat = new THREE.MeshStandardMaterial({ color: COLOR.steel, roughness: 0.35, metalness: 0.6 });
@@ -178,6 +201,16 @@ function build(kind: number): Visual {
     case ShapeKind.Spear: return weapon([geo.shaft, woodMat], [geo.tip, steelMat]);
     case ShapeKind.Gun: return weapon([geo.gunBody, gunMat], [geo.gunGrip, gunMat]);
     case ShapeKind.Scattergun: return weapon([geo.scatterBody, woodMat], [geo.scatterBarrel, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Chakram: return weapon([geo.chakram, steelMat]);
+    case ShapeKind.Warhammer: return weapon([geo.hammerHandle, woodMat], [geo.hammerHead, gunMat]);
+    case ShapeKind.Railgun: return weapon([geo.railBody, gunMat], [geo.railCoil, railMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.Flamethrower: return weapon([geo.flamerTank, shaded(COLOR.fury)], [geo.flamerNozzle, gunMat], [geo.gunGrip, gunMat]);
+    case ShapeKind.RailBeam: {
+      const m = new THREE.Mesh(
+        geo.beam, new THREE.MeshBasicMaterial({ color: COLOR.rail, transparent: true, opacity: 0.9, depthWrite: false }),
+      ) as Visual;
+      return m;
+    }
     case ShapeKind.Reward: {
       const g = new THREE.Group() as Visual;
       const stand = new THREE.Mesh(geo.pedestal, shaded(0x55585e));
@@ -327,6 +360,10 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const gate = buildGate(scene, DOORS.onward.x, COLOR.telegraph);
   const finalGate = buildGate(scene, DOORS.final.x, COLOR.bossFinal);
 
+  const flame = new THREE.Mesh(geo.flame, flameMat);
+  flame.visible = false;
+  scene.add(flame);
+
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.22, 0.3, 32),
     new THREE.MeshBasicMaterial({ color: COLOR.player, transparent: true, opacity: 0.8, depthWrite: false }),
@@ -416,7 +453,9 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         const shielded = kind === ShapeKind.Player && world.tick < Revive.shieldUntil[e];
         const glow = shielded ? (Math.sin(t * 18) > 0 ? 0x8a6a2a : 0x3a2a10)
           : kind === ShapeKind.Player && dodging(e as EntityId) ? 0x3a6a8a : 0x000000;
-        mat.emissive.setHex(Hurt.flash[e] > 0 && !dead ? 0x777777 : glow);
+        // Burning shows as an ember glow under the hit flash, for exactly the burn's ticks.
+        const burning = !dead && world.tick < Burn.until[e] ? (Math.sin(t * 25 + e) > 0 ? COLOR.burning : 0x4a1a00) : glow;
+        mat.emissive.setHex(Hurt.flash[e] > 0 && !dead ? 0x777777 : burning);
       }
 
       if (kind === ShapeKind.Player) {
@@ -474,6 +513,17 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         spikes.visible = grow > 0;
         for (const spike of spikes.children) spike.scale.setScalar(Math.max(0.001, grow));
         if (spiked) mat!.color.setHex(COLOR.spiked);
+      } else if (kind === ShapeKind.RailBeam) {
+        // Stretched between its two ends, at shot height, and fading out over its life.
+        const x0 = Transform.x[e];
+        const z0 = Transform.z[e];
+        const dx = Tracer.x1[e] - x0;
+        const dz = Tracer.z1[e] - z0;
+        v.position.set(x0 + dx / 2, AIM_HEIGHT, z0 + dz / 2);
+        v.rotation.y = Math.atan2(dx, dz);
+        const left = Math.max(0, Tracer.until[e] - world.tick - alpha);
+        v.scale.set(0.08 + left * 0.02, 0.08 + left * 0.02, Math.hypot(dx, dz));
+        ((v as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = Math.min(0.9, left / 6);
       } else if (kind === ShapeKind.Haste || kind === ShapeKind.Fury) {
         v.position.y = 0.8 + Math.sin(t * 3 + e) * 0.15;
         v.rotation.y = t * 2;
@@ -486,7 +536,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       } else if (has(e as EntityId, C.Flying)) {
         v.position.y = HAND_HEIGHT;
         const yaw = Math.atan2(-Velocity.x[e], -Velocity.z[e]);
-        // A spear flies point first; anything else tumbles.
+        // A spear flies point first; anything else tumbles (a chakram spins flat, which is the same turn).
         v.rotation.y = kind === ShapeKind.Spear ? yaw : t * 22;
         v.scale.setScalar(1);
       } else if (has(e as EntityId, C.Grounded)) {
@@ -520,6 +570,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   // Held items are drawn in the player's hand: the simulation only keeps them at
   // the player's centre, and the hand, swing and thrust are presentation.
   function drawHeld(alpha: number): void {
+    flame.visible = false;
     const h = focus();
     if (!isLive(h)) return;
     const p = indexOf(h);
@@ -543,6 +594,13 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     v.position.set(px - fz * 0.45 + fx * (0.15 + thrust), HAND_HEIGHT, pz + fx * 0.45 + fz * (0.15 + thrust));
     v.rotation.set(0, yaw + sweep, 0);
     v.scale.setScalar(1);
+    // The flame shows while the simulation says it's spraying (it keeps swing up then).
+    if (kind === ShapeKind.Flamethrower && Wielder.swing[p] > 0) {
+      flame.visible = true;
+      flame.position.set(v.position.x + fx * 0.6, HAND_HEIGHT, v.position.z + fz * 0.6);
+      flame.rotation.set(0, yaw, 0);
+      flame.scale.setScalar(0.92 + Math.sin(performance.now() / 30) * 0.08);
+    }
   }
 
   // The boss's glowing core turns to track the player, so its attention is readable.

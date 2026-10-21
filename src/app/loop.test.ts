@@ -50,3 +50,26 @@ describe('arena loop', () => {
     expect(readTickLog()).toEqual(steady);
   });
 });
+
+// A system the tick never calls passes every unit test (each builds its own
+// step list) and silently does nothing in the game: burnSystem once did. So
+// every exported system must be in the tick, and in the architecture doc's order.
+describe('the tick order', () => {
+  // Read through Vite's raw imports, like the docs test, so no Node types are needed.
+  const sources = import.meta.glob<string>('../ecs/systems/*.ts', { query: '?raw', import: 'default', eager: true });
+  const exported = Object.entries(sources)
+    .filter(([file]) => !file.endsWith('.test.ts'))
+    .flatMap(([, text]) => [...text.matchAll(/export function (\w+System)\(/g)].map((m) => m[1]));
+  const loop = Object.values(import.meta.glob<string>('./loop.ts', { query: '?raw', import: 'default', eager: true }))[0];
+  const tickBody = loop.slice(loop.indexOf('export function tick('));
+  const doc = Object.values(import.meta.glob<string>('../../docs/ARCHITECTURE.md', { query: '?raw', import: 'default', eager: true }))[0];
+
+  it('calls every system', () => {
+    expect(exported.length).toBeGreaterThan(20);
+    for (const system of exported) expect(tickBody, `${system} is never called by tick()`).toMatch(new RegExp(`\\b${system}\\(`));
+  });
+
+  it('is written down in the architecture doc', () => {
+    for (const system of exported) expect(doc, `${system} is missing from the tick order`).toContain(`\`${system}\``);
+  });
+});
