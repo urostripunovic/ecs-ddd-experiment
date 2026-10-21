@@ -11,7 +11,7 @@ async () => {
     window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code }));
   };
   const find = (kind) => {
-    for (let e = 0; e < w.world.nextFresh; e++) if (w.world.alive[e] && c.Shape.kind[e] === kind) return e;
+    for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] === kind) return e;
     return -1;
   };
   // Weapons at the boss's feet cost more than walking further for one: the bot
@@ -19,7 +19,7 @@ async () => {
   const nearestGrounded = (p, wantBuff, maxDist, b = -1) => {
     let best = -1, bd = maxDist;
     for (let e = 0; e < w.world.nextFresh; e++) {
-      if (!w.world.alive[e] || !w.has(e, c.C.Grounded)) continue;
+      if (!w.world.inUse[e] || !w.has(e, c.C.Grounded)) continue;
       if (w.has(e, c.C.BuffPickup) !== wantBuff) continue;
       const nearBoss = b >= 0 && Math.hypot(c.Transform.x[e] - c.Transform.x[b], c.Transform.z[e] - c.Transform.z[b]) < 4;
       const d = Math.hypot(c.Transform.x[e] - c.Transform.x[p], c.Transform.z[e] - c.Transform.z[p]) + (nearBoss ? 40 : 0);

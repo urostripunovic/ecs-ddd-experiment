@@ -10,14 +10,14 @@ start = json.loads(sys.argv[4]) if len(sys.argv) > 4 else []
 os.makedirs(out, exist_ok=True)
 bot = open(os.path.join(os.path.dirname(__file__), "bot.js")).read()
 probe = """async () => { const c = await import('/src/ecs/components/index.ts'); const w = await import('/src/ecs/core/world.ts');
-  let hp = {}; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.alive[e] && c.Shape.kind[e] <= 2 && c.Shape.kind[e] > 0) hp[c.Shape.kind[e] === 1 ? 'player' : 'boss'] = Math.round(c.Health.hp[e]);
+  let hp = {}; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] <= 2 && c.Shape.kind[e] > 0) hp[c.Shape.kind[e] === 1 ? 'player' : 'boss'] = Math.round(c.Health.hp[e]);
   let held = '-'; let ground = 0;
   for (let e = 0; e < w.world.nextFresh; e++) {
-    if (!w.world.alive[e]) continue;
+    if (!w.world.inUse[e]) continue;
     if (w.has(e, c.C.Grounded)) ground++;
     if (c.Shape.kind[e] === 1) { const h = c.Wielder.held[e]; if (w.isLive(h)) { const i = w.indexOf(h); held = ['fists','sword','spear','gun'][c.Item.kind[i]] + ':' + (c.Item.kind[i] === 3 ? c.Ammo.count[i] : Math.round(c.Durability.value[i])); } }
   }
-  let act = '-'; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.alive[e] && c.Shape.kind[e] === 2) act = ['idle','slam','cone','burst','jump','roar'][c.BossAction.kind[e]] + (w.has(e, c.C.Airborne) ? '^' : '');
+  let act = '-'; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] === 2) act = ['idle','slam','cone','burst','jump','roar'][c.BossAction.kind[e]] + (w.has(e, c.C.Airborne) ? '^' : '');
   return { tick: w.world.tick, status: c.RunView.status, arena: c.RunView.arena, ...hp, held, ground, act, perfect: window.__perfectThrows, dodges: window.__dodges }; }"""
 
 with sync_playwright() as p:
