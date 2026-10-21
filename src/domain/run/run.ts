@@ -1,8 +1,9 @@
 import { assertNever, NO_EVENTS, type BossId, type PlayerId, type Tick, type WeaponId } from '../shared/types';
 
-// A run is a sequence of arenas. Which arena you're in, whether it's cleared,
-// and what you carry between them are rules other parts depend on: the tunnel
-// can be refused, the loadout carries over, the run is won or lost.
+// A run is a sequence of arenas: the Warden, bosses drawn from the pool, and the
+// final. Which arena you're in, whether it's cleared, which doors a clear opens
+// and what you carry between them are rules other parts depend on: a door can
+// be refused, the loadout carries over, the run is won or lost.
 export type RunStatus = 'Fighting' | 'Cleared' | 'Won' | 'Lost';
 export type WeaponKind = 'sword' | 'spear' | 'gun' | 'scattergun';
 // What a perk does is the simulation's business; the run only carries which ones you hold.
@@ -49,9 +50,38 @@ export const OFFER_SIZE = 3;
 export const STARTING_REVIVES = 3;
 export const MAX_REVIVES = 8;
 
+// The fork, Hades-style: a clear opens the onward door, and once you're strong
+// enough a second one, to the final. At the most drawn bosses, the final is the
+// only way on. Experimental numbers (rules table, R17).
+export const MIN_DRAWN = 3;
+export const MAX_DRAWN = 7;
+export const FINAL_POWER = 5.5;
+// The Warden, the drawn bosses, the final.
+export const MAX_ARENAS = MAX_DRAWN + 2;
+export type Door = 'onward' | 'final';
+export type Doors = 'onward' | 'both' | 'final';
+
+// How strong you are, as the run judges it. Never shown and never in an event:
+// you only see a door open. Each thing you carry adds; a weapon in hand counts
+// as one, until weapons have levels.
+export function powerOf(loadout: Loadout, revives: number): number {
+  return loadout.hp / 100 + 0.5 * revives + 0.4 * loadout.armor + 0.6 * loadout.perks.length + (loadout.weapon ? 1 : 0);
+}
+
+// Which doors clearing arena `arena` opens. Drawn bosses cleared so far is
+// arena - 1, the Warden being arena 1.
+function doorsAfter(arena: number, loadout: Loadout, revives: number): Doors {
+  const drawn = arena - 1;
+  if (drawn >= MAX_DRAWN) return 'final';
+  return drawn >= MIN_DRAWN && powerOf(loadout, revives) >= FINAL_POWER ? 'both' : 'onward';
+}
+
+const opens = (doors: Doors, door: Door): boolean => doors === 'both' || doors === door;
+
 type Run = {
-  readonly arena: number; // 1-based, never past arenas
-  readonly arenas: number;
+  readonly arena: number; // 1-based, never past MAX_ARENAS
+  // Whether this arena is the final boss's: clearing it wins the run.
+  readonly final: boolean;
   readonly loadout: Loadout; // what the current arena was entered with
   // Draws everything the run decides by chance, so a seed replays the run.
   readonly seed: number;
@@ -61,6 +91,9 @@ type Run = {
   // ArenaEntered clears it), but every status can hold the field: making it
   // Cleared-only would split every state type for a combination nothing produces.
   readonly offer: readonly Reward[] | null;
+  // The doors a clear opened; null until then. Same reasoning as the offer for
+  // not splitting the state type.
+  readonly doors: Doors | null;
 };
 // Only a finished run has an end tick, so "won, but when?" can't be written down.
 export type RunState =
@@ -69,16 +102,18 @@ export type RunState =
 
 export type RunCommand =
   | { kind: 'PlayerDowned'; player: PlayerId; tick: Tick }
-  | { kind: 'BossCleared'; boss: BossId; tick: Tick }
-  | { kind: 'TunnelEntered'; player: PlayerId; loadout: Loadout; tick: Tick }
+  // loadout: what you have on you at the kill, which decides the doors; null when
+  // you're down on that tick, and the run goes by what you entered with.
+  | { kind: 'BossCleared'; boss: BossId; loadout: Loadout | null; tick: Tick }
+  | { kind: 'TunnelEntered'; player: PlayerId; door: Door; loadout: Loadout; tick: Tick }
   | { kind: 'RewardChosen'; player: PlayerId; option: number; tick: Tick };
 
 export type RunEvent =
   | { kind: 'RunLost'; player: PlayerId; tick: Tick }
-  | { kind: 'ArenaCleared'; arena: number; tick: Tick }
+  | { kind: 'ArenaCleared'; arena: number; doors: Doors; tick: Tick }
   | { kind: 'RunWon'; boss: BossId; tick: Tick }
-  | { kind: 'ArenaEntered'; arena: number; loadout: Loadout; tick: Tick }
-  | { kind: 'TunnelRefused'; reason: 'NotCleared' | 'LastArena'; tick: Tick }
+  | { kind: 'ArenaEntered'; arena: number; final: boolean; loadout: Loadout; tick: Tick }
+  | { kind: 'TunnelRefused'; reason: 'NotCleared' | 'DoorClosed'; tick: Tick }
   | { kind: 'PlayerRevived'; player: PlayerId; revivesLeft: number; tick: Tick }
   | { kind: 'RewardsOffered'; arena: number; options: readonly Reward[]; tick: Tick }
   // revives: the count after taking it, so whoever shows it needn't read the state.
@@ -92,13 +127,14 @@ export const STARTING_LOADOUT: Loadout = {
   armor: 0,
 };
 
-export function initialRun(arenas: number, seed = 1): RunState {
-  if (!Number.isInteger(arenas) || arenas < 1) throw new RangeError(`a run needs at least one arena, not ${arenas}`);
-  return { arena: 1, arenas, status: 'Fighting', loadout: STARTING_LOADOUT, seed, revives: STARTING_REVIVES, offer: null };
+export function initialRun(seed = 1): RunState {
+  return {
+    arena: 1, final: false, status: 'Fighting', loadout: STARTING_LOADOUT, seed, revives: STARTING_REVIVES, offer: null, doors: null,
+  };
 }
 
 const run = (s: RunState): Run => ({
-  arena: s.arena, arenas: s.arenas, loadout: s.loadout, seed: s.seed, revives: s.revives, offer: s.offer,
+  arena: s.arena, final: s.final, loadout: s.loadout, seed: s.seed, revives: s.revives, offer: s.offer, doors: s.doors,
 });
 
 // A small seeded generator (mulberry32): the same seed and arena always give the
@@ -140,18 +176,17 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
     }
     case 'BossCleared':
       if (s.status !== 'Fighting') return NO_EVENTS;
-      return s.arena < s.arenas
-        ? [
-          { kind: 'ArenaCleared', arena: s.arena, tick: cmd.tick },
-          { kind: 'RewardsOffered', arena: s.arena, options: offerFor(s.seed, s.arena, s.revives), tick: cmd.tick },
-        ]
-        : [{ kind: 'RunWon', boss: cmd.boss, tick: cmd.tick }];
+      if (s.final) return [{ kind: 'RunWon', boss: cmd.boss, tick: cmd.tick }];
+      return [
+        { kind: 'ArenaCleared', arena: s.arena, doors: doorsAfter(s.arena, cmd.loadout ?? s.loadout, s.revives), tick: cmd.tick },
+        { kind: 'RewardsOffered', arena: s.arena, options: offerFor(s.seed, s.arena, s.revives), tick: cmd.tick },
+      ];
     case 'TunnelEntered':
       // Refused rather than ignored, so whatever is waiting on the answer is released.
       if (s.status !== 'Cleared') return [{ kind: 'TunnelRefused', reason: 'NotCleared', tick: cmd.tick }];
-      if (s.arena >= s.arenas) return [{ kind: 'TunnelRefused', reason: 'LastArena', tick: cmd.tick }];
+      if (!s.doors || !opens(s.doors, cmd.door)) return [{ kind: 'TunnelRefused', reason: 'DoorClosed', tick: cmd.tick }];
       // The rule for what carries over: your hp as it stands, the weapon in your hands, and your perks.
-      return [{ kind: 'ArenaEntered', arena: s.arena + 1, loadout: cmd.loadout, tick: cmd.tick }];
+      return [{ kind: 'ArenaEntered', arena: s.arena + 1, final: cmd.door === 'final', loadout: cmd.loadout, tick: cmd.tick }];
     case 'RewardChosen':
       // One pick per offer. Anything else is refused rather than ignored, like the
       // tunnel, so whatever is waiting on the answer is released.
@@ -170,13 +205,13 @@ export function decide(cmd: RunCommand, s: RunState): readonly RunEvent[] {
 export function evolve(s: RunState, e: RunEvent): RunState {
   switch (e.kind) {
     case 'RunLost': return { ...run(s), status: 'Lost', endedAt: e.tick };
-    case 'ArenaCleared': return { ...run(s), status: 'Cleared' };
+    case 'ArenaCleared': return { ...run(s), status: 'Cleared', doors: e.doors };
     case 'RunWon': return { ...run(s), status: 'Won', endedAt: e.tick };
     case 'ArenaEntered':
       // decide never asks for this; a fact past the last arena means a bug upstream.
-      if (e.arena > s.arenas) throw new RangeError(`arena ${e.arena} of ${s.arenas}`);
+      if (e.arena > MAX_ARENAS) throw new RangeError(`arena ${e.arena} of at most ${MAX_ARENAS}`);
       // An offer not taken before the tunnel is left behind.
-      return { ...run(s), arena: e.arena, status: 'Fighting', loadout: e.loadout, offer: null };
+      return { ...run(s), arena: e.arena, final: e.final, status: 'Fighting', loadout: e.loadout, offer: null, doors: null };
     case 'TunnelRefused': return s;
     case 'PlayerRevived': return { ...s, revives: e.revivesLeft };
     case 'RewardsOffered': return { ...s, offer: e.options };
