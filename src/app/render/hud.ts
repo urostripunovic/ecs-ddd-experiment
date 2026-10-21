@@ -1,6 +1,6 @@
 // Reads components and the dev tick log; writes only DOM, and only on change.
 import { DEV, readTickLog } from '../../bridge/tick-log';
-import { ARENAS } from '../../ecs/arenas';
+import { arenaFor } from '../../ecs/arenas';
 import { Ammo, BossPhase, C, Durability, GodMode, Health, RunStatus, RunView, Wielder } from '../../ecs/components';
 import { CHARGE_MAX_TICKS, PERFECT_FROM, PERFECT_TO, throwCharge } from '../../ecs/weapons/charge';
 import { has, indexOf, world, type EntityId, type Handle } from '../../ecs/core/world';
@@ -37,6 +37,14 @@ function perkLine(player: EntityId): string {
   const live = lowHp(player);
   const on = (perk: number) => live && (perk === Perk.LastStand || perk === Perk.Adrenaline);
   return perkSlots(player).map((perk) => (perk === Perk.None ? '—' : PERK_LABEL[perk] + (on(perk) ? ' ●' : ''))).join(' · ');
+}
+
+// The boss's name for this arena of this run, planned once per arena rather than every frame.
+let named = { key: '', name: '' };
+function bossNameOf(seed: number, arena: number, arenas: number): string {
+  const key = `${seed}:${arena}:${arenas}`;
+  if (named.key !== key) named = { key, name: arenaFor(seed, arena, arenas).boss.name };
+  return named.name;
 }
 
 // Any pedestal still standing means the offer is open. Read once a frame, not per tick.
@@ -106,7 +114,7 @@ export function createHud(root: HTMLElement) {
       const p = indexOf(h.player);
       set(bossHp, 'scale', (Health.hp[b] / Health.max[b]).toFixed(3));
       set(phase, 'text', `arena ${RunView.arena}/${RunView.arenas} · phase ${BossPhase.phase[b]}`);
-      set(bossName, 'text', ARENAS[RunView.arena - 1]?.boss.name ?? '');
+      set(bossName, 'text', bossNameOf(RunView.seed, RunView.arena, RunView.arenas));
       set(playerHp, 'scale', (Health.hp[p] / Health.max[p]).toFixed(3));
       set(hpText, 'text', String(Math.ceil(Health.hp[p])));
       // Revives as hearts, armor plates as diamonds: both readable at a glance mid-dodge.
@@ -134,7 +142,7 @@ export function createHud(root: HTMLElement) {
         set(title, 'text', cleared ? 'ARENA CLEARED' : RunView.status === RunStatus.Won ? 'VICTORY' : 'DEFEATED');
         set(subtitle, 'text', cleared
           ? (rewardsWaiting() ? 'Pick a reward, then take the tunnel north' : 'The tunnel to the north is open')
-          : 'Press Enter to restart');
+          : `Seed ${RunView.seed} · add ?seed=${RunView.seed} to the address to play it again · Enter for a new run`);
       }
 
       if (!log.hidden && !DEV) {

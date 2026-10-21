@@ -6,11 +6,15 @@ import { createArenaView } from './render/scene';
 
 const host = document.getElementById('app')!;
 
-// ?bossHp=200 shortens the fight while tuning; ?seed=7 picks another drop sequence.
+// ?bossHp=200 shortens the fight while tuning. ?seed=7 replays that run exactly:
+// its bosses, rewards and drops. Without it every run, and every restart, draws a
+// new seed. Math.random is fine here and only here: the app picks the seed, and
+// the simulation and the rules only ever use it.
 const params = new URLSearchParams(location.search);
 const bossHp = Number(params.get('bossHp')) || undefined;
-const seed = Number(params.get('seed')) || undefined;
-const restart = () => startRun({ bossHp, seed });
+const fixedSeed = Number(params.get('seed')) || undefined;
+const nextSeed = () => fixedSeed ?? 1 + Math.floor(Math.random() * 999_999);
+const restart = () => startRun({ bossHp, seed: nextSeed() });
 
 // The same object for the whole run: building the next arena updates it in place.
 const match = restart();
