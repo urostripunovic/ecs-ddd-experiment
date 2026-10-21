@@ -34,10 +34,15 @@ export const mask = (...bits: ComponentMask[]) =>
 export const NOBODY = -1 as Handle;
 
 const signature = new Uint32Array(MAX_ENTITIES);
+const inUse = new Uint8Array(MAX_ENTITIES);
 export const world = {
   // Each entity's signature: one bit per component it has.
   signature,
-  alive: new Uint8Array(MAX_ENTITIES),
+  // 1 while a row holds an entity. Not whether it's alive in the game: a downed
+  // boss keeps its row, with the Dead tag in its signature.
+  inUse,
+  /** @deprecated Use world.inUse, the same array. Kept only while the other layers move over. */
+  alive: inUse,
   generation: new Uint32Array(MAX_ENTITIES),
   freeList: new Int32Array(MAX_ENTITIES),
   freeCount: 0,
@@ -51,7 +56,7 @@ export const toHandle = (entity: EntityId) => ((world.generation[entity] << SLOT
 export const indexOf = (h: Handle) => (h & SLOT_MASK) as EntityId;
 export const isLive = (h: Handle) => {
   const entity = indexOf(h);
-  return entity < MAX_ENTITIES && world.alive[entity] === 1 && world.generation[entity] === h >>> SLOT_BITS;
+  return entity < MAX_ENTITIES && world.inUse[entity] === 1 && world.generation[entity] === h >>> SLOT_BITS;
 };
 
 // A slot that has used up its generations is retired for the rest of the run:
@@ -70,7 +75,7 @@ export function spawn(): EntityId {
     entity = world.nextFresh++;
   }
   if (entity >= MAX_ENTITIES) throw new Error('entity pool exhausted');
-  world.alive[entity] = 1;
+  world.inUse[entity] = 1;
   world.signature[entity] = 0;
   return entity as EntityId;
 }
@@ -85,7 +90,7 @@ export function onDespawn(check: (entity: EntityId) => void): void {
 export function despawn(entity: EntityId): void {
   // Before anything changes, so a failed check leaves the world as it was.
   if (import.meta.env.DEV) checkDespawn?.(entity);
-  world.alive[entity] = 0;
+  world.inUse[entity] = 0;
   world.signature[entity] = 0;
   world.generation[entity]++;
   if (!retired(entity)) world.freeList[world.freeCount++] = entity;
@@ -102,7 +107,7 @@ export function query(buf: Int32Array, all: ComponentMask, none: ComponentMask =
   let n = 0;
   for (let e = 0; e < world.nextFresh; e++) {
     const s = world.signature[e];
-    if (world.alive[e] && (s & all) === all && (s & none) === 0) buf[n++] = e;
+    if (world.inUse[e] && (s & all) === all && (s & none) === 0) buf[n++] = e;
   }
   return n;
 }
@@ -117,7 +122,7 @@ export const handleAt = (arr: Int32Array, entity: EntityId) => arr[entity] as Ha
 export function resetWorld(keepTick = false): void {
   for (let e = 0; e < world.nextFresh; e++) if (!retired(e)) world.generation[e]++;
   world.signature.fill(0);
-  world.alive.fill(0);
+  world.inUse.fill(0);
   world.freeCount = 0;
   world.nextFresh = 0;
   if (!keepTick) world.tick = 0;
