@@ -30,4 +30,5 @@ export const C = {
   RewardPickup: bit(26), // a boss's reward on its pedestal; stepping on it chooses it
   RewardPending: bit(27), // latch: the player chose a reward and the run hasn't answered yet
   Tracer: bit(28),       // a railgun beam, drawn for a moment; it hurts nothing itself
+  Homing: bit(29),       // a projectile that turns toward the player (the Sentinel's orbs)
 } as const;

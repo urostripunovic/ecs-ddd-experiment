@@ -38,7 +38,7 @@ export function tracerSystem(): void {
 
 // How far along a ray from (x, z) in direction (dx, dz) it first meets a circle,
 // or Infinity if it never does. Starting inside counts as meeting it at once.
-function rayToCircle(x: number, z: number, dx: number, dz: number, cx: number, cz: number, r: number): number {
+export function rayToCircle(x: number, z: number, dx: number, dz: number, cx: number, cz: number, r: number): number {
   const ox = x - cx;
   const oz = z - cz;
   const along = ox * dx + oz * dz;

@@ -1,6 +1,7 @@
 // Arena layouts as data. The run (domain) decides which arena you're in; what
 // that arena looks like is simulation detail, so it lives here.
-import { FINAL, UNCHAINED, WARDEN, type BossDef } from './bosses/defs';
+import { BODY_DEFS, BossStyleKind, FINAL, UNCHAINED, WARDEN, type BossDef } from './bosses/defs';
+import { Body, planFor, type BodyKind } from './bosses/generate';
 import { hashDraw } from './core/rng';
 import { hp, meters, type Meters } from './core/units';
 import { SPECIALS } from './weapons/defs';
@@ -75,8 +76,49 @@ export const FINAL_ARENA: ArenaLayout = {
   ],
 };
 
-// The bosses a run draws its middle arenas from.
-export const POOL: readonly ArenaLayout[] = [GRINDER];
+// Halls for the procedural bodies (Stage C). The boss in each is generated
+// from the run's seed and the arena (arenaFor); the hall is what suits the body.
+
+// The Colossus: four fat pillars to put between you and its slams.
+export const COLOSSUS_HALL: ArenaLayout = {
+  pillars: [[-8, -6], [8, -6], [-8, 6], [8, 6]],
+  perch: -1,
+  bossStart: [0, -8],
+  playerStart: [0, 13],
+  weaponSpots: [[-4, 15], [4, 15], [0, 16], [8, 15]],
+  boss: BODY_DEFS[Body.Colossus],
+  orbitCenter: [0, 0],
+  orbiting: [],
+};
+
+// The Lancer: a ring of pillars to bait its charges into, each one a stun.
+export const LANCER_HALL: ArenaLayout = {
+  pillars: [[0, -10], [9, -5], [9, 5], [0, 10], [-9, 5], [-9, -5]],
+  perch: -1,
+  bossStart: [0, -3],
+  playerStart: [0, 15],
+  weaponSpots: [[-4, 16], [4, 16], [0, 17], [8, 16]],
+  boss: BODY_DEFS[Body.Lancer],
+  orbitCenter: [0, 0],
+  orbiting: [],
+};
+
+// The Sentinel: it holds the middle; two rings of cover stand between it and
+// the walls, so its beam and orbs can be hidden from, for a while.
+export const SENTINEL_HALL: ArenaLayout = {
+  pillars: [[0, -7], [6, 3.5], [-6, 3.5], [7, -9], [-7, -9], [12, 6], [-12, 6], [0, 12]],
+  perch: -1,
+  bossStart: [0, 0],
+  playerStart: [0, 16],
+  weaponSpots: [[-4, 17], [4, 17], [-8, 16], [8, 16]],
+  boss: BODY_DEFS[Body.Sentinel],
+  orbitCenter: [0, 0],
+  orbiting: [],
+};
+
+// The bosses a run draws its middle arenas from: the hand-made Unchained, and
+// a generated boss in each of the three halls.
+export const POOL: readonly ArenaLayout[] = [GRINDER, COLOSSUS_HALL, LANCER_HALL, SENTINEL_HALL];
 
 // Decided with the user: the Warden, four drawn from the pool, then the final boss.
 
@@ -87,8 +129,14 @@ const PACE_PER_DEPTH = 0.08;
 // special: the special weapon kind the arena keeps stocked, 0 for none.
 export type PlannedArena = { readonly layout: ArenaLayout; readonly boss: BossDef; readonly depth: number; readonly special: number };
 
-// A key apart from the arena draws', so adding specials never changes which bosses a seed meets.
+// Keys apart from the arena draws', so adding specials or kits never changes which bosses a seed meets.
 const SPECIAL_KEY = 1000;
+const KIT_KEY = 2000;
+
+// The seed a procedural boss's moves come from: the run's seed and the arena.
+export function kitFor(seed: number, arena: number): number {
+  return 1 + Math.floor(hashDraw(seed, KIT_KEY + arena) * 0x7fffffff);
+}
 
 // The tutorial keeps to the basics; every arena after it, the final too, stocks
 // one special, drawn from the seed like the bosses, without moving the drop RNG.
@@ -119,11 +167,17 @@ export function arenaFor(seed: number, arena: number, final: boolean, layout?: A
   const chosen = layout ?? (final ? FINAL_ARENA : arena === 1 ? WARDEN_ARENA : drawn(seed, arena));
   const depth = arena - 1;
   const base = chosen.boss;
-  const boss: BossDef = {
+  const scaled: BossDef = {
     ...base,
     hp: hp(Math.round(base.hp * (1 + HP_PER_DEPTH * depth))),
     pace: base.pace * (1 + PACE_PER_DEPTH * depth),
+    depth,
   };
+  // A procedural boss gets its kit, and the name its plan gives it.
+  const kit = kitFor(seed, arena);
+  const boss: BossDef = base.style === BossStyleKind.Procedural
+    ? { ...scaled, kit, name: planFor(kit, depth, base.body as BodyKind).name }
+    : scaled;
   return { layout: chosen, boss, depth, special: specialFor(seed, arena) };
 }
 

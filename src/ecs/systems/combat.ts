@@ -7,7 +7,7 @@ import { stopScript } from './boss';
 import { hurt } from './damage';
 
 // Bullets have no collider of their own; this is their radius against a target's.
-const BULLET_RADIUS = 0.2;
+export const BULLET_RADIUS = 0.2;
 
 const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
 const PROJECTILES = mask(C.Projectile, C.Transform, C.Team);

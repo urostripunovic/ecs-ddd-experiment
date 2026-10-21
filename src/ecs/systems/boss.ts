@@ -1,10 +1,12 @@
-import { BossPhase, BossStyle, C, GodMode, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform, Velocity } from '../components';
+import { BossGen, BossPhase, BossStyle, C, GodMode, Health, RunStatus, RunView, Pressure, Slam, Slowed, Transform, Velocity } from '../components';
 import { buf, scriptBuf } from '../core/buffers';
 import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
 import { entityAt, mask, MAX_ENTITIES, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
-import { keeperOne, keeperThree, keeperTwo, phaseOne, phaseTwo, unchainedOne, unchainedTwo } from './boss-scripts';
+import { keeperOne, keeperThree, keeperTwo, phaseOne, phaseTwo, procedural, unchainedOne, unchainedTwo } from './boss-scripts';
+import { BossStyleKind } from '../bosses/defs';
+import { phaseAtFor } from '../bosses/generate';
 import { releaseStuck } from './weapons';
 
 export const PHASE_TWO_AT = share(0.5);
@@ -17,6 +19,8 @@ const PHASE_SCRIPTS = [
   [null, phaseOne, phaseTwo],
   [null, unchainedOne, unchainedTwo],
   [null, keeperOne, keeperTwo, keeperThree],
+  // Procedural: one script for every phase, playing that phase's generated kit.
+  [null, procedural, procedural, procedural],
 ] as const;
 // Per style, the shares of max hp at which it moves to its next phase, in order.
 const PHASE_AT: readonly (readonly number[])[] = [[PHASE_TWO_AT], [PHASE_TWO_AT], [share(0.66), share(0.33)]];
@@ -92,7 +96,8 @@ export function bossThresholdSystem(): void {
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {
     const e = entityAt(buf, i);
-    const at = PHASE_AT[BossStyle.kind[e]] ?? PHASE_AT[0];
+    // A procedural boss's thresholds follow how many phases its plan has.
+    const at = BossStyle.kind[e] === BossStyleKind.Procedural ? phaseAtFor(BossGen.phases[e]) : (PHASE_AT[BossStyle.kind[e]] ?? PHASE_AT[0]);
     const phase = BossPhase.phase[e];
     if (phase <= at.length && shareOf(Health.hp[e], Health.max[e]) <= at[phase - 1]) BossPhase.phase[e] = phase + 1;
   }

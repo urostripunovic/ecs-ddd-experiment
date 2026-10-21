@@ -7,9 +7,15 @@ import type { Script } from '../core/script';
 import { ticks, type Ticks } from '../core/units';
 import { world, type EntityId } from '../core/world';
 
-export const Action = { Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5, Ring: 6, Spiral: 7, Storm: 8 } as const;
+// Charge, Sweep and Orbs are the procedural bosses' new building blocks (the
+// Lancer's and the Sentinel's); Combo is a generated storm: two patterns as one action.
+export const Action = {
+  Idle: 0, Slam: 1, Cone: 2, Burst: 3, Jump: 4, Roar: 5, Ring: 6, Spiral: 7, Storm: 8, Charge: 9, Sweep: 10, Orbs: 11, Combo: 12,
+} as const;
 export type ActionKind = (typeof Action)[keyof typeof Action];
-const NAMES = ['idle', 'slam', 'cone', 'burst', 'jump', 'roar', 'ring', 'spiral', 'storm'] as const;
+const NAMES = [
+  'idle', 'slam', 'cone', 'burst', 'jump', 'roar', 'ring', 'spiral', 'storm', 'charge', 'sweep', 'orbs', 'combo',
+] as const;
 type Name = (typeof NAMES)[number];
 
 // Ticks from the end of one action to the start of the next, per boss style
@@ -44,6 +50,16 @@ export const CHAIN_GAPS: readonly Gaps[] = [
       1: {},
       2: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1) },
       3: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'storm->jump': ticks(1) },
+    },
+  },
+  {
+    // Procedural bosses: the Keeper's breath. From phase 2 a pattern may roll
+    // straight into a jump; a charge or a landing never rolls into anything.
+    default: ticks(8),
+    phases: {
+      1: {},
+      2: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1), 'orbs->jump': ticks(1) },
+      3: { 'cone->jump': ticks(1), 'ring->jump': ticks(1), 'spiral->jump': ticks(1), 'orbs->jump': ticks(1), 'combo->jump': ticks(1) },
     },
   },
 ];

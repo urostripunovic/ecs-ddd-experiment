@@ -1,9 +1,10 @@
 import {
-  Ammo, BossPace, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
+  Ammo, BossGen, BossPace, BossPhase, BossStyle, BuffPickup, C, Collider, Dodge, Durability, Health, Item, LastHit, Orbit, PerkPickup, PlayerInput, RewardPickup, Pressure, Projectile,
   Shape, ShapeKind, Team, TeamId, Tracer, Transform, Velocity, Wielder,
 } from './components';
 import type { OrbitDef } from './arenas';
-import type { BossDef } from './bosses/defs';
+import { BossStyleKind, type BossDef } from './bosses/defs';
+import { planFor, type BodyKind } from './bosses/generate';
 import { after, type Hp, type Meters, type Seconds, type Ticks } from './core/units';
 import { add, mask, NOBODY, spawn, world, type EntityId, type Handle } from './core/world';
 import { WEAPONS } from './weapons/defs';
@@ -64,6 +65,12 @@ export function spawnBoss(def: BossDef, x: number, z: number): EntityId {
   BossStyle.kind[boss] = def.style;
   BossPace.pace[boss] = def.pace;
   BossPhase.phase[boss] = 1;
+  if (def.style === BossStyleKind.Procedural) {
+    BossGen.kit[boss] = def.kit;
+    BossGen.depth[boss] = def.depth;
+    BossGen.body[boss] = def.body;
+    BossGen.phases[boss] = planFor(def.kit, def.depth, def.body as BodyKind).phases.length;
+  }
   // From the boss's actual hp, so changing how hp is set can't desync the two.
   Pressure.hpMark[boss] = Health.hp[boss];
   Pressure.markedAt[boss] = world.tick;
