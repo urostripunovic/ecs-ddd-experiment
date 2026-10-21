@@ -33,7 +33,7 @@ M = [
  ("spikes have no cooldown", "src/ecs/systems/pillars.ts", "      SpikeHit.readyAt[player] = after(SPIKE_COOLDOWN);\n", "", "src/ecs/systems/pillars.test.ts"),
  ("pillars move in cutscenes", "src/ecs/systems/pillars.ts", "export function orbitSystem(dt: Seconds): void {\n  if (controlsLocked()) return;", "export function orbitSystem(dt: Seconds): void {", "src/ecs/systems/pillars.test.ts"),
  ("spikes hurt through a dodge", "src/ecs/systems/damage.ts", "  if (has(target, C.Invulnerable) || dodging(target)) return false;", "  if (has(target, C.Invulnerable)) return false;", "src/ecs/systems/pillars.test.ts"),
- ("the ring leaves no gaps", "src/ecs/systems/boss-scripts.ts", "    if (!inGap(a, gapAt, RING_GAP_HALF)) shoot(boss, a, RING_SPEED);", "    shoot(boss, a, RING_SPEED);", "src/ecs/systems/patterns.test.ts"),
+ ("the ring leaves no gaps", "src/ecs/systems/boss-scripts.ts", "    if (!inGap(a, gapAt, def.gapHalf, def.gaps)) shoot(boss, a, def.speed);", "    shoot(boss, a, def.speed);", "src/ecs/systems/patterns.test.ts"),
  ("the ring's gaps turn too far", "src/ecs/systems/boss-scripts.ts", "export const RING_TURN = 0.14;", "export const RING_TURN = 0.3;", "src/ecs/systems/patterns.test.ts"),
  ("a revive is never used", "src/domain/run/run.ts", "      return s.revives > 0\n", "      return false\n", "src/domain/run/run.test.ts"),
  ("the offer can repeat a reward", "src/domain/run/run.ts", "pool.splice(Math.floor(next() * pool.length), 1)", "pool.slice(0, 1)", "src/domain/run/run.test.ts"),
@@ -65,6 +65,19 @@ M = [
  ("no special in the stock", "src/ecs/systems/weapons.ts", "WEAPON_STOCK[kind] + (kind === Stock.special ? 1 : 0)", "WEAPON_STOCK[kind]", "src/ecs/systems/specials.test.ts"),
  ("a new arena lays out no special", "src/bridge/spawn.ts", "WEAPON_STOCK[kind] + (kind === planned.special ? 1 : 0)", "WEAPON_STOCK[kind]", "src/bridge/run/flow.test.ts"),
  ("the tick forgets the burn", "src/app/loop.ts", "  burnSystem();\n", "", "src/app/loop.test.ts"),
+ ("generated slams wind up too fast", "src/ecs/bosses/generate.ts", "windup: ticks(big ? 32 : 42)", "windup: ticks(big ? 20 : 42)", "src/ecs/bosses/generate.test.ts"),
+ ("generated rings turn too far", "src/ecs/bosses/generate.ts", "  const turn = Math.min(maxTurn, between(r, 0.08, 0.16));", "  const turn = between(r, 0.2, 0.3);", "src/ecs/bosses/generate.test.ts"),
+ ("generated spirals outrun you", "src/ecs/bosses/generate.ts", "step: between(r, 0.03, 0.055),", "step: between(r, 0.09, 0.12),", "src/ecs/bosses/generate.test.ts"),
+ ("combos break the density cap", "src/ecs/bosses/generate.ts", "      const spiral = { ...spiralDef(r, deep), arms: 2 };", "      const spiral = { ...spiralDef(r, deep), arms: 4 };", "src/ecs/bosses/generate.test.ts"),
+ ("orbs outpace you", "src/ecs/bosses/generate.ts", "speed: between(r, 3.2, 4.0),", "speed: between(r, 5, 6),", "src/ecs/bosses/generate.test.ts"),
+ ("sweeps cover the whole circle", "src/ecs/bosses/generate.ts", "arc: between(r, Math.PI * 0.6, Math.PI * 1.4),", "arc: Math.PI * 2,", "src/ecs/bosses/generate.test.ts"),
+ ("the plan forgets the signature", "src/ecs/bosses/generate.ts", "  let kinds: MoveKind[] = [SIGNATURE[body]];", "  let kinds: MoveKind[] = [];", "src/ecs/bosses/generate.test.ts"),
+ ("a charge never stuns", "src/ecs/systems/boss-scripts.ts", "    if (againstStone(boss)) { stunned = true; break; }", "", "src/ecs/systems/procedural.test.ts"),
+ ("a charge hits every tick", "src/ecs/systems/hazards.ts", "    if (world.tick < LineHit.readyAt[p]) continue;\n    const dx = Transform.x[p] - Transform.x[boss];", "    const dx = Transform.x[p] - Transform.x[boss];", "src/ecs/systems/procedural.test.ts"),
+ ("the beam ignores cover", "src/ecs/systems/hazards.ts", "    reach = Math.min(reach, rayToCircle(x, z, dx, dz, Transform.x[s], Transform.z[s], Collider.radius[s]));", "", "src/ecs/systems/procedural.test.ts"),
+ ("orbs never turn", "src/ecs/systems/hazards.ts", "    const turned = heading + Math.max(-most, Math.min(most, off));", "    const turned = heading;", "src/ecs/systems/procedural.test.ts"),
+ ("procedural phases ignore the plan", "src/ecs/systems/boss.ts", "BossStyle.kind[e] === BossStyleKind.Procedural ? phaseAtFor(BossGen.phases[e]) :", "false ? phaseAtFor(BossGen.phases[e]) :", "src/ecs/systems/procedural.test.ts"),
+ ("the tick forgets the hazards", "src/app/loop.ts", "  hazardSystem();\n", "", "src/app/loop.test.ts"),
 ]
 bad = []
 for name, path, old, new, tests in M:

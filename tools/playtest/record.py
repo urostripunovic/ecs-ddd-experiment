@@ -17,7 +17,7 @@ probe = """async () => { const c = await import('/src/ecs/components/index.ts');
     if (w.has(e, c.C.Grounded)) ground++;
     if (c.Shape.kind[e] === 1) { const h = c.Wielder.held[e]; if (w.isLive(h)) { const i = w.indexOf(h); held = ['fists','sword','spear','gun','scattergun','chakram','hammer','railgun','flamer'][c.Item.kind[i]] + ':L' + c.Item.level[i] + ':' + ([3, 4, 7].includes(c.Item.kind[i]) ? c.Ammo.count[i] : Math.round(c.Durability.value[i])); } }
   }
-  let act = '-'; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] === 2) act = ['idle','slam','cone','burst','jump','roar','ring','spiral','storm'][c.BossAction.kind[e]] + (w.has(e, c.C.Airborne) ? '^' : '');
+  let act = '-'; for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] === 2) act = ['idle','slam','cone','burst','jump','roar','ring','spiral','storm','charge','sweep','orbs','combo'][c.BossAction.kind[e]] + (w.has(e, c.C.Airborne) ? '^' : '');
   return { tick: w.world.tick, status: c.RunView.status, arena: c.RunView.arena, ...hp, held, ground, act, revives: c.RunView.revives, perfect: window.__perfectThrows, finalShots: window.__finalShots, dodges: window.__dodges, rail: window.__railShots, burning: (() => { for (let e = 0; e < w.world.nextFresh; e++) if (w.world.inUse[e] && c.Shape.kind[e] === 2) return w.world.tick < c.Burn.until[e]; return false; })(), perks: (await import('/src/ecs/systems/perks.ts')).perkSlots(Array.from({length: w.world.nextFresh}, (_, e) => e).find((e) => w.world.inUse[e] && c.Shape.kind[e] === 1) ?? 0) }; }"""
 
 with sync_playwright() as p:
