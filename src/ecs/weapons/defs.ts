@@ -70,6 +70,20 @@ export const WEAPONS: readonly WeaponDef[] = [
 export const WEAPON_STOCK: readonly number[] = [0, 1, 1, 1, 0];
 export const RESPAWN_TICKS = inTicks(seconds(5));
 
+// Weapons found deeper hit harder. A weapon's level is the arena it turned up
+// in (the Warden's are level 1), and each level past the first adds 15% to
+// every hit it deals: 1 + 0.15 per arena of depth. Fists have no level.
+export const LEVEL_DMG_STEP = 0.15;
+// Uint8 storage, and no run has more arenas than this.
+const MAX_LEVEL = 255;
+
+export function weaponLevelFor(arena: number): number {
+  if (!Number.isInteger(arena) || arena < 1 || arena > MAX_LEVEL) throw new RangeError(`no weapon level for arena ${arena}`);
+  return arena;
+}
+
+export const levelDmgMul = (level: number): number => 1 + LEVEL_DMG_STEP * (level - 1);
+
 export const BuffKind = { Haste: 1, Fury: 2 } as const;
 export const BUFF_TICKS = inTicks(seconds(6));
 export const HASTE_MUL = 1.35;

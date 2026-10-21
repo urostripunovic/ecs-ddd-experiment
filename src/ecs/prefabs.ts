@@ -105,14 +105,17 @@ export function spawnProjectile(
   return projectile;
 }
 
-// Spawns on the ground; equipping is a pickup like any other.
-export function spawnWeapon(kind: number, x: number, z: number): EntityId {
+// Spawns on the ground; equipping is a pickup like any other. Level 1 is a
+// default for tests and tools; the game's own spawns (stock, gifts, the spawn
+// projection) always say which level, since that's the arena's.
+export function spawnWeapon(kind: number, x: number, z: number, level = 1): EntityId {
   const weapon = spawn();
   add(weapon, ITEM);
   place(weapon, x, z);
   const def = WEAPONS[kind];
   Item.kind[weapon] = kind;
   Item.pickupAt[weapon] = world.tick;
+  Item.level[weapon] = level;
   Durability.value[weapon] = def.durability;
   Ammo.count[weapon] = def.mag;
   Ammo.reload[weapon] = 0;

@@ -14,7 +14,7 @@ import {
 } from '../core/world';
 import { spawnBuff, spawnProjectile, spawnWeapon } from '../prefabs';
 import {
-  BUFF_TICKS, BuffKind, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, type WeaponDef,
+  BUFF_TICKS, BuffKind, levelDmgMul, RESPAWN_TICKS, WEAPON_STOCK, WEAPONS, WeaponKind, weaponLevelFor, type WeaponDef,
 } from '../weapons/defs';
 import { CHARGE_MAX_TICKS, ChargeZone, throwCharge, type ThrowCharge } from '../weapons/charge';
 import { controlsLocked } from './cutscene';
@@ -58,16 +58,20 @@ export function heldItem(w: EntityId): EntityId | -1 {
 
 export const defOf = (item: EntityId | -1): WeaponDef => WEAPONS[item === -1 ? WeaponKind.Fists : Item.kind[item]];
 
+// What the item's level adds to every hit it deals; fists have none.
+const levelMul = (item: EntityId | -1): number => (item === -1 ? 1 : levelDmgMul(Item.level[item]));
+
 // The one place a weapon loses durability, so the dev menu's "keep weapons" holds everywhere.
 function wear(item: EntityId, amount: number): void {
   if (!(import.meta.env.DEV && GodMode.keepWeapons)) Durability.value[item] -= amount;
 }
 
-// Dev menu: a fresh weapon of that kind in hand; whatever was held drops at your feet.
+// A fresh weapon of that kind in hand, at this arena's level (the Scattergun
+// reward, the dev menu); whatever was held drops at your feet.
 export function giveWeapon(w: EntityId, kind: number): void {
   const holding = heldItem(w);
   if (holding !== -1) putOnGround(holding, Transform.x[w], Transform.z[w], DROP_LOCK_TICKS);
-  equip(w, spawnWeapon(kind, Transform.x[w], Transform.z[w]));
+  equip(w, spawnWeapon(kind, Transform.x[w], Transform.z[w], weaponLevelFor(RunView.arena)));
 }
 
 export function equip(w: EntityId, item: EntityId): void {
@@ -186,7 +190,7 @@ export function heldFollowSystem(): void {
   }
 }
 
-// reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo | writes Wielder.charge, Thrown, Velocity, item state;
+// reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo, Item.level | writes Wielder.charge, Thrown, Velocity, item state;
 // with Final shot instead: Ammo, Shake, Health (via hurt), spawns a heavy bullet or breaks the gun
 // Holding fills the gauge; the release throws with whatever it reached, so a
 // tap is a weak throw and timing the perfect zone is the skill.
@@ -219,7 +223,7 @@ export function throwSystem(): void {
     Velocity.x[item] = PlayerInput.aimX * speed;
     Velocity.z[item] = PlayerInput.aimZ * speed;
     Thrown.by[item] = toHandle(w);
-    Thrown.dmg[item] = def.throwDmg * dmgMul(w) * charge.dmgMul;
+    Thrown.dmg[item] = def.throwDmg * dmgMul(w) * charge.dmgMul * levelMul(item);
     Thrown.wearMul[item] = charge.wearMul;
     Thrown.ticksLeft[item] = def.throwTicks;
     Thrown.bounces[item] = Item.kind[item] === WeaponKind.Sword && hasPerk(w, Perk.Ricochet) ? RICOCHET_BOUNCES : 0;
@@ -244,7 +248,8 @@ function finalShot(wielder: EntityId, gun: EntityId, charge: ThrowCharge): void 
   spawnProjectile(
     Transform.x[wielder] + PlayerInput.aimX * muzzle, Transform.z[wielder] + PlayerInput.aimZ * muzzle,
     PlayerInput.aimX, PlayerInput.aimZ, BULLET_SPEED,
-    Team.id[wielder], toHandle(wielder), times(def.dmg, Ammo.count[gun] * charge.dmgMul * dmgMul(wielder)), BULLET_LIFE,
+    Team.id[wielder], toHandle(wielder), times(def.dmg, Ammo.count[gun] * charge.dmgMul * dmgMul(wielder) * levelMul(gun)),
+    BULLET_LIFE,
     ShapeKind.HeavyBullet,
   );
   Ammo.count[gun] = 0;
@@ -271,13 +276,13 @@ function meleeHit(w: EntityId, def: WeaponDef): boolean {
     if (d > reach + Collider.radius[t]) continue;
     // Measured to the target's centre; a target you are touching is always in the arc.
     if (d > Collider.radius[t] && (dx * PlayerInput.aimX + dz * PlayerInput.aimZ) / d < def.arcCos) continue;
-    hurt(t, def.dmg * dmgMul(w), toHandle(w));
+    hurt(t, def.dmg * dmgMul(w) * levelMul(heldItem(w)), toHandle(w));
     hit = true;
   }
   return hit;
 }
 
-// reads PlayerInput, RunView, Wielder, held item | writes Wielder, Ammo, Durability, Health; spawns bullets
+// reads PlayerInput, RunView, Wielder, held item and its level | writes Wielder, Ammo, Durability, Health; spawns bullets
 export function attackSystem(dt: Seconds): void {
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {
@@ -309,7 +314,7 @@ export function attackSystem(dt: Seconds): void {
         spawnProjectile(
           Transform.x[w] + PlayerInput.aimX * muzzle, Transform.z[w] + PlayerInput.aimZ * muzzle,
           Math.cos(a), Math.sin(a), BULLET_SPEED,
-          Team.id[w], toHandle(w), times(def.dmg, dmgMul(w)), BULLET_LIFE, ShapeKind.Bullet,
+          Team.id[w], toHandle(w), times(def.dmg, dmgMul(w) * levelMul(item)), BULLET_LIFE, ShapeKind.Bullet,
         );
       }
       continue;
@@ -438,7 +443,7 @@ const spot = { x: 0, z: 0 };
 
 const stockCounts = new Int32Array(WEAPON_STOCK.length);
 
-// reads every Item (any state), Stock | writes Stock; spawns replacements
+// reads every Item (any state), Stock, RunView.arena | writes Stock; spawns replacements at the arena's level
 // Keeps WEAPON_STOCK of each kind in play. A missing one is scheduled when it
 // is first noticed and appears RESPAWN_TICKS later, so breaking a blade costs
 // you time, never the weapon for good.
@@ -454,7 +459,7 @@ export function stockSystem(): void {
     if (world.tick < Stock.respawnAt[kind]) continue;
     // No clear spot this tick (rare): try again next tick rather than spawn somewhere bad.
     if (!randomClearSpot(spot)) continue;
-    spawnWeapon(kind, spot.x, spot.z);
+    spawnWeapon(kind, spot.x, spot.z, weaponLevelFor(RunView.arena));
     Stock.respawnAt[kind] = 0;
   }
 }

@@ -46,8 +46,11 @@ export const Wielder = {
 
 // Items are entities, so a thrown gun keeps its ammo and a dropped sword its wear.
 // pickupAt is the first tick it can be picked up again, so a dropped or landed
-// item isn't grabbed straight back.
-export const Item = { kind: new Uint8Array(MAX_ENTITIES), pickupAt: new Uint32Array(MAX_ENTITIES) };
+// item isn't grabbed straight back. level: the arena it was found in, set once
+// when it spawns (only spawnWeapon writes it); it scales every hit it deals.
+export const Item = {
+  kind: new Uint8Array(MAX_ENTITIES), pickupAt: new Uint32Array(MAX_ENTITIES), level: new Uint8Array(MAX_ENTITIES),
+};
 export const Durability = { value: new Float32Array(MAX_ENTITIES) };
 // reload is seconds left; the magazine refills when it reaches 0.
 export const Ammo = { count: new Uint16Array(MAX_ENTITIES), reload: new Float32Array(MAX_ENTITIES) };

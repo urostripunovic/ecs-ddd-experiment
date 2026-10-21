@@ -1,22 +1,24 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RunViewWritable } from '../components/run-view';
 import {
-  Ammo, Buffs, C, Collider, Durability, Health, Item, RunStatus, PlayerInput, resetRunState, Slowed,
-  Transform, Wielder,
+  Ammo, Buffs, C, Collider, Durability, Health, Item, Projectile, RunStatus, PlayerInput, resetRunState, Slowed,
+  Thrown, Transform, Wielder,
 } from '../components';
+import { buf } from '../core/buffers';
 import { seedRng } from '../core/rng';
 import { hp, inSeconds, seconds, ticks } from '../core/units';
-import { add, has, NOBODY, resetWorld, world, type EntityId } from '../core/world';
+import { add, entityAt, has, NOBODY, query, resetWorld, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS } from '../arenas';
 import { WARDEN } from '../bosses/defs';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
 import { CHARGE_MAX_TICKS, ChargeZone, throwCharge } from '../weapons/charge';
-import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind } from '../weapons/defs';
+import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind, weaponLevelFor } from '../weapons/defs';
+import { addPerk, Perk } from './perks';
 import { bodyCollisionSystem } from './collision';
 import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import { speedMul } from './status';
 import {
-  attackSystem, dropSystem, durabilitySystem, equip, flightSystem, heldFollowSystem, heldItem, pickupSystem,
+  attackSystem, dropSystem, durabilitySystem, equip, flightSystem, giveWeapon, heldFollowSystem, heldItem, pickupSystem,
   releaseStuck, stockSystem, stuckFollowSystem, throwSystem,
 } from './weapons';
 
@@ -333,3 +335,76 @@ describe('drops', () => {
   });
 });
 
+
+// Stage B: a weapon found deeper hits harder. Its level is the arena it was
+// found in, and every hit it deals is scaled by 1 + 0.15 per level past the first.
+describe('levels', () => {
+  const LEVEL_3 = 1.3;
+
+  it('a weapon spawns at level 1 unless told otherwise, and keeps the level it was given', () => {
+    expect(Item.level[spawnWeapon(WeaponKind.Sword, 0, 5)]).toBe(1);
+    expect(Item.level[spawnWeapon(WeaponKind.Sword, 0, 5, 3)]).toBe(3);
+  });
+
+  it('scales a swing', () => {
+    Transform.z[b] = -3;
+    equip(p, spawnWeapon(WeaponKind.Sword, 0, 0, 3));
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
+    attackSystem(DT);
+    expect(Health.hp[b]).toBeCloseTo(1000 - WEAPONS[WeaponKind.Sword].dmg * LEVEL_3, 3);
+  });
+
+  it('scales every pellet of a shot', () => {
+    equip(p, spawnWeapon(WeaponKind.Scattergun, 0, 0, 3));
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
+    attackSystem(DT);
+    const n = query(buf, C.Projectile);
+    expect(n).toBe(WEAPONS[WeaponKind.Scattergun].pellets);
+    for (let i = 0; i < n; i++) {
+      expect(Projectile.dmg[entityAt(buf, i)]).toBeCloseTo(WEAPONS[WeaponKind.Scattergun].dmg * LEVEL_3, 3);
+    }
+  });
+
+  it('scales a throw', () => {
+    const spear = spawnWeapon(WeaponKind.Spear, 0, 0, 3);
+    equip(p, spear);
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: false });
+    throwAfter(PERFECT_TICKS);
+    expect(Thrown.dmg[spear]).toBeCloseTo(WEAPONS[WeaponKind.Spear].throwDmg * PERFECT.dmgMul * LEVEL_3, 3);
+  });
+
+  it('scales the Final shot, but never the blow-up in your own hands', () => {
+    const gun = spawnWeapon(WeaponKind.Gun, 0, 0, 3);
+    equip(p, gun);
+    Ammo.count[gun] = 10;
+    addPerk(p, Perk.FinalShot);
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: false });
+    throwAfter(PERFECT_TICKS);
+    expect(query(buf, C.Projectile)).toBe(1);
+    expect(Projectile.dmg[entityAt(buf, 0)]).toBeCloseTo(WEAPONS[WeaponKind.Gun].dmg * 10 * PERFECT.dmgMul * LEVEL_3, 2);
+  });
+
+  it('never scales fists', () => {
+    Transform.z[b] = -2.4;
+    Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
+    attackSystem(DT);
+    expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Fists].dmg);
+  });
+
+  it('stock comes back at the level of the arena it appears in', () => {
+    RunViewWritable.arena = 4;
+    for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
+    seedRng(3);
+    for (let i = 0; i <= RESPAWN_TICKS + 1; i++) { stockSystem(); world.tick++; }
+    const n = query(buf, C.Item);
+    expect(n).toBe(3);
+    for (let i = 0; i < n; i++) expect(Item.level[entityAt(buf, i)]).toBe(weaponLevelFor(4));
+    expect(weaponLevelFor(4)).toBe(4);
+  });
+
+  it('a weapon given in an arena (the Scattergun reward, the dev menu) has its level', () => {
+    RunViewWritable.arena = 3;
+    giveWeapon(p, WeaponKind.Scattergun);
+    expect(Item.level[heldItem(p)]).toBe(3);
+  });
+});
