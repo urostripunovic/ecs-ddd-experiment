@@ -38,6 +38,7 @@ async () => {
   window.__perfectThrows = 0;
   window.__finalShots = 0;
   window.__dodges = 0;
+  window.__railShots = 0;
   let dodgeReady = 0;
 
   function step() {
@@ -76,20 +77,24 @@ async () => {
       const kind = item === -1 ? 0 : c.Item.kind[item];
       const slamming = w.has(b, c.C.Slam) && d < c.Slam.radius[b] + 1.5;
       // Ideal distance band per weapon: melee closes in, the gun keeps away.
-      const [near, far] = kind === 1 ? [2.8, 3.5] : kind === 2 ? [4.0, 4.6] : [7, 11];
+      // Specials: chakram and hammer close in like a blade, the flamethrower to its cone, the railgun keeps away.
+      const [near, far] = kind === 1 || kind === 5 ? [2.8, 3.5] : kind === 6 ? [2.6, 3.2] : kind === 2 ? [4.0, 4.6]
+        : kind === 8 ? [3.2, 4.4] : [7, 11];
 
       // Throw a blade that's nearly worn out. Never a dry gun: it reloads by itself,
       // and throwing it left the bot empty-handed across the arena. With Final shot,
       // a full-ish gun is thrown on purpose: it stays in hand.
       const dry = kind === 3 && perks.hasPerk(p, perks.Perk.FinalShot) && c.Ammo.count[item] >= 10;
       const hurtBad = c.Health.hp[p] < 55 && !w.has(b, c.C.Slam);
-      const worn = (kind === 1 || kind === 2) && (c.Durability.value[item] < 30 || hurtBad);
+      // The chakram is thrown whenever it's ready: it comes back.
+      const worn = ((kind === 1 || kind === 2 || kind === 6) && (c.Durability.value[item] < 30 || hurtBad))
+        || (kind === 5 && throwCooldown === 0 && d < 7);
       // Hold the throw and let go inside the perfect zone (44 of 60 ticks).
       if (charging && (item === -1 || c.Wielder.charge[p] >= 44)) {
         if (c.Wielder.charge[p] >= 41 && c.Wielder.charge[p] <= 48) window.__perfectThrows++;
         if (kind === 3) window.__finalShots++;
         press('KeyQ', false); charging = false; throwCooldown = 30;
-      } else if (!charging && (dry || worn) && throwCooldown === 0 && d < [0, 9.5, 15, 7][kind]) { press('KeyQ', true); charging = true; }
+      } else if (!charging && (dry || worn) && throwCooldown === 0 && d < [0, 9.5, 15, 7, 7, 7, 8, 7, 7][kind]) { press('KeyQ', true); charging = true; }
 
       const buff = nearestGrounded(p, true, 7);
       const loot = item === -1 ? nearestGrounded(p, false, 199, b) : -1;
@@ -109,6 +114,8 @@ async () => {
         mx = (-dz / d) * strafe + radial * (dx / d);
         mz = (dx / d) * strafe + radial * (dz / d);
       }
+      // The railgun fires on the release: hold fire into the perfect zone, then let go.
+      if (kind === 7 && fire && c.Wielder.fireCharge[p] >= 44) { fire = false; window.__railShots++; }
       if (flipCooldown > 0) flipCooldown--;
       if ((Math.abs(px) > 15 || Math.abs(pz) > 15) && flipCooldown === 0) { strafe = -strafe; flipCooldown = 90; }
       if (Math.abs(px) > 15) mx -= Math.sign(px);

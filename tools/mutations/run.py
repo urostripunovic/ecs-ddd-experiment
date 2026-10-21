@@ -49,6 +49,22 @@ M = [
  ("a new arena's stock is level 1", "src/bridge/spawn.ts", "      spawnWeapon(kind, x, z, stockLevel);", "      spawnWeapon(kind, x, z);", "src/bridge/run/flow.test.ts"),
  ("power ignores the level", "src/domain/run/run.ts", "1 + POWER_PER_WEAPON_LEVEL * (loadout.weapon.level - 1)", "1", "src/domain/run/run.test.ts"),
  ("any weapon level is carriable", "src/domain/run/run.ts", "Number.isInteger(level) && level >= 1 && level <= MAX_ARENAS", "true", "src/domain/run/run.test.ts"),
+ ("the chakram hits once a flight", "src/ecs/systems/weapons.ts", "    Thrown.leg[f] = 1;\n    Thrown.lastHit[f] = NOBODY;", "    Thrown.leg[f] = 1;", "src/ecs/systems/specials.test.ts"),
+ ("the chakram never comes home", "src/ecs/systems/weapons.ts", "    if (!turn) return;", "    if (!turn) return;\n    putOnGround(f, x, z, defOf(f).throwLockTicks);\n    return;", "src/ecs/systems/specials.test.ts"),
+ ("catching the chakram gives no haste", "src/ecs/systems/weapons.ts", "    Buffs.hasteUntil[w] = Math.max(Buffs.hasteUntil[w], after(CATCH_HASTE_TICKS));\n", "", "src/ecs/systems/specials.test.ts"),
+ ("the hammer sticks like a blade", "src/ecs/systems/weapons.ts", "    if (struck !== -1 && style === 'smash') { smash(f, targets); continue; }", "", "src/ecs/systems/specials.test.ts"),
+ ("the smash leaves lodged weapons", "src/ecs/systems/weapons.ts", "    releaseStuck(t);\n    hit = true;", "    hit = true;", "src/ecs/systems/specials.test.ts"),
+ ("the smash has no radius", "src/ecs/systems/weapons.ts", "    const r = SMASH_RADIUS + Collider.radius[t];", "    const r = 99;", "src/ecs/systems/specials.test.ts"),
+ ("the beam stops at the first body", "src/ecs/systems/specials.ts", "    if (has(solid, C.Health)) continue; // bodies are pierced, not walls", "", "src/ecs/systems/specials.test.ts"),
+ ("the beam goes through pillars", "src/ecs/systems/specials.ts", "    reach = Math.min(reach, rayToCircle(x, z, dx, dz, Transform.x[solid], Transform.z[solid], Collider.radius[solid]));", "", "src/ecs/systems/specials.test.ts"),
+ ("the railgun never overheats", "src/ecs/systems/weapons.ts", "  if (charge.zone === ChargeZone.Overcharged) { Ammo.reload[gun] = RAIL_VENT; return; }", "", "src/ecs/systems/specials.test.ts"),
+ ("the railgun fires while held", "src/ecs/systems/weapons.ts", "  if (!released) {\n    if (PlayerInput.fire", "  if (false) {\n    if (PlayerInput.fire", "src/ecs/systems/specials.test.ts"),
+ ("tracers never go", "src/ecs/systems/specials.ts", "    if (world.tick >= Tracer.until[tracer]) despawn(tracer);", "", "src/ecs/systems/specials.test.ts"),
+ ("burning stops at once", "src/ecs/systems/specials.ts", "    if (world.tick >= Burn.until[entity]) continue;", "    if (world.tick >= Burn.until[entity] || true) continue;", "src/ecs/systems/specials.test.ts"),
+ ("the flamethrower burns no fuel", "src/ecs/systems/weapons.ts", "  wear(flamer, def.fuelPerSec * dt);\n", "", "src/ecs/systems/specials.test.ts"),
+ ("no special in the stock", "src/ecs/systems/weapons.ts", "WEAPON_STOCK[kind] + (kind === Stock.special ? 1 : 0)", "WEAPON_STOCK[kind]", "src/ecs/systems/specials.test.ts"),
+ ("a new arena lays out no special", "src/bridge/spawn.ts", "WEAPON_STOCK[kind] + (kind === planned.special ? 1 : 0)", "WEAPON_STOCK[kind]", "src/bridge/run/flow.test.ts"),
+ ("the tick forgets the burn", "src/app/loop.ts", "  burnSystem();\n", "", "src/app/loop.test.ts"),
 ]
 bad = []
 for name, path, old, new, tests in M:
