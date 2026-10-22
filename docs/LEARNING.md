@@ -36,7 +36,7 @@ Rewrite these for the new game rather than copying them; take what applies. Each
 | .dependency-cruiser.cjs | The zone lint: rules, seam, simulation and app import only what they may |
 | src/bridge/run/loadout.ts, src/bridge/run/loadout.test.ts | One table per vocabulary that crosses the seam (rules' name → simulation number), the way back derived and throwing on a miss, and a test that fails when the simulation gains a member the rules can't name |
 
-The skills' checks table (game-implementation) says which to set up first. Break each once on purpose before trusting it.
+The game-checks-setup skill says when to add each and in what order. Break each once on purpose before trusting it.
 
 ## Mistakes worth learning from
 

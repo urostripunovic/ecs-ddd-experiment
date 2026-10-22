@@ -86,21 +86,7 @@ A comment that names a file, claims to be "the only writer", or counts things th
 
 ## Make the reviewer's eye a check
 
-An agent working alone optimises for what is checked. Set these up in the first week, next to the zone lint, and break each once on purpose before trusting it:
-
-| Check | Fails when |
-| --- | --- |
-| Modules state their job | A module writes more than a few kinds of component or runs long, and its one-sentence job isn't listed; or a listed one no longer needs it |
-| Shared writers are listed | A field is written from more than one module without a reason: per-entity writers, set-then-count-down, or a request queue |
-| No kind branches | A system compares against a kind outside its definitions table |
-| No file names in comments | A comment names a source file |
-| One tick order | A system is missing from the tick's order, the docs list another order, or a test steps its own list |
-| Randomness is injected | A system imports a shared random source |
-| Mutations are current | An entry's text or tests no longer exist |
-| Docs drift | A name in the docs doesn't exist in the code |
-| Vocabularies agree | The simulation has a member (a kind, a perk, a door) the rules' table has no name for |
-
-Scan the source as text from inside the test runner, so the checks run with every other test.
+An agent working alone optimises for what is checked, so what a reviewer would catch by eye (a system the game never runs, a second writer, a branch per kind, a comment naming a file) becomes a test that runs with every other test. `game-checks-setup` lists the checks, says when to add them and how to write each in any language. Every check is broken once on purpose before it's trusted.
 
 ## Design questions mid-feature
 
