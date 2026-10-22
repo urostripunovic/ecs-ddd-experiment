@@ -18,12 +18,12 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 1. **Read the code you'll touch, then predict the footprint**: the files per layer (rules, seam, simulation, app, docs) and the existing tests you expect to break. A guess made before reading is a worse number; say so if you give one.
 2. **List the invariants the change touches**, checked against the code, each with a test. They follow the design: when it changes, change the invariant and its test on purpose.
 3. **Ask what the change leaves open.** If it touches a trigger in `game-design-interview`, ask those questions before building.
-4. **Write the failing test first**, and check it fails for the right reason: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 8: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
-5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*. Commit after the tidy step (7), not before it.
+4. **Proper TDD, one behaviour at a time**: one failing test, the least code to pass it, a refactor, then the next (`game-implementation` has the loop). Each test must fail for the right reason first: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 8: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
+5. **Commits are self-contained**: each builds and passes on its own and says *why*. Split by layer (rules, seam, simulation, app, docs) where each layer stands alone; when a lower layer changes what the next needs, they're one commit. A fix belongs to the commit that introduced the bug: fold it in before pushing. Commit after the tidy step (7).
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
 7. **Tidy, as its own step** (`game-implementation` has the checks and how to split). Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
-   - Did a file grow past its one job? Split it now, not after the next feature.
-   - Did you branch on what kind of thing it is (`if (kind === X)`: this weapon, this enemy, this tile) where a field on its definition would do?
+   - Does a module now do more than its one job? Split it now, not after the next feature. Size is a hint, not the test.
+   - Did you write a second branch on what kind of thing it is (`if (kind === X)`: this item, this enemy, this tile)? That's a missing component: in ECS, which components an entity has is its behaviour.
    - Did a field gain a second writer, or a number get a second copy?
    - Is any comment now false? Comments say why; where things live and who writes them belongs in tests.
    - Did you take a shortcut you're keeping? Say so in the report instead of leaving it to be found.
@@ -60,8 +60,8 @@ Plain words here; the formal terms are in brackets.
 
 - **An area owns its words** [bounded context], one folder each. One word meaning two things is two areas.
 - **A rules unit** [aggregate] changes only through `decide(request, state) → facts` and `apply(state, fact) → state`.
-- **Requests and facts are named apart** [commands, events]: `TunnelEntered` asks; `ArenaEntered`, past tense, is decided.
-- **Every request is answered in every state the rules can be in.** A refusal is a fact (`TunnelRefused`). "No facts" means "already answered", so a repeated request is harmless. Whether a request *can* arrive in a state is the simulation's design choice; the rules answer it anyway, so that choice can change without a softlock.
+- **Requests and facts are named apart** [commands, events]: `DoorEntered` asks; `LevelEntered`, past tense, is decided.
+- **Every request is answered in every state the rules can be in.** A refusal is a fact (`DoorRefused`). "No facts" means "already answered", so a repeated request is harmless. Whether a request *can* arrive in a state is the simulation's design choice; the rules answer it anyway, so that choice can change without a softlock.
 - **One area reacts to another through a follow-up** [process manager]: `BossDefeated` becomes a request to the run, never one area reaching into another.
 - **Time arrives as a request; the tick is the only clock.**
 - **Things the rules keep get stable IDs.** Entity handles never enter the rules; something born in the simulation gets its ID when it first crosses.
@@ -71,15 +71,16 @@ Plain words here; the formal terms are in brackets.
 
 ## The simulation
 
-- **Flat arrays per field; per-kind numbers in definitions tables.** Numbers that appear together become a named definition (`slam(boss, PHASE_ONE_SLAM)`, never `slam(boss, 42, 4.5, 30)`).
+- **Flat arrays per field; per-kind numbers in definitions tables.** Numbers that appear together become a named definition (`attack(enemy, HEAVY_SWING)`, never `attack(enemy, 42, 4.5, 30)`).
 - **Every system starts with `reads … | writes …`**, and the tick order is written in one place.
-- **One writer per field.** Two effects on one value get two fields, combined by the reader.
+- **One writer per field, and requests for everyone else.** Two effects on one value get two fields, combined by the reader. When several things must change the same field (damage, a shove, a stun), they send requests to a queue that the one owning system drains, validates and applies at its place in the tick. A check fails on a field written from two modules.
+- **Behaviour comes from components.** What an entity does is which components it has, and systems run on whatever has theirs. Per-kind definitions hold numbers, not switches.
 - **Inputs that must not be lost or doubled are counters**; sensors fire on the edge and latch until answered.
 - **Durations are deadlines** made with one helper (`after(ticks)`), never countdowns.
 - **A value that breaks a boundary check fails loudly in development and tests, and is logged, clamped and survived in a release build.** A player never loses a run to a bug report. How each language does it belongs with the implementation.
 - **Every piece of state declares its lifetime**: the level, the run, or forever. A new level wipes level state from that list, and a test fails if something is in no list.
 - **Units are types at the edges**: durations, moments, seconds, hit points, shares, distances, in definitions and signatures. The hot loops read plain numbers. A brand is a value object without the object. Constructors reject impossible values when they're made.
-- **Lifecycles are exclusive states with one function per transition** (`putOnGround()` is the only way onto the ground).
+- **Lifecycles are exclusive states with one function per transition** (`drop()` is the only way onto the ground).
 - **Actions run one at a time; the gaps between them are a table.**
 - **Coroutines are for choreography that is never saved.**
 - **Store handles, never slots; name things by stable ID in logs and tests.**
@@ -109,12 +110,12 @@ The docs are part of the contract, so a **drift test** checks them against the c
 
 ## Where this goes wrong
 
-- **Growth goes unremarked.** A file that collects every new feature (one module holding every item's or enemy's special case, a renderer that draws everything) stops having one job long before anyone notices. Size and "is this the X?" branches are the tell. A structure test that fails on both (a line limit per file, no comparing against a kind outside its definitions table, every field with more than one writer listed with a reason, no comment naming a file) turns a reviewer's eye into a check.
+- **Growth goes unremarked.** A module that collects every new feature (every item's or enemy's special case, a renderer that draws everything) stops having one job long before anyone notices. "Is this the X?" branches are the tell, and checks for them (no comparing against a kind outside its definitions, one writer per field, no comment naming a file) turn a reviewer's eye into a test. Report how much each file grew per stage, so the drift is visible.
 
 - **Describing behaviour from memory.** Before changing an effect, find what causes it and the test that pins it. No test? Write it first.
 - **Brands survive parameters, not arithmetic**, and typed arrays strip them: re-brand a read value with the checking constructor, never a cast.
 - **Relative rules need relative tests** (a share of max hp, not a fixed number), and a test counts only what it means (*my* bullet, not every bullet).
-- **Layer commits may not each build** when a lower layer changes a signature: say so in the commit.
+- **A commit that doesn't build on its own** is two halves of one change: make it one commit. A fix that lands three commits after its bug belongs in the commit that caused it.
 - **The bot is code too.** When a playtest goes badly, check the bot before tuning the game.
 - **A scan that lists files at build time can go stale.** A cached transform keeps the old file list, so a new file is never scanned. Turn the cache off, and prove the scan by planting a violation in a new file.
 - **A dev tool that throws can stop the game loop.** Guard it so a bug in the tool can't freeze the game it inspects.
@@ -123,7 +124,9 @@ The docs are part of the contract, so a **drift test** checks them against the c
 ## Review checklist
 
 - [ ] Prediction before, comparison after.
-- [ ] A tidy pass before the commit: no file past its job, no kind branches, no unlisted second writers, no comment naming where things live.
+- [ ] Proper TDD: one test at a time, each seen failing on its assertion.
+- [ ] A tidy pass before the commit: no module past its job, no second kind branch, no second writer, no comment naming where things live.
+- [ ] Every commit builds and passes alone; fixes folded into the commit they fix.
 - [ ] New state passed "what reacts?", with a declared lifetime and units at its edges.
 - [ ] Open design questions were asked, and the answers are in the examples table.
 - [ ] Invariants listed, each with a test that failed first.

@@ -5,90 +5,104 @@ description: How to write and keep clean the code of a game built as a simulatio
 
 # Game implementation
 
-`rules-and-simulation` says what goes where. This skill is about the code itself: writing it under pressure without it turning into spaghetti, and the checks that keep it clean when nobody is reviewing every line. It plugs into Matt Pocock's `implement` (one ticket per session) and `tdd` (red, green, refactor): his skills drive the loop, this one says what each step means in a game codebase. For a rules area big enough to model on its own, `ddd-implementation` covers that part instead.
+`rules-and-simulation` says what goes where. This skill is about the code itself: writing it under pressure without it turning into spaghetti, and the checks that keep it clean when nobody reviews every line. It plugs into Matt Pocock's `implement` (one ticket per session) and `tdd` (red, green, refactor). For a rules area big enough to model on its own, `ddd-implementation` covers that part instead.
 
-Left to build features on its own, an agent's code drifts in predictable ways: files grow past 700 lines, "is this the hammer?" branches spread through every system that touches weapons, fields gain second writers nobody listed, comments keep pointing at files that moved, and tests get written after the code. None of it is hard to fix. All of it is easy not to notice when the definition of done is "the feature works and the tests pass".
+Left alone, an agent's code drifts in predictable ways: one system collects a special case per item or enemy type, fields gain writers in several places, comments point at files that moved, tests get written in a batch after the code, and fixes land three commits after the bug. None of it is hard to fix. All of it is easy not to notice when "done" means "it works and the tests pass", so this skill makes the rest of "done" explicit, and checked where it can be.
 
-## The loop: red, green, tidy
+## The loop: proper TDD, one behaviour at a time
 
-1. **Red, and keep the proof.** Write the test, run it, and keep the failing line. It must be an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a type error: a test that has only ever failed to compile has never been seen to catch anything. The line goes in the end-of-stage report; if you can't show it, say the test came after the code.
-2. **Green, fast.** Shortcuts are allowed here: a special case, a long function, a constant inline. This is where the shape gets found, and pressure is fine.
-3. **Tidy, as its own step, before the commit.** Re-read your diff as a reviewer would:
-   - Did a file grow past its one job?
-   - Did you branch on what kind of thing it is where a field on its definition would do?
-   - Did a field gain a second writer, or a number a second copy?
-   - Is any comment now false, or does any comment say where or how many?
-   - Is there a shortcut you're keeping? Say so in the report.
+1. **Red.** Write one test for one behaviour. Add only enough code for it to compile (an empty function, a field) and run it: it must fail on its assertion ("expected 1 to be 3"), never on a missing import. Keep that line for the report. A test that has only ever failed to compile has never been seen to catch anything.
+2. **Green.** The least code that makes it pass. Shortcuts are fine here; this is where the shape gets found.
+3. **Refactor.** Tests unchanged, shape improved (see the tidy questions below). Then the next behaviour, from step 1.
 
-   Tests and structure checks pass before and after, unchanged: a tidy changes shape, never behaviour. Minutes per stage; after five features the same cleanup is a session, and the next features have been built on the mess.
-4. **Commit per layer, after the tidy.** If a lower layer's change means a commit doesn't build alone, say so in its message.
+Not a batch of seven tests followed by the code: written together, tests share the same blind spot, and one that passes before its code exists hides among the others. If a new test passes at once, it's blind or the behaviour already exists; find out which before going on.
 
-When a design question surfaces mid-feature, stop and ask it (`game-design-interview`); don't settle it in code. Watch for the ones that look like implementation details: how often a new item turns up and where, a bonus for using something well (speed for catching a returning weapon), what happens when a mechanic is misused (an overcharged shot). Each changed how the game felt, so each was the designer's call. Ask before building them, or, if the designer is away, build the smallest version, mark it experimental and lead the report with the question.
+**Tidy before every commit.** Re-read the diff as a reviewer would:
+- Does any module now do more than its one job? (Size is a hint, not the test.)
+- Did you write a second `if` on what kind of thing an entity is? That's a missing component (see below).
+- Does any field now have a second writer, or any number a second copy?
+- Is any comment now false, or does any say where or how many?
+- Is there a shortcut you're keeping? It goes in the report, and in the merge request.
 
-## Make the reviewer's eye a check
+## Commits are self-contained
 
-An agent working alone optimises for what is checked. Make clean code checked. Set these up in the first week of a project, next to the zone lint. Each one catches a drift that otherwise goes unnoticed:
+- **Every commit builds and passes on its own.** Split a feature by layer only where each layer's commit stands alone; when a lower layer changes a signature the next one needs, they're one commit.
+- **A fix belongs to the commit that introduced the bug.** Found before pushing, fold it in (`git commit --fixup <sha>`, then `git rebase --autosquash`). Found after the commit is shared, it's a new commit that names the one it fixes, never a silent "fix" three commits later.
+- **Push a feature once its commits are tidy,** not commit by commit.
 
-| Check | Fails when | Catches, for example |
-| --- | --- | --- |
-| Line limit (about 300, tests included) | Any file is longer | a weapons module that collected every weapon's special case |
-| No kind branches | A system compares against a kind (`=== WeaponKind.Hammer`) outside its definitions table | a branch per weapon in the throw, attack and durability code |
-| Shared writers are listed | A field is written from more than one module and isn't in a list with its reason (entity construction and dev tools don't count) | a field documented as single-writer that had two |
-| No file names in comments | A comment names a source file | a comment pointing at a file that had become a folder |
-| One tick order | An exported system is missing from the tick's order, the doc lists another order, or a test steps its own list of systems | a damage-over-time system that every unit test ran and the game never did |
-| Randomness is injected | A system imports a shared random source instead of taking a stream | one new random draw changing every later drop for the same seed |
-| Docs drift | A name in backticks in the docs doesn't exist in the code | |
+## Data is behaviour: compose, don't branch
 
-Scan the source as text (in Vite, `import.meta.glob` with `?raw`), so the checks need no Node types and run with the other tests. Break each check once on purpose before trusting it.
+ECS's answer to "how does this kind of thing behave?" is which components the entity has. A system runs on everything that has its components and knows nothing about kinds. So:
 
-## Splitting
+- **A behaviour is a component (often a tag) and a system,** added to the entities that do it: something that comes back when thrown gets a returning component, something that burns gets a burning one. A new kind is a new combination of components, not a new branch in four systems.
+- **Definitions tables hold numbers,** the tuning for each kind (damage, speed, how long), not switches that decide behaviour.
+- **The second `if` on a kind is the signal.** One special case is fine while finding the shape; the second branch on the same distinction means a component (or, outside the per-tick systems, an injected behaviour) is missing. Stop and add it.
 
-- **Split by job, not by size.** Size is the alarm; the cut follows what the code does. A weapons file became items (the states and moving between them), follow, throwing, attacks, flight, pickup and upkeep. Boss scripts became shared moves, bullet patterns, the hand-made bosses and the generated ones.
-- **Keep the old module as a re-export**, so the tick, the seam and the tests import exactly as before, and the split is one commit with no behaviour change.
-- **Split mechanically.** Move whole top-level declarations with a script, let the compiler list unused imports, and prune. Hand-editing a 700-line file costs more time and context than writing the script, and a script doesn't silently change a line. Check where comments landed afterwards: a section header above the last declaration of one group belongs to the next.
-- **Expect the split to reveal sharing.** One big file hides that two parts write the same field; the writers check will find them once they're modules. Either give the field one writer (an `emptyHand()`, a `begin()` that sets the windup) or list it with its reason.
+## One writer per field, and requests for everyone else
 
-## Behaviour is data, not branches
+Two places writing one field is how values get overwritten mid-tick, in an order nobody chose. Exactly one system writes each field. Everything else that wants it changed **sends a request**: a queue (or a small per-entity request component) that the owning system drains at its place in the tick, validating each one (immunity, caps, which request wins) before applying it. Damage is the classic case: every source asks, one system applies. A shove, a speed effect, a stun work the same way.
 
-When a system asks "is this the X?", the answer belongs on X's definition: `heldThrow: 'charge' | 'spin'`, `throwStyle: 'stick' | 'return' | 'smash'`, which perks a weapon carries out. The system reads the field; adding a new kind is a new row, not a new branch in four systems. A behaviour too different to be a field (a whole attack) is a value of a field (`attack: 'arc' | 'shoot' | 'rail' | 'spray'`) handled in one exhaustive switch.
+A structure check enforces it: every field is written by one module. If you keep a list of exceptions, it should be short and shrinking, and each line is debt.
 
 ## Objects, functions, injection
 
-ECS rules out one kind of object: per-entity state with its own methods. Everything else is a choice.
+ECS rules out one kind of object: per-entity state with its own methods. Everything else is a choice made by what needs doing:
 
-- **Simulation state:** flat arrays, as `rules-and-simulation` says. Never a class per entity.
-- **Choreography:** generator functions, one step per tick. A class buys nothing.
-- **Presentation and tools:** classes are fine and often right. A renderer is objects all the way down and never feeds back, so a `Telegraphs` class that owns its meshes and pools, with `draw()` and `hide()`, is cleaner than another closure in an 800-line function.
-- **Definitions:** plain readonly data.
-- **Dependency injection** pays where a test or a replay needs to swap something: randomness (a seeded source passed in, so one new random call doesn't shift every later draw), time, and a script's view of the world (`{ findPlayer, shoot }`, so a boss script tests without an arena). Not in per-tick loops, where it adds indirection and allocation.
+- **Simulation state:** flat arrays. **Behaviour:** systems over components.
+- **Choreography** (an enemy's attack pattern): generator functions, one step per tick.
+- **Presentation and tools:** classes are fine and often right; a renderer owns meshes and pools and never feeds back.
+- **Dependency injection** where a test or a replay must swap something, or where something shared would leak: randomness above all (one seeded stream per job, passed in, or one new random draw anywhere shifts every later one for the same seed), time, and a script's view of the world. Not inside per-tick loops.
+
+## Splitting
+
+- **Split when a module loses its single responsibility,** not at a line count. Report how much each file grew in each stage so the drift is visible; the cut follows what the code does.
+- **Keep the old module as a re-export,** so importers don't change and the split is one commit with no behaviour change.
+- **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Check the result: a script can strip more than it should, and comments can land on the wrong side of a cut.
+- **Expect the split to reveal sharing:** two parts writing the same field show up once they're separate modules. Route them through one writer.
+- **Rerun the slow checks after a refactor** (mutations, long property runs). A moved function turns a mutation into a silent skip.
 
 ## Comments say why, never where or how many
 
-A comment that names a file, claims to be "the only writer", or counts things that grow is a fact the code can change under it, and it will still compile. Point at a name (a function, a type) or leave location to imports, and put "who writes this" in the writers check. What a comment is for: the reason behind a choice ("the release is a counter, so a tap shorter than a frame still throws") and decisions from the design interview ("decided with the user: nothing hurts after a clear").
+A comment that names a file, claims to be "the only writer", or counts things that grow will still compile after the code changes under it. Point at a name, or leave location to imports and tests. A comment is for the reason behind a choice and for decisions the designer made ("decided with the designer: nothing hurts after a clear"). A check fails on a comment that names a source file.
 
 ## Tests that lie
 
-- **A test with its own step list** can pass while the game never runs the system. Keep one test that compares the tick against every exported system.
-- **State leaking between cases** in a long-run harness: hp, positions or projectiles from an earlier action make a later assertion fail or pass for the wrong reason. Reset what the case asserts on, at the moment it starts measuring.
-- **Fairness and other property tests** must compute their limits from the player's own numbers (speed, dodge length, radius), never from the generator's ranges, or they only check the generator against itself.
-- **Mutations** prove a test can fail; they don't replace seeing it fail first.
+- **A test that steps its own list of systems** can pass while the game never runs one. Tests step a subset of the game's one tick order.
+- **State leaking between cases:** positions, hit points, projectiles or random-stream positions left by an earlier case. Reset what a case depends on when it starts, the game's random streams included.
+- **A baseline that forgets something:** "moved further than it would have without the push" must count every tick the thing moved, including setup.
+- **An assertion that can't tell the difference:** "the stunned enemy starts nothing" checked as "it's idle" passes for an enemy that was idle anyway. Assert what only the behaviour would change.
+- **Property tests** take their limits from the player's own numbers (speed, dodge length, radius), never from the generator's ranges.
+- **Mutations prove a test can fail.** Keep the list as data, with a fast test that every entry still finds its text and its tests exist, because the full run is too slow for every check. A mutation nothing catches is a finding: dead code to remove, or a missing test.
+
+## Make the reviewer's eye a check
+
+An agent working alone optimises for what is checked. Set these up in the first week, next to the zone lint, and break each once on purpose before trusting it:
+
+| Check | Fails when |
+| --- | --- |
+| One writer | A field is written from more than one module |
+| No kind branches | A system compares against a kind outside its definitions table |
+| No file names in comments | A comment names a source file |
+| One tick order | A system is missing from the tick's order, the docs list another order, or a test steps its own list |
+| Randomness is injected | A system imports a shared random source |
+| Mutations are current | An entry's text or tests no longer exist |
+| Docs drift | A name in the docs doesn't exist in the code |
+
+Scan the source as text from inside the test runner, so the checks run with every other test.
+
+## Design questions mid-feature
+
+Stop and ask (`game-design-interview`); don't settle them in code. Watch for the ones that look like implementation details: how often a new item turns up, a bonus for using something well, what happens when a mechanic is misused or overused. If the designer is away, build the smallest version, mark it experimental, and put the question at the top of the merge request.
 
 ## Working cheaply
 
-Context is a budget. The biggest costs are reading large files in full again and again, edits that resend big blocks, and images.
-
-- Read the slice you need (a function, a range of lines), not the file.
-- Small files are cheaper to read and to edit; that's another reason to split.
-- Mechanical changes (renames, splits, moving a branch into a field) go through a script.
-- In playtests, read the probe log first; look at a few frames only when the log can't answer.
+Context is a budget: read the slice you need rather than the whole file, make mechanical changes with a script, and read a playtest's log before its frames.
 
 ## Playtest tooling
 
-- Restart the dev server after changing modules the bot imports, or it reads stale code.
-- The first recording against a freshly started server may freeze; load it once before recording.
-- The bot lags behind features. When a mechanic only triggers on a choice (overcharging, breaking a weapon mid-spin), either teach the bot or say in the report that only tests cover it.
+Restart the dev server after changing modules the bot imports, or it reads stale code; warm a freshly started server with one throwaway load before recording. The bot lags behind features: when a mechanic only triggers on a choice, teach the bot or say that only tests cover it.
 
 ## Per language
 
-- **TypeScript:** branded units at the edges, typed arrays strip brands (re-brand with the checking constructor, never a cast), `Readonly<>` projections with the writable side behind the zone lint, `assertNever` in every switch, type-only imports under `verbatimModuleSyntax`, `noUnusedLocals` to make a mechanical split's leftovers loud.
-- **Go, Java, Rust:** to be written while porting. Each card covers the same points: flat arrays, coroutines (or their replacement), exhaustive switches, read-only projections, and how to write the structure checks.
+- **TypeScript:** branded units at the edges; typed arrays strip brands (re-brand with the checking constructor, never a cast); `Readonly<>` projections with the writable side behind the zone lint; `assertNever` in every switch; `noUnusedLocals` to make a mechanical split's leftovers loud; in Vite, `import.meta.glob` with `?raw` to scan source in tests.
+- **Go, Java, Rust:** to be written while porting. Each card covers flat arrays, coroutines (or their replacement), exhaustive switches, read-only projections, request queues, and how to write the structure checks.
