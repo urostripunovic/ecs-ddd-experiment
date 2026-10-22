@@ -111,13 +111,9 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - **Growth goes unremarked.** A module that collects every new feature (every item's or enemy's special case, a renderer that draws everything) stops having one job long before anyone notices. "Is this the X?" branches are the tell, and checks for them (no comparing against a kind outside its definitions, one writer per field, no comment naming a file) turn a reviewer's eye into a test. Report how much each file grew per stage, so the drift is visible.
 
 - **Describing behaviour from memory.** Before changing an effect, find what causes it and the test that pins it. No test? Write it first.
-- **Brands survive parameters, not arithmetic**, and typed arrays strip them: re-brand a read value with the checking constructor, never a cast.
 - **Relative rules need relative tests** (a share of max hp, not a fixed number), and a test counts only what it means (*my* bullet, not every bullet).
-- **A commit that doesn't build on its own** is two halves of one change: make it one commit. A fix that lands three commits after its bug belongs in the commit that caused it.
 - **The bot is code too.** When a playtest goes badly, check the bot before tuning the game.
-- **A scan that lists files at build time can go stale.** A cached transform keeps the old file list, so a new file is never scanned. Turn the cache off, and prove the scan by planting a violation in a new file.
 - **A dev tool that throws can stop the game loop.** Guard it so a bug in the tool can't freeze the game it inspects.
-- **The checker can be blind too.** A mutation run that reports every bug as missed is more likely misreading its tool than proof the tests are blind: judge by the test runner's exit code, and break one thing by hand before trusting a run that catches nothing (or everything).
 
 ## Review checklist
 

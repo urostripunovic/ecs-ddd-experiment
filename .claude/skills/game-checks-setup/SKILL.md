@@ -70,6 +70,7 @@ The tick-order check (2) compares two lists: every exported or registered system
 - **It fails on something nobody would call a problem,** and the fix is to bend the code to the check. Narrow the check instead.
 - **Its allow-list keeps growing with the same reason.** The reason is a pattern: make it part of the check, or make it a component.
 - **It passes because the regex missed** (a write through a helper, a renamed import). Note the blind spot next to the check; move to the parser if it starts to matter.
+- **It never sees new files.** A scan whose file list is built once and cached (a bundler's transform cache, a glob resolved at build time) keeps checking the old list. Turn the cache off for the checks, and prove the scan by planting a violation in a brand-new file.
 
 ## Checklist
 
