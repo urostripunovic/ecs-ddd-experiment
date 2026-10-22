@@ -71,7 +71,7 @@ If `docs/agents/issue-tracker.md` exists, follow it, one issue per ticket in dep
 
 **Decisions:** rows <R3, R9> | open: <question> (blocked until answered)
 
-**Footprint:** the files expected to change, per layer (rules, seam, simulation, app, docs), and the existing tests expected to break.
+**Footprint:** predicted as in `rules-and-simulation`, step 1: files by layer, and the existing tests this breaks.
 
 **Invariants touched:** each one, with the test that pins it.
 

@@ -24,11 +24,9 @@ Not a batch of seven tests followed by the code: written together, tests share t
 - Is any comment now false, or does any say where or how many?
 - Is there a shortcut you're keeping? It goes in the report, and in the merge request.
 
-## Commits are self-contained
+## Commits
 
-- **Every commit builds and passes on its own.** Split a feature by layer only where each layer's commit stands alone; when a lower layer changes a signature the next one needs, they're one commit.
-- **A fix belongs to the commit that introduced the bug.** Found before pushing, fold it in (`git commit --fixup <sha>`, then `git rebase --autosquash`). Found after the commit is shared, it's a new commit that names the one it fixes, never a silent "fix" three commits later.
-- **Push a feature once its commits are tidy,** not commit by commit.
+How commits are made (one thing each, each builds and passes alone, fixes folded in before pushing) is `self-contained-commits`. Here that means a feature's commits come after its tidy step, never straight from green.
 
 ## Data is behaviour: compose, don't branch
 
@@ -108,7 +106,7 @@ Scan the source as text from inside the test runner, so the checks run with ever
 
 Stop and ask (`game-design-interview`); don't settle them in code.
 
-The other way round too: **a suggestion from the designer is a proposal, not an instruction.** Check it against how established engines and practice handle the same problem, then say whether you agree and where you'd differ, before writing it into a rule. Adopting it silently looks helpful and isn't; it's how a rule ends up stricter than anyone meant. Watch for the ones that look like implementation details: how often a new item turns up, a bonus for using something well, what happens when a mechanic is misused or overused. If the designer is away, build the smallest version, mark it experimental, and put the question at the top of the merge request.
+The other way round too: **a suggestion from the designer is a proposal, not an instruction.** Check it against how established engines and practice handle the same problem, then say whether you agree and where you'd differ, before writing it into a rule. Adopting it silently looks helpful and isn't; it's how a rule ends up stricter than anyone meant. Watch for the ones that look like implementation details: how often a new item turns up, a bonus for using something well, what happens when a mechanic is misused or overused. If the designer is away, `game-design-interview` says what to build in the meantime.
 
 ## Working cheaply
 
