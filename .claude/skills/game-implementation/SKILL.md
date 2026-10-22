@@ -56,6 +56,7 @@ ECS rules out one kind of object: per-entity state with its own methods. Everyth
 - **Choreography** (an enemy's attack pattern): generator functions, one step per tick.
 - **Presentation and tools:** classes are fine and often right; a renderer owns meshes and pools and never feeds back.
 - **Dependency injection** where a test or a replay must swap something, or where something shared would leak: randomness above all (one seeded stream per job, passed in, or one new random draw anywhere shifts every later one for the same seed), time, and a script's view of the world. Not inside per-tick loops.
+- **The world itself** may be a module-level value while the game has one. Tests reset it per case, and that's the cost. The day there are two (rollback for netcode, a server and client in one process, tests run in parallel), pass it in. Decide that before the first networked feature: it touches every system's signature, and a late change is a session of its own.
 
 ## Splitting
 
