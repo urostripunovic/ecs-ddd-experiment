@@ -24,6 +24,8 @@ The prototype loop is the main use. Stay in it until the game is worth building 
 
 **Later: in production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`. Each ticket's footprint is its blast radius: tickets with no blocking edge and no overlapping files can run side by side in separate git worktrees.
 
+**The reference game is how the skills improve.** `ecs-ddd-experiment` was built with the designer and an agent working together: the designer decides how the game feels, the agent builds it and says where the skills fell short. Each session's misses go in `SKILL-NOTES.md`, and the next session (in this game or the next one) starts by folding them into the skills. The skills are meant to be wrong in new ways each time, not the same way twice.
+
 **Now and then**, read `SKILL-NOTES.md`. A line that keeps coming back is an edit to a skill: missing → add it, vague → reword it, ignored though clear → enforce it with a test, a lint rule or a type.
 
 ## The cycle

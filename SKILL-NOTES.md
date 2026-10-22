@@ -21,3 +21,10 @@ edit to a skill, a test, a lint rule or a type (see `.claude/skills/README.md`).
 
 - **Pressure is fine; skipping the tidy is not.** Building fast and a little ugly is how a feature's shape gets found. What went wrong was going straight from green to commit. rules-and-simulation now has a tidy step (7) between the playtest and the comparison, with the questions to ask of the diff, and commits come after it.
 - **Comments that said where or how many went stale.** "The weapons are in weapons.ts" survived the split because the old file still compiled as a re-export. 19 comments named a file, and one was left behind by the splitting script on the wrong module. The rule is now: comments say why, never where or how many; `structure.test.ts` fails on a comment naming a source file, and "the only writer of" claims became reasons, with the writers check holding the fact.
+
+## 2026-10-22: tests that pass for the wrong reason, shared randomness, asking
+
+- **Tests stepped their own list of systems**, so a test could leave out a system the game runs, or run them in another order. The order is now data (`TICK_ORDER`), tests step a subset of it with `stepper()`, and a structure check fails on a hand-built list (three system calls in a row, or on one line).
+- **One shared random generator** meant one new draw (the railgun's bloom) changed every later drop for a seed. Each job now has its own stream, passed in; a structure check fails if a system imports a shared source.
+- **Design choices made alone**: one special weapon per level, haste for catching the chakram, chakram details. They changed how the game feels, so they were the designer's. game-design-interview now has "a choice a player would feel" as a trigger, and says to ask before building those; if the designer is away, build the smallest version, mark it experimental and lead the report with the question.
+- **Files: 300 lines, tests included.** Test files had reached 400 lines; a long test file is where a wrong case hides.

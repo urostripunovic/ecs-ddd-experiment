@@ -23,7 +23,7 @@ Everything here comes from a session where an agent was left to build features o
    Tests and structure checks pass before and after, unchanged: a tidy changes shape, never behaviour. Minutes per stage; after five features the same cleanup is a session, and the next features have been built on the mess.
 4. **Commit per layer, after the tidy.** If a lower layer's change means a commit doesn't build alone, say so in its message.
 
-When a design question surfaces mid-feature, stop and ask it (`game-design-interview`); don't settle it in code.
+When a design question surfaces mid-feature, stop and ask it (`game-design-interview`); don't settle it in code. The ones that slipped through here looked like implementation details: one special weapon per level drawn from the seed, haste for catching a returning weapon, which way an overcharged shot misbehaves. Each changed how the game felt, so each was the designer's call. Ask before building them, or, if the designer is away, build the smallest version, mark it experimental and lead the report with the question.
 
 ## Make the reviewer's eye a check
 
