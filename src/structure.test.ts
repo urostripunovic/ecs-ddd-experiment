@@ -15,7 +15,42 @@ const mutations = Object.values(import.meta.glob<{ default: { name: string; file
 ))[0].default;
 const anyFile = import.meta.glob<string>('./**/*.ts', { query: '?raw', import: 'default', eager: true });
 
+// A simulation module has one job. These say when to stop and check it still
+// does: it writes many kinds of component, or it's long. Neither fails a
+// module for being what it is; a module past either has to state its one job
+// here, in a sentence. Can't write one honestly? Split it.
+// Position and velocity are left out of the count: nearly everything moves.
+const MAX_WRITTEN = 4;
+const MAX_LINES = 500;
+const ONE_JOB: Record<string, string> = {
+  './ecs/systems/boss-scripts/moves.ts': 'the library of boss moves; each move starts its own effect, and the scripts compose them',
+  './ecs/systems/pillars.ts': 'the pillars: how they move, and what they do to whatever they meet',
+  './ecs/systems/weapons/throwing.ts': 'letting go of throw: a throw, a spin wound up and released, or the Final shot',
+};
+
 describe('structure', () => {
+  it(`a simulation module writing more than ${MAX_WRITTEN} kinds of component, or longer than ${MAX_LINES} lines, states its one job`, () => {
+    const names = new Set(Object.keys(components));
+    const write = /\b([A-Z]\w+)\.\w+(?:\[[^\]]*\])?\s*(?:=(?!=)|\+=|-=|\*=|\+\+|--)/g;
+    const flagged = code
+      .filter(([file]) => file.startsWith('./ecs/systems/'))
+      .flatMap(([file, text]) => {
+        const kinds = new Set<string>();
+        for (const line of text.split('\n')) {
+          if (line.trim().startsWith('//')) continue;
+          for (const [, component] of line.matchAll(write)) {
+            if (names.has(component) && component !== 'Transform' && component !== 'Velocity') kinds.add(component);
+          }
+        }
+        const lines = text.split('\n').length;
+        return kinds.size > MAX_WRITTEN || lines > MAX_LINES ? [`${file}: writes ${[...kinds].sort().join(', ')}; ${lines} lines`] : [];
+      });
+    const unstated = flagged.filter((line) => !(line.split(':')[0] in ONE_JOB));
+    const noLongerNeeded = Object.keys(ONE_JOB).filter((file) => !flagged.some((line) => line.startsWith(`${file}:`)));
+    expect(unstated).toEqual([]);
+    expect(noLongerNeeded).toEqual([]);
+  });
+
   // A mutation whose text is gone (the code moved, or changed shape) is skipped,
   // and a mutation whose tests moved is "missed": both happened after a split,
   // unnoticed, because the mutation run is too slow for every check. This part is fast.
