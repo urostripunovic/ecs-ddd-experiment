@@ -2,7 +2,7 @@
 // replaces broken ones, and the buff drops.
 import { C, Dizzy, Durability, Item, RunView, Stock, Wielder } from '../../components';
 import { buf, helperBuf } from '../../core/buffers';
-import { random } from '../../core/rng';
+import type { Random } from '../../core/rng';
 import { after } from '../../core/units';
 import type { Seconds } from '../../core/units';
 import { entityAt, has, query, toHandle, world } from '../../core/world';
@@ -50,7 +50,7 @@ export const stockCounts = new Int32Array(WEAPONS.length);
 // Keeps WEAPON_STOCK of each kind in play. A missing one is scheduled when it
 // is first noticed and appears RESPAWN_TICKS later, so breaking a blade costs
 // you time, never the weapon for good.
-export function stockSystem(): void {
+export function stockSystem(rng: Random): void {
   if (!fighting()) return;
   stockCounts.fill(0);
   const n = query(helperBuf, C.Item);
@@ -62,7 +62,7 @@ export function stockSystem(): void {
     if (Stock.respawnAt[kind] === 0) { Stock.respawnAt[kind] = after(RESPAWN_TICKS); continue; }
     if (world.tick < Stock.respawnAt[kind]) continue;
     // No clear spot this tick (rare): try again next tick rather than spawn somewhere bad.
-    if (!randomClearSpot(spot)) continue;
+    if (!randomClearSpot(rng, spot)) continue;
     spawnWeapon(kind, spot.x, spot.z, weaponLevelFor(RunView.arena));
     Stock.respawnAt[kind] = 0;
   }
@@ -70,12 +70,12 @@ export function stockSystem(): void {
 
 // reads world.tick, rng, Grounded count | spawns buffs
 // Weapons are kept stocked by stockSystem; this only scatters buffs.
-export function dropSystem(): void {
+export function dropSystem(rng: Random): void {
   if (!fighting() || world.tick === 0 || world.tick % DROP_EVERY_TICKS !== 0) return;
   if (query(helperBuf, GROUNDED) >= MAX_ON_GROUND) return;
   if (query(helperBuf, BOSSES, C.Dead) === 0) return;
 
-  const roll = random();
-  if (!randomClearSpot(spot)) return;
+  const roll = rng.next();
+  if (!randomClearSpot(rng, spot)) return;
   spawnBuff(roll < 0.5 ? BuffKind.Haste : BuffKind.Fury, spot.x, spot.z);
 }

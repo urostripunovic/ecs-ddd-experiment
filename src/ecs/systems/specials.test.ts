@@ -6,7 +6,7 @@ import {
   Tracer, Transform, Wielder,
 } from '../components';
 import { buf } from '../core/buffers';
-import { seedRng } from '../core/rng';
+import { Rng } from '../core/rng';
 import { hp, inSeconds, inTicks, seconds, ticks } from '../core/units';
 import { add, despawn, entityAt, has, query, remove, resetWorld, toHandle, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS, specialFor } from '../arenas';
@@ -114,7 +114,7 @@ describe('warhammer', () => {
     Transform.z[b] = -3;
     equip(p, spawnWeapon(WeaponKind.Warhammer, 0, 0));
     PlayerInput.fire = true;
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Warhammer].dmg);
     expect(WEAPONS[WeaponKind.Warhammer].cooldown).toBeGreaterThan(WEAPONS[WeaponKind.Sword].cooldown);
   });
@@ -338,9 +338,9 @@ describe('specials in the stock', () => {
 
   it('the arena keeps its special stocked, like the others', () => {
     for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
-    seedRng(3);
+    const rng = new Rng(3);
     Stock.special = WeaponKind.Railgun;
-    for (let i = 0; i <= inTicks(seconds(5)) + 2; i++) { stockSystem(); world.tick++; }
+    for (let i = 0; i <= inTicks(seconds(5)) + 2; i++) { stockSystem(rng); world.tick++; }
     let rails = 0;
     const n = query(buf, C.Item);
     for (let i = 0; i < n; i++) if (Item.kind[entityAt(buf, i)] === WeaponKind.Railgun) rails++;

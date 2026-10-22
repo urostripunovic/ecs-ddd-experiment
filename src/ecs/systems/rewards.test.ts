@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { Rng } from '../core/rng';
 import { WARDEN } from '../bosses/defs';
 import {
   Ammo, Armor, C, Health, PlayerInput, resetArenaState, resetRunState, RunStatus, TeamId, Transform,
@@ -94,7 +95,7 @@ describe('the Scattergun', () => {
     PlayerInput.aimX = 0;
     PlayerInput.aimZ = -1;
     PlayerInput.fire = true;
-    attackSystem(inSeconds(ticks(1)));
+    attackSystem(inSeconds(ticks(1)), new Rng(1));
     PlayerInput.fire = false;
     const def = WEAPONS[WeaponKind.Scattergun];
     expect(def.pellets).toBeGreaterThan(1);

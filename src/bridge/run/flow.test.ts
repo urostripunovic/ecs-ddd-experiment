@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { Rng } from '../../ecs/core/rng';
 import {
   Ammo, Arena, Armor, C, Health, Item, Jump, PlayerInput, RewardPickup, RunStatus, RunView, Transform, Wielder,
 } from '../../ecs/components';
@@ -169,7 +170,8 @@ describe('run flow', () => {
 
     // Cleared means nothing new spawns, even with a weapon missing.
     const before = countKind(WeaponKind.Gun) + countKind(WeaponKind.Sword) + countKind(WeaponKind.Spear);
-    for (let i = 0; i < 600; i++) { stockSystem(); world.tick++; }
+    const rng = new Rng(1);
+    for (let i = 0; i < 600; i++) { stockSystem(rng); world.tick++; }
     expect(countKind(WeaponKind.Gun) + countKind(WeaponKind.Sword) + countKind(WeaponKind.Spear)).toBe(before);
 
     Transform.z[p] = -(Arena.half + 4);

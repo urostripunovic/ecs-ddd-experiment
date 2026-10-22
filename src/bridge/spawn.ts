@@ -5,7 +5,7 @@ import { arenaFor, PILLAR_HEIGHT, PILLAR_RADIUS } from '../ecs/arenas';
 import { Ammo, Armor, C, Durability, Health, Jump, RunStatus, Stock, resetArenaState, resetRunState } from '../ecs/components';
 import { RunViewWritable } from '../ecs/components/run-view';
 import { clearOutbox } from '../ecs/core/outbox';
-import { seedRng } from '../ecs/core/rng';
+import { seedStreams } from '../ecs/core/rng';
 import { hp } from '../ecs/core/units';
 import { add, NOBODY, resetWorld, toHandle, type EntityId, type Handle } from '../ecs/core/world';
 import { spawnBoss, spawnOrbitingPillar, spawnPillar, spawnPlayer, spawnWeapon } from '../ecs/prefabs';
@@ -53,7 +53,7 @@ export function startRun(opts: RunOptions = {}): RunHandles {
   clearTickLog();
   idMap.clear();
   store.reset(opts.seed ?? 1);
-  seedRng(opts.seed ?? 1);
+  seedStreams(opts.seed ?? 1);
   buildArena(store.run.arena, store.run.loadout);
   return handles;
 }

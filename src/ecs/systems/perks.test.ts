@@ -7,7 +7,7 @@ import {
 } from '../components';
 import { RunViewWritable } from '../components/run-view';
 import { buf } from '../core/buffers';
-import { seedRng } from '../core/rng';
+import { Rng } from '../core/rng';
 import { hp, inTicks, seconds } from '../core/units';
 import { has, query, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPerk, spawnPlayer, spawnWeapon } from '../prefabs';
@@ -172,9 +172,9 @@ describe('Long reach', () => {
 
 describe('perk drops', () => {
   it('one perk pickup at a time, seeded, while fighting', () => {
-    seedRng(3);
+    const rng = new Rng(3);
     for (let i = 0; i < inTicks(seconds(60)); i++) {
-      perkDropSystem();
+      perkDropSystem(rng);
       world.tick++;
     }
     expect(query(buf, C.PerkPickup)).toBe(1);

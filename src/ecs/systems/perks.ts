@@ -4,7 +4,7 @@
 // between arenas through the loadout.
 import { C, Health, PerkDrop, Perks, RunStatus, RunView } from '../components';
 import { helperBuf } from '../core/buffers';
-import { random } from '../core/rng';
+import type { Random } from '../core/rng';
 import { after, hp, inTicks, seconds, share, shareOf } from '../core/units';
 import { entityAt, mask, query, world, type EntityId } from '../core/world';
 import { spawnPerk } from '../prefabs';
@@ -54,7 +54,7 @@ export function addPerk(entity: EntityId, kind: number): void {
 // reads RunView, PerkDrop, PerkPickup count, rng | writes PerkDrop; spawns a perk pickup
 // One perk on the ground at a time: the first a few seconds into the fight, then
 // every PERK_EVERY. It offers a perk the player doesn't have yet, when there is one.
-export function perkDropSystem(): void {
+export function perkDropSystem(rng: Random): void {
   if (RunView.status !== RunStatus.Fighting) return;
   if (query(helperBuf, LIVE_BOSSES, C.Dead) === 0) return;
   if (PerkDrop.nextAt === 0) { PerkDrop.nextAt = after(FIRST_PERK_AFTER); return; }
@@ -67,13 +67,13 @@ export function perkDropSystem(): void {
   let missing = 0;
   for (let kind = 1; kind <= PERK_KINDS; kind++) if (player === -1 || !hasPerk(player, kind)) missing++;
   // Holding all of them: offer any, which just refreshes one.
-  let pick = Math.floor(random() * (missing || PERK_KINDS));
+  let pick = Math.floor(rng.next() * (missing || PERK_KINDS));
   let kind = 1;
   for (; kind <= PERK_KINDS; kind++) {
     if (missing > 0 && player !== -1 && hasPerk(player, kind)) continue;
     if (pick-- === 0) break;
   }
-  if (randomClearSpot(dropSpot)) spawnPerk(kind, dropSpot.x, dropSpot.z);
+  if (randomClearSpot(rng, dropSpot)) spawnPerk(kind, dropSpot.x, dropSpot.z);
 }
 
 const dropSpot = { x: 0, z: 0 };

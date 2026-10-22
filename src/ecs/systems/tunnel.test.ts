@@ -4,15 +4,11 @@ import { DOORS } from '../arenas';
 import { Arena, PlayerInput, resetArenaState, resetRunState, RunStatus, Transform } from '../components';
 import { RunViewWritable } from '../components/run-view';
 import { clearOutbox, outbox } from '../core/outbox';
-import { inSeconds, ticks } from '../core/units';
-import { resetWorld, world, type EntityId } from '../core/world';
+import { resetWorld, type EntityId } from '../core/world';
 import { spawnPlayer } from '../prefabs';
-import { bodyCollisionSystem } from './collision';
-import { inputSystem, movementSystem } from './motion';
 import { DoorNumber } from './tunnel';
 import { stepper } from '../tick-order';
 
-const DT = inSeconds(ticks(1));
 let player: EntityId;
 
 // Walks the player north from x for five seconds, then reports where they got
@@ -79,7 +75,8 @@ describe('the doors in the north wall', () => {
     walkNorthAt(DOORS.final.x);
     PlayerInput.moveX = -1;
     PlayerInput.moveZ = 0;
-    for (let i = 0; i < 120; i++) { inputSystem(); movementSystem(DT); bodyCollisionSystem(); world.tick++; }
+    const walk = stepper(['inputSystem', 'movementSystem', 'bodyCollisionSystem']);
+    for (let i = 0; i < 120; i++) walk();
     expect(Transform.x[player]).toBeGreaterThanOrEqual(DOORS.final.x - DOORS.halfWidth);
   });
 });

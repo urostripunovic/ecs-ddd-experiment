@@ -16,18 +16,20 @@ import {
   attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, stockSystem,
   stuckFollowSystem, throwSystem,
 } from './systems/weapons';
+import { streams } from './core/rng';
 import { inSeconds, ticks, type Seconds } from './core/units';
 import { world } from './core/world';
 
 export const DT = inSeconds(ticks(1));
 
-// Each system takes the tick's length; most ignore it.
+// Each system takes the tick's length; most ignore it. The few that draw at
+// random are handed their own stream here, the one place that wires them up.
 type System = (dt: Seconds) => void;
 
 export const TICK_ORDER = [
   ['snapshotSystem', snapshotSystem],
   ['shakeSystem', shakeSystem],
-  ['inputSystem', inputSystem],
+  ['inputSystem', () => inputSystem(streams.dizzy)],
   ['bossPhaseSystem', bossPhaseSystem],
   ['homingSystem', homingSystem],
   ['movementSystem', movementSystem],
@@ -36,7 +38,7 @@ export const TICK_ORDER = [
   ['heldFollowSystem', heldFollowSystem],
   ['stuckFollowSystem', stuckFollowSystem],
   ['throwSystem', throwSystem],
-  ['attackSystem', attackSystem],
+  ['attackSystem', (dt: Seconds) => attackSystem(dt, streams.bloom)],
   ['flightSystem', flightSystem],
   ['pickupSystem', pickupSystem],
   ['projectileCollisionSystem', projectileCollisionSystem],
@@ -46,11 +48,11 @@ export const TICK_ORDER = [
   ['hazardSystem', hazardSystem],
   ['spikeSystem', spikeSystem],
   ['durabilitySystem', durabilitySystem],
-  ['stockSystem', stockSystem],
+  ['stockSystem', () => stockSystem(streams.stock)],
   ['hurtFlashSystem', hurtFlashSystem],
   ['tracerSystem', tracerSystem],
-  ['dropSystem', dropSystem],
-  ['perkDropSystem', perkDropSystem],
+  ['dropSystem', () => dropSystem(streams.drops)],
+  ['perkDropSystem', () => perkDropSystem(streams.perks)],
   ['bossThresholdSystem', bossThresholdSystem],
   ['spikeGrowthSystem', spikeGrowthSystem],
   ['tunnelSystem', tunnelSystem],

@@ -5,7 +5,7 @@ import {
   Thrown, Transform, Wielder,
 } from '../components';
 import { buf } from '../core/buffers';
-import { seedRng } from '../core/rng';
+import { Rng } from '../core/rng';
 import { hp, inSeconds, seconds, ticks } from '../core/units';
 import { add, entityAt, has, NOBODY, query, resetWorld, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS } from '../arenas';
@@ -79,7 +79,7 @@ describe('melee', () => {
     const sword = spawnWeapon(WeaponKind.Sword, 0, 0);
     equip(p, sword);
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Sword].dmg);
     expect(Durability.value[sword]).toBe(100 - WEAPONS[WeaponKind.Sword].wearPerHit);
   });
@@ -88,7 +88,7 @@ describe('melee', () => {
     Transform.z[b] = -3;
     equip(p, spawnWeapon(WeaponKind.Sword, 0, 0));
     Object.assign(PlayerInput, { aimX: 0, aimZ: 1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBe(1000);
   });
 });
@@ -247,9 +247,11 @@ describe('stock', () => {
     for (let e = 0; e < world.nextFresh; e++) if (world.inUse[e] && has(e as EntityId, C.Item) && Item.kind[e] === kind) n++;
     return n;
   };
+  // Where replacements appear: its own stream, so the spots are the same every run.
+  let rng = new Rng(3);
   const stockArena = () => {
+    rng = new Rng(3);
     for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
-    seedRng(3);
     spawnWeapon(WeaponKind.Gun, 0, 12);
     spawnWeapon(WeaponKind.Spear, 4, 9);
     return spawnWeapon(WeaponKind.Sword, -4, 9);
@@ -257,7 +259,7 @@ describe('stock', () => {
 
   it('a broken sword comes back after the respawn delay, somewhere clear', () => {
     const sword = stockArena();
-    stockSystem();
+    stockSystem(rng);
     expect(count(WeaponKind.Sword)).toBe(1);
 
     equip(p, sword);
@@ -266,9 +268,9 @@ describe('stock', () => {
     expect(count(WeaponKind.Sword)).toBe(0);
     expect(heldItem(p)).toBe(-1); // fists until then
 
-    for (let i = 0; i < RESPAWN_TICKS; i++) { stockSystem(); world.tick++; }
+    for (let i = 0; i < RESPAWN_TICKS; i++) { stockSystem(rng); world.tick++; }
     expect(count(WeaponKind.Sword)).toBe(0);
-    stockSystem();
+    stockSystem(rng);
     expect(count(WeaponKind.Sword)).toBe(1);
     expect(count(WeaponKind.Spear)).toBe(1);
     expect(count(WeaponKind.Gun)).toBe(1);
@@ -276,7 +278,7 @@ describe('stock', () => {
 
   it('never adds weapons while the stock is full', () => {
     stockArena();
-    for (let i = 0; i < RESPAWN_TICKS * 3; i++) { stockSystem(); world.tick++; }
+    for (let i = 0; i < RESPAWN_TICKS * 3; i++) { stockSystem(rng); world.tick++; }
     expect(count(WeaponKind.Sword) + count(WeaponKind.Spear) + count(WeaponKind.Gun)).toBe(3);
   });
 });
@@ -285,7 +287,7 @@ describe('fists', () => {
   it('empty hands still fight, weakly', () => {
     Transform.z[b] = -2.4;
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Fists].dmg);
   });
 });
@@ -298,10 +300,10 @@ describe('drops', () => {
     for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
     spawnPlayer(0, 12);
     spawnBoss(boss(1000), 0, -8);
-    seedRng(seed);
+    const rng = new Rng(seed);
     world.tick = 7 * 60;
     const before = world.nextFresh;
-    dropSystem();
+    dropSystem(rng);
     return world.nextFresh > before ? [Transform.x[before], Transform.z[before]] : null;
   };
 
@@ -336,14 +338,14 @@ describe('levels', () => {
     Transform.z[b] = -3;
     equip(p, spawnWeapon(WeaponKind.Sword, 0, 0, 3));
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBeCloseTo(1000 - WEAPONS[WeaponKind.Sword].dmg * LEVEL_3, 3);
   });
 
   it('scales every pellet of a shot', () => {
     equip(p, spawnWeapon(WeaponKind.Scattergun, 0, 0, 3));
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     const n = query(buf, C.Projectile);
     expect(n).toBe(WEAPONS[WeaponKind.Scattergun].pellets);
     for (let i = 0; i < n; i++) {
@@ -373,15 +375,15 @@ describe('levels', () => {
   it('never scales fists', () => {
     Transform.z[b] = -2.4;
     Object.assign(PlayerInput, { aimX: 0, aimZ: -1, fire: true });
-    attackSystem(DT);
+    attackSystem(DT, new Rng(1));
     expect(Health.hp[b]).toBe(1000 - WEAPONS[WeaponKind.Fists].dmg);
   });
 
   it('stock comes back at the level of the arena it appears in', () => {
     RunViewWritable.arena = 4;
     for (const [x, z] of [[-9, -5], [9, -5], [-9, 7], [9, 7]]) spawnPillar(x, z, PILLAR_RADIUS);
-    seedRng(3);
-    for (let i = 0; i <= RESPAWN_TICKS + 1; i++) { stockSystem(); world.tick++; }
+    const rng = new Rng(3);
+    for (let i = 0; i <= RESPAWN_TICKS + 1; i++) { stockSystem(rng); world.tick++; }
     const n = query(buf, C.Item);
     expect(n).toBe(3);
     for (let i = 0; i < n; i++) expect(Item.level[entityAt(buf, i)]).toBe(weaponLevelFor(4));

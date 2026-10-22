@@ -1,7 +1,7 @@
 // Pressing fire: swings, shots, the railgun's charged beam and the flamethrower's cone.
 import { Ammo, C, Collider, GodMode, PlayerInput, ShapeKind, Team, Transform, Wielder } from '../../components';
 import { buf, targetBuf } from '../../core/buffers';
-import { random } from '../../core/rng';
+import type { Random } from '../../core/rng';
 import { after, times } from '../../core/units';
 import type { Seconds } from '../../core/units';
 import { entityAt, query, toHandle } from '../../core/world';
@@ -43,7 +43,7 @@ export function meleeHit(w: EntityId, def: WeaponDef): boolean {
 
 // The railgun: holding fire fills the gauge, the release fires. Perfect hits
 // hardest; overcharged, the shot blooms off your aim.
-export function railgun(w: EntityId, gun: EntityId, def: WeaponDef, released: boolean): void {
+export function railgun(w: EntityId, gun: EntityId, def: WeaponDef, released: boolean, bloomRng: Random): void {
   if (controlsLocked()) { Wielder.fireCharge[w] = 0; return; }
   if (!released) {
     if (PlayerInput.fire && Wielder.fireCharge[w] < CHARGE_MAX_TICKS) Wielder.fireCharge[w]++;
@@ -59,7 +59,7 @@ export function railgun(w: EntityId, gun: EntityId, def: WeaponDef, released: bo
   // Overcharged, it still fires, at full power, but blooms off your aim like
   // hip-fire: the further into the overcharge, the wider. Seeded, so it replays.
   const bloom = railBloom(fill);
-  const off = bloom > 0 ? (random() * 2 - 1) * bloom : 0;
+  const off = bloom > 0 ? (bloomRng.next() * 2 - 1) * bloom : 0;
   const aim = Math.atan2(PlayerInput.aimZ, PlayerInput.aimX) + off;
   const dx = Math.cos(aim);
   const dz = Math.sin(aim);
@@ -93,7 +93,8 @@ export function spray(w: EntityId, flamer: EntityId, def: WeaponDef, dt: Seconds
 
 // reads PlayerInput (fire, fireReleases), RunView, Wielder, held item and its level | writes Wielder, Ammo, Durability,
 // Health, Burn; spawns bullets and railgun tracers
-export function attackSystem(dt: Seconds): void {
+// bloomRng: where an overcharged railgun shot's bloom is drawn from.
+export function attackSystem(dt: Seconds, bloomRng: Random): void {
   const n = query(buf, WIELDERS, C.Dead);
   for (let i = 0; i < n; i++) {
     const w = entityAt(buf, i);
@@ -121,7 +122,7 @@ export function attackSystem(dt: Seconds): void {
         continue;
       }
     }
-    if (def.attack === 'rail' && item !== -1) { railgun(w, item, def, released); continue; }
+    if (def.attack === 'rail' && item !== -1) { railgun(w, item, def, released, bloomRng); continue; }
     if (def.attack === 'spray' && item !== -1) { spray(w, item, def, dt); continue; }
     if (controlsLocked() || !PlayerInput.fire || Wielder.cooldown[w] > 0) continue;
     Wielder.cooldown[w] = def.cooldown;

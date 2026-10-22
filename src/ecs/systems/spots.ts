@@ -2,7 +2,7 @@
 // of the player. Used by the weapon stock, the buff drops and the perk drops.
 import { Arena, C, Collider, Transform } from '../components';
 import { helperBuf } from '../core/buffers';
-import { randomRange } from '../core/rng';
+import type { Random } from '../core/rng';
 import { entityAt, has, mask, query } from '../core/world';
 
 const SOLIDS = mask(C.Transform, C.Collider, C.Solid);
@@ -23,12 +23,12 @@ function clearSpot(x: number, z: number): boolean {
   return true;
 }
 
-// Draws from the seeded RNG only, so the same seed gives the same spots.
-export function randomClearSpot(out: { x: number; z: number }): boolean {
+// Draws only from the stream it's given, so the same seed gives the same spots.
+export function randomClearSpot(rng: Random, out: { x: number; z: number }): boolean {
   const limit = Arena.half - 2;
   for (let attempt = 0; attempt < 12; attempt++) {
-    const x = randomRange(-limit, limit);
-    const z = randomRange(-limit, limit);
+    const x = rng.range(-limit, limit);
+    const z = rng.range(-limit, limit);
     if (!clearSpot(x, z)) continue;
     out.x = x;
     out.z = z;

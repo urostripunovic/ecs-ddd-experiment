@@ -1,6 +1,6 @@
 // The header line of each system is its design doc: reads -> writes.
 import { C, Dizzy, Dodge, Knockback, PlayerInput, Transform, Velocity } from '../components';
-import { random } from '../core/rng';
+import type { Random } from '../core/rng';
 import { buf } from '../core/buffers';
 import { after, inTicks, plus, seconds, ticks, type Seconds } from '../core/units';
 import { entityAt, mask, query, world, type EntityId } from '../core/world';
@@ -45,7 +45,8 @@ function startDodge(entity: EntityId): void {
 // Dodge, Dizzy.angle
 // Every effect on a player's movement (haste, slows, shoves, dizzy) arrives as its
 // own field and is combined here, so none can erase another.
-export function inputSystem(): void {
+// dizzy: where a dizzy player's wandering is drawn from.
+export function inputSystem(dizzyRng: Random): void {
   const locked = controlsLocked();
   const speedBase = locked ? 0 : PLAYER_SPEED;
   const n = query(buf, PLAYER_MOVERS, C.Dead);
@@ -70,7 +71,7 @@ export function inputSystem(): void {
     // Dizzy: your feet wander off in a direction that turns at random, added to
     // whatever you press, so standing still drifts and walking goes off line.
     if (dizzy(e) && !locked) {
-      Dizzy.angle[e] += (random() - 0.5) * DIZZY_TURN;
+      Dizzy.angle[e] += (dizzyRng.next() - 0.5) * DIZZY_TURN;
       mx += Math.cos(Dizzy.angle[e]) * DIZZY_PULL;
       mz += Math.sin(Dizzy.angle[e]) * DIZZY_PULL;
       const len = Math.hypot(mx, mz);
