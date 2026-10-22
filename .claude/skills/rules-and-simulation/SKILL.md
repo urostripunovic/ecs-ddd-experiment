@@ -23,7 +23,7 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
 7. **Tidy, as its own step.** Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
    - Did a file grow past its one job? Split it now, not after the next feature.
-   - Did you branch on a kind ("is this the hammer?") where a field on its definition would do?
+   - Did you branch on what kind of thing it is (`if (kind === X)`: this weapon, this enemy, this tile) where a field on its definition would do?
    - Did a field gain a second writer, or a number get a second copy?
    - Is any comment now false? Comments say why; where things live and who writes them belongs in tests.
    - Did you take a shortcut you're keeping? Say so in the report instead of leaving it to be found.
@@ -109,7 +109,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 
 ## Where this goes wrong
 
-- **Growth goes unremarked.** A file that collects every new feature (a weapons file with every weapon's special case, a renderer that draws everything) stops having one job long before anyone notices. Size and "is this the X?" branches are the tell; a structure test that fails on both turns a reviewer's eye into a check.
+- **Growth goes unremarked.** A file that collects every new feature (one module holding every item's or enemy's special case, a renderer that draws everything) stops having one job long before anyone notices. Size and "is this the X?" branches are the tell. A structure test that fails on both (a line limit per file, no comparing against a kind outside its definitions table, every field with more than one writer listed with a reason, no comment naming a file) turns a reviewer's eye into a check.
 
 - **Describing behaviour from memory.** Before changing an effect, find what causes it and the test that pins it. No test? Write it first.
 - **Brands survive parameters, not arithmetic**, and typed arrays strip them: re-brand a read value with the checking constructor, never a cast.
