@@ -87,6 +87,7 @@ Over Stage B, Stage C, the cleanup and the flight split. Most of what went wrong
 
 **What changes**
 
-- game-implementation: an "or" in a module's one-job sentence is a split asking; a designer's suggestion is a proposal to check against practice and answer with agree or disagree, before it becomes a rule; a scripted edit's diff is read every time, and the diff's size checked against what was meant.
+- game-implementation: an "or" in a module's one-job sentence is a split asking; a designer's suggestion is a proposal to check against practice and answer with agree or disagree, before it becomes a rule.
+- Not into the skills (designer's call): the scripts that went wrong are the agent's own tooling habit, not a game-building lesson; they belong in the agent's general instructions.
 - Next in this repo: the smash and the spin become tags and systems, like the returning throw.
 

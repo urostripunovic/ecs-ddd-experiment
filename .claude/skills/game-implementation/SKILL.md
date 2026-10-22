@@ -68,7 +68,7 @@ ECS rules out one kind of object: per-entity state with its own methods. Everyth
 - **Make the signals ask, not fail.** A check counts the kinds of component each module writes and its lines; past a threshold, the module must state its one job in a sentence next to the check. If you can't write the sentence honestly, that's the split. An entry that's no longer needed fails too, so the list can't rot. A threshold that fails outright gets met by cutting at a line number, which is worse than not splitting.
 - **Report each stage:** which files changed, how much each grew, and which files the last few dozen commits keep touching. A file that grows every stage, or that every feature touches, is the one to ask about. A split resets a file's history, so churn means little right after one.
 - **Keep the old module as a re-export,** so importers don't change and the split is one commit with no behaviour change.
-- **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Read the diff every time, and check its size against what you meant: a script can strip more than it should, glue a comment onto the wrong line, or rewrite a whole data file to change seven lines.
+- **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Check the result: a script can strip more than it should, and comments can land on the wrong side of a cut.
 - **Expect the split to reveal sharing:** two parts writing the same field show up once they're separate modules. Route them through one writer.
 - **Rerun the slow checks after a refactor** (mutations, long property runs). A moved function turns a mutation into a silent skip.
 
