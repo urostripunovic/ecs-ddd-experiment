@@ -7,7 +7,7 @@ import {
   Thrown, Transform, Wielder,
 } from '../ecs/components';
 import { send } from '../ecs/core/outbox';
-import { restoreRng, rngState } from '../ecs/core/rng';
+import { restoreStreams, streamsState } from '../ecs/core/rng';
 import { hp, seconds } from '../ecs/core/units';
 import { spawnProjectile } from '../ecs/prefabs';
 import { has, indexOf, NOBODY, world, type Handle } from '../ecs/core/world';
@@ -64,7 +64,7 @@ describe('moving to the next arena', () => {
     const run = store.run;
     const tickAt = world.tick;
     const input = { ...PlayerInput };
-    const rng = rngState();
+    const rng = streamsState();
 
     // Fresh: a new run that never played arena 1, given only the domain state
     // and the values declared to live for the whole run.
@@ -72,7 +72,7 @@ describe('moving to the next arena', () => {
     store.run = run;
     world.tick = tickAt;
     Object.assign(PlayerInput, input);
-    restoreRng(rng);
+    restoreStreams(rng);
     buildArena(run.arena, run.loadout);
     const fresh = { arena: snapshot(ARENA_STATE), run: snapshot(RUN_STATE), world: worldShape() };
 

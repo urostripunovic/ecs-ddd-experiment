@@ -54,7 +54,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Buff** | ECS | Haste (speed) or Fury (damage) for 6 s, stored as a tick deadline (`hasteUntil`, `furyUntil`), not a countdown. |
 | **Slowed** | ECS | A jump landing's movement penalty, a tick deadline plus a factor. Its own field, so a buff can never erase it. How long a slam slows is its `slowFor`; the stamp's is 0. |
 | Press counters | app → ECS | `PlayerInput.throwReleases` and `interactPresses` only count up (written by the app); `Wielder.throwSeen` and `interactSeen` record what the ECS has acted on. One writer per field, no lost or doubled inputs. |
-| **Seed** | ECS | Fixes the RNG for drops, so a run replays exactly. `?seed=N` in the URL. |
+| **Seed** | ECS | The one number a run's randomness starts from, so a run replays exactly. `?seed=N` in the URL. |
+| **Stream** | ECS (`streams`, `Random`) | One seeded sequence of random numbers per job (drops, perks, stock, bloom, dizzy), all started from the seed. Passed to the system that draws from it, so one system drawing more never changes another's draws. |
 | **Action** | ECS | One boss attack: slam, cone, burst or jump. One at a time; `BossAction` holds the current one and the last one. |
 | **Chain gap** | ECS | Minimum ticks between the end of one action and the start of the next, from `CHAIN_GAPS` per phase. 10 unless listed. |
 | **Airborne** | ECS | Mid-jump. Bullets, thrown weapons and blades pass under; the boss isn't pushed by pillars or the player. |

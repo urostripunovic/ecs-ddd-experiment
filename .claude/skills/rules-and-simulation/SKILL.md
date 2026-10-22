@@ -83,7 +83,7 @@ Plain words here; the formal terms are in brackets.
 - **Actions run one at a time; the gaps between them are a table.**
 - **Coroutines are for choreography that is never saved.**
 - **Store handles, never slots; name things by stable ID in logs and tests.**
-- **Randomness is seeded**, so a seed and inputs replay a run.
+- **Randomness is seeded**, so a seed and inputs replay a run. **One stream per job, passed in**: each system that draws gets its own seeded generator as a parameter. With one shared generator, a single new draw anywhere shifts every later draw everywhere, and a seed quietly becomes a different run.
 - **Presentation is derived and never feeds back.** Undo a camera shake before aiming through the camera.
 
 ## The seam
