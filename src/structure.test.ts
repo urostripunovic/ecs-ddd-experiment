@@ -14,6 +14,18 @@ const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts
 const MAX_LINES = 400;
 
 describe('structure', () => {
+  // A comment says why, never where or how many: file names, owners and counts
+  // go stale the moment code moves, and a moved file still compiles under a
+  // comment that names its old home. Where things live is for imports and
+  // tests; a comment points at a name (a function, a type), never a file.
+  it('no comment names a source file', () => {
+    const naming = code.flatMap(([file, text]) => text.split('\n')
+      .map((line, i) => ({ line, at: `${file}:${i + 1}` }))
+      .filter(({ line }) => /\/\/.*\b[\w-]+\.ts\b/.test(line))
+      .map(({ at }) => at));
+    expect(naming).toEqual([]);
+  });
+
   it(`keeps every source file under ${MAX_LINES} lines`, () => {
     const long = code.filter(([, text]) => text.split('\n').length > MAX_LINES).map(([file, text]) => `${file} (${text.split('\n').length})`);
     expect(long).toEqual([]);
