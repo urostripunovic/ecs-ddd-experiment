@@ -34,7 +34,7 @@ export const COLOR = {
   burning: 0x7a2c00,
 };
 
-// One colour per perk (Perk in ecs/systems/perks.ts), so a pickup says what it is from across the arena.
+// One colour per perk (see Perk), so a pickup says what it is from across the arena.
 // A procedural boss's body, by Body: the Colossus stone-grey, the Lancer bronze, the Sentinel violet.
 export const BODY_COLOR = [0x7c7a74, 0x9a7a4e, 0x6f6596];
 
