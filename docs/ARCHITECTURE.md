@@ -26,7 +26,7 @@ Written down once, as data, in `TICK_ORDER` (`src/ecs/tick-order.ts`): the game 
 4. `bossPhaseSystem`: sample the damage the boss took this second, then start or step the coroutine for its current `BossPhase`
 4b. `homingSystem`: the Sentinel's orbs turn toward the player, no faster than their turn rate
 5. `movementSystem`
-6. `orbitSystem`: orbiting pillars move along their circle, faster while spiked (frozen during a cutscene)
+6. `orbitSystem`: orbiting pillars move along their circle, faster while spiked or pushed (frozen during a cutscene); they shove weapons on the ground out of their way, and a pushed one that runs into the boss hurts and staggers it
 7. `bodyCollisionSystem`: circles against solids, clamp to the arena or, while open, the tunnel (an airborne boss is skipped; a dodging player passes through the boss)
 8. `heldFollowSystem`: held items sit at their wielder
 9. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
@@ -124,6 +124,8 @@ A jump is crouch, flight and a landing slam at a spot fixed at take-off. While a
 
 **The Grinder** (arena 2): one fixed perch and four pillars orbiting the middle. In phase 2 they grow spikes, speed up, and hurt on touch. The spikes are derived from the boss's phase every tick, not set by the roar, so a world built straight into phase 2 has them. Pillars and spikes hold still during cutscenes, so nothing hits you while your controls are locked.
 
+**Pushing pillars** (decided with the user, numbers experimental). A warhammer's smash and a railgun beam that a pillar stops knock an orbiting pillar along its circle, by the part of the push that lies along it (`pushPillar`): it speeds up or runs back, fading back to its own pace within 0.6 s. Fixed pillars are too heavy to move. A pushed pillar that runs into the boss hurts it and staggers it for 1.2 s (`Stagger`): it stands and starts nothing new, while anything it already telegraphed still lands. A pillar going round at its own pace never hurts the boss. Moving pillars also shove weapons on the ground out of their way, so a weapon is never hidden inside one.
+
 How each action looks is `app/render/boss-pose.ts`, a pure function of the action and how far into it the boss is.
 
 ## The run, and what moved into the domain
@@ -178,10 +180,10 @@ Decided with the user (Stage B): weapons found deeper hit harder. A weapon's lev
 
 ## Special weapons
 
-Decided with the user. Beside the sword, spear and gun, every arena from the second (the final too) keeps one special stocked, drawn from the seed (`specialFor`, a hash draw that never moves the drop RNG): the chakram, the warhammer, the railgun or the flamethrower. The tutorial keeps to the basics. Specials come at the arena's level like everything else, and carry over in the loadout like any weapon.
+Decided with the user. Beside the sword, spear and gun, every arena from the second (the final too) keeps one special stocked, drawn from the seed (`specialFor`, a hash draw that never moves any random stream): the chakram, the warhammer, the railgun or the flamethrower. The tutorial keeps to the basics. Specials come at the arena's level like everything else, and carry over in the loadout like any weapon.
 
-- **Chakram:** a light, wide swing. Thrown, it flies through what it hits and turns home at the end of its flight or on stone, hitting each target once going out and once coming back. Caught, it gives 1.5 s of haste; with your hands full by then, it lands at your feet.
-- **Warhammer:** slow, heavy swings that wear it fast. Holding throw spins it round you (decided with the user): every quarter second it hits everything within reach on every side, harder as its momentum builds over a second. Releasing throws it, harder and further the longer it spun (`spinThrow`): its gauge is momentum, with no perfect zone and no overcharge. It smashes where it stops (on a body or the ground): everything of the other side within 3 m is hit once and loses whatever was lodged in it. If it breaks mid-spin, you're **dizzy** for 2 s (`Dizzy`): your feet wander in a direction that turns at random, added to what you press.
+- **Chakram:** a light, wide swing. Thrown, it flies through what it hits and turns home at the end of its flight or on stone, hitting each target once going out and once coming back. Caught, it gives 1.5 s of haste. With your hands full by then, it hits you instead: it shoves you along its flight and drops where it hit you (decided with the user).
+- **Warhammer:** slow, heavy swings that wear it fast. Holding throw spins it round you (decided with the user): every quarter second it hits everything within reach on every side, harder as its momentum builds over a second. Releasing throws it, harder and further the longer it spun (`spinThrow`): its gauge is momentum, with no perfect zone and no overcharge. It smashes where it stops (on a body or the ground): everything of the other side within 3 m is hit once and loses whatever was lodged in it. Its smash also knocks orbiting pillars within reach away from it (see below). Spin it longer than 2 s and letting go leaves you dizzy for as long as you overspun, at most 2 s; if it breaks mid-spin, you're **dizzy** for 2 s (`Dizzy`): your feet wander in a direction that turns at random, added to what you press.
 - **Railgun:** the Final shot as a weapon. Holding fire fills the throw's gauge (`Wielder.fireCharge`), the release fires one beam that pierces every body in its line and stops at a pillar or the wall. Perfect hits hardest. Overcharged, it still fires at full power but blooms off your aim like hip-fire (decided with the user), wider the further into the overcharge, up to 0.35 rad either way (`railBloom`), drawn from the seeded RNG so a run replays. The release is a counter (`PlayerInput.fireReleases`), like throws, so a tap is never lost.
 - **Flamethrower:** while fire is held, everything in a short cone burns at 45 hp a second for 2 s after it last caught (`Burn`, a deadline). Its fuel is its durability.
 

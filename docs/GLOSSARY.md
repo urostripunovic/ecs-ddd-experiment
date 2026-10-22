@@ -33,6 +33,8 @@ The same idea can live at both levels under different names. Keep them apart.
 | **Spin** | ECS | A warhammer held on throw: hits all round you, building momentum that the release turns into a harder, longer throw. |
 | **Dizzy** | ECS (`Dizzy`) | After a hammer breaks mid-spin: for 2 s your feet wander in a randomly turning direction, added to what you press. |
 | **Bloom** | ECS (`railBloom`) | How far off your aim an overcharged railgun shot may go: none in the perfect zone, wider the further past it. |
+| **Push** | ECS (`pushPillar`, `Orbit.kick`) | A hammer smash or a rail beam knocking an orbiting pillar along its circle, fading out within 0.6 s. |
+| **Stagger** | ECS (`Stagger`) | A boss hit by a pushed pillar: for 1.2 s it stands and starts nothing new. |
 | **Burn** | ECS (`Burn`) | Damage over time from the flamethrower: hit points a second until a tick deadline, through `hurt`. |
 | **Tracer** | ECS (`Tracer`) | A railgun beam drawn for a moment; it hurts nothing itself. |
 | **Weapon level** | ECS (`Item.level`), carried by the domain | The arena a weapon turned up in. Each level past the first adds 15% to every hit it deals; the run weighs it in power. Shown on the HUD. |

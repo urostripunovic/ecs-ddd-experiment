@@ -78,5 +78,5 @@ From a boss-rush prototype, each answer from the designer, not from code:
 | You and the last boss go down on the same tick | You lose: "if we die, we die" | A rules row, tested in both report orders |
 | Restart after a defeat | From scratch: it's a boss rush | A saves note in the architecture doc |
 | Is the boss's phase a rule? | No: only the fight reacts to it | Moved to the simulation |
-| A returning throwing weapon is caught | Asked too late: the agent had already given it a burst of speed | Should have been asked before building; now an experimental row with the question open |
+| A returning throwing weapon is caught | Asked too late: the agent had already given it a burst of speed. Once asked, the designer kept it, and added what the agent hadn't thought of: with full hands, it hits you | Should have been asked before building; the designer's answer was better than the agent's guess |
 | Overholding a charged shot | The designer's idea: it fires, but sprays off aim like hip-fire | Replaced the agent's "it overheats" before anyone played it |
