@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // one copy gets the fix, the other keeps teaching the old rule. So each rule's
 // body lives in one skill, and the others carry its headline and a pointer.
 // Eight words in a row is a copied rule; six catches shared phrases too.
-const skills = import.meta.glob<string>('../.claude/skills/*/SKILL.md', { query: '?raw', import: 'default', eager: true });
+const skills = import.meta.glob<string>('../.claude/skills/*/*.md', { query: '?raw', import: 'default', eager: true });
 const RUN = 8;
 
 function words(markdown: string): string[] {
@@ -19,7 +19,7 @@ function runs(markdown: string): Set<string> {
   return out;
 }
 
-const skillName = (path: string) => path.split('/').at(-2) ?? path;
+const skillName = (path: string) => path.split('/').slice(-2).join('/');
 
 describe('skills', () => {
   it('finds the skills', () => {
