@@ -7,7 +7,7 @@ description: How to write and keep clean the code of a game built as a simulatio
 
 `rules-and-simulation` says what goes where. This skill is about the code itself: writing it under pressure without it turning into spaghetti, and the checks that keep it clean when nobody is reviewing every line. It plugs into Matt Pocock's `implement` (one ticket per session) and `tdd` (red, green, refactor): his skills drive the loop, this one says what each step means in a game codebase. For a rules area big enough to model on its own, `ddd-implementation` covers that part instead.
 
-Everything here comes from a session where an agent was left to build features on its own, and the code drifted: three files past 700 lines, "is this the hammer?" branches in every weapon system, fields with unlisted second writers, comments pointing at files that had moved, and stages where the tests were written after the code. None of it was hard to fix. All of it was easy not to notice, because the definition of done was "the feature works and the tests pass".
+Left to build features on its own, an agent's code drifts in predictable ways: files grow past 700 lines, "is this the hammer?" branches spread through every system that touches weapons, fields gain second writers nobody listed, comments keep pointing at files that moved, and tests get written after the code. None of it is hard to fix. All of it is easy not to notice when the definition of done is "the feature works and the tests pass".
 
 ## The loop: red, green, tidy
 
@@ -23,19 +23,20 @@ Everything here comes from a session where an agent was left to build features o
    Tests and structure checks pass before and after, unchanged: a tidy changes shape, never behaviour. Minutes per stage; after five features the same cleanup is a session, and the next features have been built on the mess.
 4. **Commit per layer, after the tidy.** If a lower layer's change means a commit doesn't build alone, say so in its message.
 
-When a design question surfaces mid-feature, stop and ask it (`game-design-interview`); don't settle it in code. The ones that slipped through here looked like implementation details: one special weapon per level drawn from the seed, haste for catching a returning weapon, which way an overcharged shot misbehaves. Each changed how the game felt, so each was the designer's call. Ask before building them, or, if the designer is away, build the smallest version, mark it experimental and lead the report with the question.
+When a design question surfaces mid-feature, stop and ask it (`game-design-interview`); don't settle it in code. Watch for the ones that look like implementation details: how often a new item turns up and where, a bonus for using something well (speed for catching a returning weapon), what happens when a mechanic is misused (an overcharged shot). Each changed how the game felt, so each was the designer's call. Ask before building them, or, if the designer is away, build the smallest version, mark it experimental and lead the report with the question.
 
 ## Make the reviewer's eye a check
 
-An agent working alone optimises for what is checked. Make clean code checked. Set these up in the first week of a project, next to the zone lint; each one here exists because its absence let something through:
+An agent working alone optimises for what is checked. Make clean code checked. Set these up in the first week of a project, next to the zone lint. Each one catches a drift that otherwise goes unnoticed:
 
-| Check | Fails when | Caught here |
+| Check | Fails when | Catches, for example |
 | --- | --- | --- |
-| Line limit (about 400) | Any source file is longer | three files over 700 lines |
+| Line limit (about 300, tests included) | Any file is longer | a weapons module that collected every weapon's special case |
 | No kind branches | A system compares against a kind (`=== WeaponKind.Hammer`) outside its definitions table | a branch per weapon in the throw, attack and durability code |
 | Shared writers are listed | A field is written from more than one module and isn't in a list with its reason (entity construction and dev tools don't count) | a field documented as single-writer that had two |
 | No file names in comments | A comment names a source file | a comment pointing at a file that had become a folder |
-| The tick calls every system | An exported system is missing from the tick, or from the architecture doc's order | a damage-over-time system that every unit test ran and the game never did |
+| One tick order | An exported system is missing from the tick's order, the doc lists another order, or a test steps its own list of systems | a damage-over-time system that every unit test ran and the game never did |
+| Randomness is injected | A system imports a shared random source instead of taking a stream | one new random draw changing every later drop for the same seed |
 | Docs drift | A name in backticks in the docs doesn't exist in the code | |
 
 Scan the source as text (in Vite, `import.meta.glob` with `?raw`), so the checks need no Node types and run with the other tests. Break each check once on purpose before trusting it.

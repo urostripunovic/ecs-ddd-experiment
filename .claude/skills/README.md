@@ -7,7 +7,7 @@
 1. Copy this folder (`.claude/skills/`) into the new repository.
 2. Add a few lines to the root `CLAUDE.md`: where the zones are (rules, seam, simulation, app), the command to run before finishing (typecheck, tests, boundary lint, build), and a pointer to this README.
 3. Set up a boundary lint from the first commit (for TypeScript, dependency-cruiser rules: rules import nothing, the simulation imports neither the rules nor the seam). The skills assume one exists.
-4. Bring or write a playtest bot and recorder early (`tools/playtest/` in the reference game). The gate to tickets requires one in the repo.
+4. Bring or write a playtest bot and recorder early: a bot that plays through the real input path, and a recorder that steps the game on a fake clock and saves frames. The gate to tickets requires one in the repo.
 5. Create an empty `SKILL-NOTES.md` for incidents where the skills fell short.
 
 **While prototyping**, just ask for features in plain words. `rules-and-simulation`, `game-design-interview` and `game-implementation` load on their own:
@@ -24,7 +24,7 @@ The prototype loop is the main use. Stay in it until the game is worth building 
 
 **Later: in production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`. Each ticket's footprint is its blast radius: tickets with no blocking edge and no overlapping files can run side by side in separate git worktrees.
 
-**The reference game is how the skills improve.** `ecs-ddd-experiment` was built with the designer and an agent working together: the designer decides how the game feels, the agent builds it and says where the skills fell short. Each session's misses go in `SKILL-NOTES.md`, and the next session (in this game or the next one) starts by folding them into the skills. The skills are meant to be wrong in new ways each time, not the same way twice.
+**How the skills improve: build a game with them.** The designer decides how the game feels; the agent builds it and says where the skills fell short. Each session's misses go in the game's `SKILL-NOTES.md`, and the next session (in that game or the next one) starts by folding them into the skills, as examples where an example helps. The skills should be wrong in new ways each time, not the same way twice.
 
 **Now and then**, read `SKILL-NOTES.md`. A line that keeps coming back is an edit to a skill: missing → add it, vague → reword it, ignored though clear → enforce it with a test, a lint rule or a type.
 

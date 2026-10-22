@@ -68,13 +68,15 @@ Code can't decide these; the game's designer does, and the answer differs betwee
 - Does anything outside the simulation react to it: another area's rules, a save, a story beat, a checkpoint?
 - If not now, what would make it? Write that down, so promoting it later is a decision, not a surprise.
 
-## In the reference game
+## Examples
 
-From `ecs-ddd-experiment`, where each answer came from the user, not from code:
+From a boss-rush prototype, each answer from the designer, not from code:
 
 | Question | Answer | Recorded as |
 | --- | --- | --- |
-| A bullet in flight hits you after the clear | Nothing hurts after a clear, in this game; if that changes, going down loses the run | R8, and one line in `hurt()` |
-| You and the last boss go down on the same tick | You lose: "if we die, we die" | R9, tested in both orders |
-| Restart after a defeat | From scratch: it's a boss rush | Saves note in the architecture doc |
+| A bullet in flight hits you after the clear | Nothing hurts after a clear; if that changes, going down loses the run | A rules row, and one line where damage is applied |
+| You and the last boss go down on the same tick | You lose: "if we die, we die" | A rules row, tested in both report orders |
+| Restart after a defeat | From scratch: it's a boss rush | A saves note in the architecture doc |
 | Is the boss's phase a rule? | No: only the fight reacts to it | Moved to the simulation |
+| A returning throwing weapon is caught | Asked too late: the agent had already given it a burst of speed | Should have been asked before building; now an experimental row with the question open |
+| Overholding a charged shot | The designer's idea: it fires, but sprays off aim like hip-fire | Replaced the agent's "it overheats" before anyone played it |
