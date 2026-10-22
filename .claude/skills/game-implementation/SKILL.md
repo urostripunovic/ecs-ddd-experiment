@@ -18,7 +18,7 @@ Left alone, an agent's code drifts in predictable ways: one system collects a sp
 Not a batch of seven tests followed by the code: written together, tests share the same blind spot, and one that passes before its code exists hides among the others. If a new test passes at once, it's blind or the behaviour already exists; find out which before going on.
 
 **Tidy before every commit.** Re-read the diff as a reviewer would:
-- Does any module now do more than its one job? (Size is a hint, not the test.)
+- Does any module now do more than its one job? Say it in one sentence (see Splitting). Size is a hint, not the test.
 - Did you write a second `if` on what kind of thing an entity is? That's a missing component (see below).
 - Does any field now have a second writer, or any number a second copy?
 - Is any comment now false, or does any say where or how many?
@@ -59,7 +59,13 @@ ECS rules out one kind of object: per-entity state with its own methods. Everyth
 
 ## Splitting
 
-- **Split when a module loses its single responsibility,** not at a line count. Report how much each file grew in each stage so the drift is visible; the cut follows what the code does.
+- **Split when a module loses its single responsibility,** not at a line count. In ECS a system's one job is one transformation: what it reads and what it writes. Four signals that it has more than one:
+  - it writes components that have nothing to do with each other;
+  - it branches on what kind of thing it's looking at (each branch is a job, usually a missing tag);
+  - it changes for features that have nothing to do with each other (churn);
+  - its tests need setups that share nothing.
+- **Make the signals ask, not fail.** A check counts the kinds of component each module writes and its lines; past a threshold, the module must state its one job in a sentence next to the check. If you can't write the sentence honestly, that's the split. An entry that's no longer needed fails too, so the list can't rot. A threshold that fails outright gets met by cutting at a line number, which is worse than not splitting.
+- **Report each stage:** which files changed, how much each grew, and which files the last few dozen commits keep touching. A file that grows every stage, or that every feature touches, is the one to ask about. A split resets a file's history, so churn means little right after one.
 - **Keep the old module as a re-export,** so importers don't change and the split is one commit with no behaviour change.
 - **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Check the result: a script can strip more than it should, and comments can land on the wrong side of a cut.
 - **Expect the split to reveal sharing:** two parts writing the same field show up once they're separate modules. Route them through one writer.
@@ -84,6 +90,7 @@ An agent working alone optimises for what is checked. Set these up in the first 
 
 | Check | Fails when |
 | --- | --- |
+| Modules state their job | A module writes more than a few kinds of component or runs long, and its one-sentence job isn't listed; or a listed one no longer needs it |
 | Shared writers are listed | A field is written from more than one module without a reason: per-entity writers, set-then-count-down, or a request queue |
 | No kind branches | A system compares against a kind outside its definitions table |
 | No file names in comments | A comment names a source file |

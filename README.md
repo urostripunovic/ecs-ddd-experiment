@@ -45,6 +45,6 @@ src/
   app/         fixed-timestep loop, three.js scene, input, HUD, dev god menu
   structure.test.ts   the checks that keep the code clean
 docs/          ARCHITECTURE.md, GLOSSARY.md, LEARNING.md
-tools/         playtest bot and recorder, mutation runner
+tools/         playtest bot and recorder, mutation runner, stage report
 SKILL-NOTES.md where the skills fell short, and what changed
 ```

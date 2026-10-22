@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint:deps": "depcruise src --config .dependency-cruiser.cjs",
+    "report": "python3 tools/report.py",
     "check": "npm run typecheck && npm test && npm run lint:deps"
   },
   "author": "Uros Tripunovic",

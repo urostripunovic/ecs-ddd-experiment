@@ -18,8 +18,9 @@ This game was built by a designer and an agent working together, as the test bed
 | The tick order as data, shared by the game and the tests | `TICK_ORDER`, `stepper()` | A test can run fewer systems, never a different order or one the game skips |
 | Randomness injected as one stream per job | `streams`, `Random` | A new random draw in one system can't change another's for the same seed |
 | Fairness as property tests from the player's own numbers | src/ecs/bosses/generate.test.ts | 300 seeds, three bodies, five depths; caught three unfair ranges on the first run |
-| A reviewer's eye as tests | src/structure.test.ts | Kind branches, shared writers, file names in comments, hand-built step lists, shared randomness, stale mutations |
+| A reviewer's eye as tests | src/structure.test.ts | Kind branches, shared writers, modules without a stated job, file names in comments, hand-built step lists, shared randomness, stale mutations |
 | Mutations that prove tests can fail | tools/mutations/run.py | Each entry breaks one thing on purpose and expects a test to catch it |
+| Size and churn that ask instead of fail | `ONE_JOB` in src/structure.test.ts, `npm run report` | A module that writes many components or runs long states its one job; the report shows what each stage grew and what keeps changing. Flight had no honest sentence and was split |
 
 ## Mistakes worth learning from
 

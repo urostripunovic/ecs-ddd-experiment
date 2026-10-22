@@ -22,14 +22,14 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 5. **Commits are self-contained**: each builds and passes on its own and says *why*. Split by layer (rules, seam, simulation, app, docs) where each layer stands alone; when a lower layer changes what the next needs, they're one commit. A fix belongs to the commit that introduced the bug: fold it in before pushing. Commit after the tidy step (7).
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
 7. **Tidy, as its own step** (`game-implementation` has the checks and how to split). Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
-   - Does a module now do more than its one job? Split it now, not after the next feature. Size is a hint, not the test.
+   - Does a module now do more than its one job? In ECS a job is one transformation: what it reads and what it writes. It has more than one when it writes components that have nothing to do with each other, branches on what kind of thing it's looking at, changes for features that have nothing to do with each other, or its tests need setups that share nothing. Try saying its job in one sentence; if you can't, split it now, not after the next feature. Size is a hint, not the test.
    - Did you write a second branch on what kind of thing it is (`if (kind === X)`: this item, this enemy, this tile)? That's a missing component: in ECS, which components an entity has is its behaviour.
    - Did a field gain a second writer, or a number get a second copy?
    - Is any comment now false? Comments say why; where things live and who writes them belongs in tests.
    - Did you take a shortcut you're keeping? Say so in the report instead of leaving it to be found.
 
    The tests and the structure checks must pass before and after, unchanged: a tidy pass changes shape, never behaviour. A few minutes a stage is cheap; the same cleanup after five features is a session, and by then it's late.
-8. **Compare** the prediction with what changed, and explain each miss. Show each new test's failing line from step 4, and how much each file you touched grew. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. A file outgrowing its one job is friction too: say so, and split it before building on it. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
+8. **Compare** the prediction with what changed, and explain each miss. Show each new test's failing line from step 4, and how much each file you touched grew (a stage report script prints it, with which files keep changing across recent commits). Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. A file outgrowing its one job is friction too: say so, and split it before building on it. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
 
@@ -130,8 +130,8 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - [ ] New state passed "what reacts?", with a declared lifetime and units at its edges.
 - [ ] Open design questions were asked, and the answers are in the examples table.
 - [ ] Invariants listed, each with a test that failed first.
-- [ ] Every request answered in every state; no field with two writers.
-- [ ] One commit per layer; lint passes; playtested with frames.
+- [ ] Every request answered in every state; every shared writer listed with a sound reason.
+- [ ] Commits by layer where each stands alone; lint passes; playtested with frames.
 
 ## Not covered yet
 
