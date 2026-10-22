@@ -9,7 +9,8 @@
 3. Set up a boundary lint from the first commit (for TypeScript, dependency-cruiser rules: rules import nothing, the simulation imports neither the rules nor the seam). The skills assume one exists.
 4. Bring or write a playtest bot and recorder early: a bot that plays through the real input path, and a recorder that steps the game on a fake clock and saves frames. The gate to tickets requires one in the repo.
 5. Create an empty `SKILL-NOTES.md` for incidents where the skills fell short.
-6. After the first feature exists, run `/game-checks-setup` by name. It writes the structure checks for this game's code and language, and breaks each once to prove it works.
+6. Create `CODING_STANDARDS.md` with one line pointing the reviewer at `.claude/skills/rules-and-simulation/review.md`. Rules a reviewer applies live there, not in what loads while building.
+7. After the first feature exists, run `/game-checks-setup` by name. It writes the structure checks for this game's code and language, and breaks each once to prove it works.
 
 **While prototyping**, just ask for features in plain words. `rules-and-simulation`, `game-design-interview` and `game-implementation` load on their own:
 
@@ -23,7 +24,7 @@ The prototype loop is the main use. Stay in it until the game is worth building 
 
 **Later: when the prototype is worth building on**, run `/game-to-tickets` by name: "Cut tickets for three more arenas and a second boss." It checks the gate first and stops if the base isn't ready.
 
-**Later: in production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review` and the checklist at the end of `rules-and-simulation`. Each ticket's footprint is its blast radius: tickets with no blocking edge and no overlapping files can run side by side in separate git worktrees.
+**Later: in production**, hand each ticket to a fresh session ("Implement ticket 03", with Matt Pocock's `implement` if you use it), then review with `code-review`, which reads `review.md` through `CODING_STANDARDS.md`. Each ticket's footprint is its blast radius: tickets with no blocking edge and no overlapping files can run side by side in separate git worktrees.
 
 **How the skills improve: build a game with them.** The designer decides how the game feels; the agent builds it and says where the skills fell short. Each session's misses go in the game's `SKILL-NOTES.md`, and the next session (in that game or the next one) starts by folding them into the skills, as examples where an example helps. The skills should be wrong in new ways each time, not the same way twice.
 
@@ -39,7 +40,7 @@ Skills for games built as a simulation (ECS) plus a thin rules module. They plug
 | 2. Vertical slice | One piece complete; the base worth keeping | the same two | The playtest bot in the repo; open items decided |
 | 3. Gate and tickets | Cut the rest into pieces | `game-to-tickets` (gameplay), `to-tickets` (everything else) | Tickets that point at rows, never restate them |
 | 4. Production | One ticket per session | `implement` + `tdd`, following `rules-and-simulation` and `game-implementation`; `game-design-interview` when a trigger comes up | Features, new examples rows, decisions |
-| 5. Review | Before merge | `code-review`, plus `rules-and-simulation`'s checklist | |
+| 5. Review | Before merge | `code-review`, reading `rules-and-simulation`'s `review.md` through `CODING_STANDARDS.md` | |
 
 The loop: playtests and surprises go back to the interview (a decision), to `game-to-tickets` (a follow-up), or to the skills themselves.
 
@@ -54,7 +55,7 @@ There's no prototype modelling phase: the prototype is the model (examples table
 
 | Area | Model | Tickets | Build | Review |
 | --- | --- | --- | --- | --- |
-| Simulation and small rules areas | the prototype itself | `game-to-tickets` | `implement` + `tdd`, following `rules-and-simulation` | `code-review` + our checklist |
+| Simulation and small rules areas | the prototype itself | `game-to-tickets` | `implement` + `tdd`, following `rules-and-simulation` | `code-review` + `review.md` |
 | A rules area that outgrew a page | `ddd-modelling` | `ddd-to-tickets` | `ddd-implementation` | `ddd-review-all` |
 | Menus, settings, builds | none | `to-tickets` | `implement` | `code-review` |
 

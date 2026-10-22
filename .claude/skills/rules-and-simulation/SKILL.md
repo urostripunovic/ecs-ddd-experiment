@@ -108,26 +108,14 @@ The docs are part of the contract, so a **drift test** checks them against the c
 
 ## Where this goes wrong
 
-- **Growth goes unremarked.** A module that collects every new feature (every item's or enemy's special case, a renderer that draws everything) stops having one job long before anyone notices. "Is this the X?" branches are the tell, and checks for them (no comparing against a kind outside its definitions, one writer per field, no comment naming a file) turn a reviewer's eye into a test. Report how much each file grew per stage, so the drift is visible.
-
 - **Describing behaviour from memory.** Before changing an effect, find what causes it and the test that pins it. No test? Write it first.
 - **Relative rules need relative tests** (a share of max hp, not a fixed number), and a test counts only what it means (*my* bullet, not every bullet).
 - **The bot is code too.** When a playtest goes badly, check the bot before tuning the game.
 - **A dev tool that throws can stop the game loop.** Guard it so a bug in the tool can't freeze the game it inspects.
 
-## Review checklist
+## Review
 
-- [ ] Prediction before, comparison after.
-- [ ] Proper TDD: one test at a time, each seen failing on its assertion.
-- [ ] A tidy pass before the commit: no module past its job, no second kind branch, no unlisted second writer, no comment naming where things live.
-- [ ] Every commit builds and passes alone; fixes folded into the commit they fix.
-- [ ] New state passed "what reacts?", with a declared lifetime and units at its edges.
-- [ ] Open design questions were asked, and the answers are in the examples table.
-- [ ] Invariants listed, each with a test that failed first.
-- [ ] Every request answered in every state; every shared writer listed with a sound reason.
-- [ ] Every name crossing the seam goes through its vocabulary's table: no hand-written reverse list, no conditional turning a number into a name, and the agreement test covers any new vocabulary.
-- [ ] The seam only maps: no outcome decided there, any new value both sides hold is in the state check, with one live owner at a time.
-- [ ] Commits by layer where each stands alone; lint passes; playtested with frames.
+Reviewing a change belongs to the reviewer, who has the diff and room to spare: `review.md` next to this skill is what to look for. A game points its reviewer there from `CODING_STANDARDS.md`. While building, the tidy step (7) is your own review.
 
 ## Not covered yet
 
