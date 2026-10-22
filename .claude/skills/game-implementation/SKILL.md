@@ -64,10 +64,11 @@ ECS rules out one kind of object: per-entity state with its own methods. Everyth
   - it branches on what kind of thing it's looking at (each branch is a job, usually a missing tag);
   - it changes for features that have nothing to do with each other (churn);
   - its tests need setups that share nothing.
+- **An "or" in the sentence is the split asking:** "a throw, a spin, or the special shot" is three jobs agreeing to share a file. Fine for now; say so in the report.
 - **Make the signals ask, not fail.** A check counts the kinds of component each module writes and its lines; past a threshold, the module must state its one job in a sentence next to the check. If you can't write the sentence honestly, that's the split. An entry that's no longer needed fails too, so the list can't rot. A threshold that fails outright gets met by cutting at a line number, which is worse than not splitting.
 - **Report each stage:** which files changed, how much each grew, and which files the last few dozen commits keep touching. A file that grows every stage, or that every feature touches, is the one to ask about. A split resets a file's history, so churn means little right after one.
 - **Keep the old module as a re-export,** so importers don't change and the split is one commit with no behaviour change.
-- **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Check the result: a script can strip more than it should, and comments can land on the wrong side of a cut.
+- **Split mechanically,** with a script that moves whole declarations, then let the compiler list what's unused. Read the diff every time, and check its size against what you meant: a script can strip more than it should, glue a comment onto the wrong line, or rewrite a whole data file to change seven lines.
 - **Expect the split to reveal sharing:** two parts writing the same field show up once they're separate modules. Route them through one writer.
 - **Rerun the slow checks after a refactor** (mutations, long property runs). A moved function turns a mutation into a silent skip.
 
@@ -103,7 +104,9 @@ Scan the source as text from inside the test runner, so the checks run with ever
 
 ## Design questions mid-feature
 
-Stop and ask (`game-design-interview`); don't settle them in code. Watch for the ones that look like implementation details: how often a new item turns up, a bonus for using something well, what happens when a mechanic is misused or overused. If the designer is away, build the smallest version, mark it experimental, and put the question at the top of the merge request.
+Stop and ask (`game-design-interview`); don't settle them in code.
+
+The other way round too: **a suggestion from the designer is a proposal, not an instruction.** Check it against how established engines and practice handle the same problem, then say whether you agree and where you'd differ, before writing it into a rule. Adopting it silently looks helpful and isn't; it's how a rule ends up stricter than anyone meant. Watch for the ones that look like implementation details: how often a new item turns up, a bonus for using something well, what happens when a mechanic is misused or overused. If the designer is away, build the smallest version, mark it experimental, and put the question at the top of the merge request.
 
 ## Working cheaply
 

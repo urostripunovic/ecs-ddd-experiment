@@ -45,7 +45,7 @@ Every note above, and where it ended up. The designer's feedback changed three o
 | Tests written after the code, or in a batch | Proper TDD, one behaviour at a time, each test seen failing on its assertion (game-implementation, rules-and-simulation step 4) |
 | Files grew past 700 lines | Split when a module loses its single job, not at a line count; report growth per stage. The 300-line check is gone: a count was the wrong test (designer's call) |
 | Kind branches in every weapon system | The second `if` on a kind is a missing component: in ECS, which components an entity has is its behaviour (designer: "isn't the point of ECS that data is behaviour?") |
-| Second writers crept in | Exactly one writer per field; everyone else sends a request to a queue the owner drains and validates (designer: one writer, a validating queue, not three actors) |
+| Second writers crept in | One writer per field per entity, in a known tick order; set-then-count-down is fine; where several sources combine on one entity, requests to a queue one system applies with an explicit policy. First written as "exactly one writer, always a queue", taken from the designer's suggestion without checking it against practice; corrected after he asked whether I agreed |
 | Fixes three commits after the bug; commits that don't build alone | Commits are self-contained; a fix is folded into the commit that caused it before pushing (designer). Could become its own skill |
 | A system the tick never ran | One tick order, shared with tests (already folded) |
 | Shared random generator | One injected stream per job (already folded) |
@@ -59,3 +59,34 @@ Every note above, and where it ended up. The designer's feedback changed three o
 | The skills named this repo | Skills stand alone, with generic examples; this repo is linked only by choice (docs/LEARNING.md) |
 
 Not folded, on purpose: anything only true of this game (weapon names, the hammer, pillars), which stays in this repo's docs.
+
+## Retro, 2026-10-22: what went wrong, and what was hard
+
+Over Stage B, Stage C, the cleanup and the flight split. Most of what went wrong has one root: "done" meant "it works and the tests pass", and nothing else was checked while I worked alone.
+
+**What went wrong**
+
+- **Code first, tests after, in batches.** Three tests passed for the wrong reason (a baseline that forgot the charge ticks, "idle" as proof of a stun, a burn system every test ran and the game never did). None was seen failing first.
+- **Drift nobody looked at:** files past 700 lines, a branch per weapon in four systems, fields with second writers, comments naming files that had moved. Each diff looked fine; the whole didn't.
+- **Commits that didn't build alone, and fixes three commits after their bug.**
+- **Design choices made alone** that the designer would feel: how often specials turn up, what overspinning does. He had to catch them.
+- **Agreeing too fast.** I wrote the designer's "one writer, always a queue" and "no line limit" into the rules without checking them against how engines do it, and had to correct the writer rule a commit later. Taking a suggestion as an instruction isn't helping him; he asked for judgement.
+- **Mechanical scripts that weren't checked.** A pruner deleted function names (`type type`); this stage, a split script glued one tag's comment onto the next tag's line, and a JSON rewrite reformatted all 1,448 lines of the mutation list for a seven-line change. Each was caught by reading the diff, but only because I did that time.
+- **The mutation list rotted** through splits: 28 entries silently skipped.
+- **Half a fix this stage too.** The returning throw became a tag and a system; the smash, in the same split, is still chosen by a definition field. It's in the known debt, but it's the same pattern I just wrote the rule against.
+
+**What was hard**
+
+- **Knowing when a module had lost its one job.** A line count was the only signal I had, and it was the wrong one. What worked this stage: count what a module writes, and make it state its job in a sentence. Flight couldn't ("sticks, smashes, or flies home and gets caught"); the other three could. Throwing's sentence has an "or" in it ("a throw, a spin, or the Final shot"), which is the split asking quietly.
+- **The check is crude.** It counts direct writes by regex, so writes through a helper (`hurt`, `pushPillar`) count only where the helper lives. It's a prompt to look, not a measure.
+- **Churn says little yet.** The splits reset every file's history, so the report's churn table is near flat. It becomes useful after a few features on the new shape.
+- **Disagreeing with the designer.** Knowing when his idea is the better one (data is behaviour, self-contained commits) and when it needs a counter-proposal (one writer per entity, not per field) took his asking twice.
+- **Keeping skills generic** while the lessons came from one game: an example has to teach the mistake without pointing at the hammer.
+- **Test fidelity in a shared world.** Tests share one world and the random streams; a test passing alone and failing in a suite was state leaking, not a flaky test.
+- **A long session.** Context ran out and was summarised; the work continued from a pending list, and nuance from earlier (why a choice was made) is where that costs most.
+
+**What changes**
+
+- game-implementation: an "or" in a module's one-job sentence is a split asking; a designer's suggestion is a proposal to check against practice and answer with agree or disagree, before it becomes a rule; a scripted edit's diff is read every time, and the diff's size checked against what was meant.
+- Next in this repo: the smash and the spin become tags and systems, like the returning throw.
+
