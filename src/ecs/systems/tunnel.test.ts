@@ -9,7 +9,8 @@ import { resetWorld, world, type EntityId } from '../core/world';
 import { spawnPlayer } from '../prefabs';
 import { bodyCollisionSystem } from './collision';
 import { inputSystem, movementSystem } from './motion';
-import { DoorNumber, tunnelSystem } from './tunnel';
+import { DoorNumber } from './tunnel';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 let player: EntityId;
@@ -22,14 +23,11 @@ function walkNorthAt(x: number): { z: number; doors: number[] } {
   PlayerInput.moveX = 0;
   PlayerInput.moveZ = -1;
   const doors: number[] = [];
+  const walk = stepper(['inputSystem', 'movementSystem', 'bodyCollisionSystem', 'tunnelSystem']);
   for (let i = 0; i < 300; i++) {
-    inputSystem();
-    movementSystem(DT);
-    bodyCollisionSystem();
-    tunnelSystem();
+    walk();
     for (let j = 0; j < outbox.count; j++) if (outbox.slots[j].kind === 'TunnelEntered') doors.push(outbox.slots[j].value);
     clearOutbox();
-    world.tick++;
   }
   return { z: Transform.z[player], doors };
 }

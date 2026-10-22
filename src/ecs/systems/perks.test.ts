@@ -8,36 +8,22 @@ import {
 import { RunViewWritable } from '../components/run-view';
 import { buf } from '../core/buffers';
 import { seedRng } from '../core/rng';
-import { hp, inSeconds, inTicks, seconds, ticks } from '../core/units';
+import { hp, inTicks, seconds } from '../core/units';
 import { has, query, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPerk, spawnPlayer, spawnWeapon } from '../prefabs';
 import { CHARGE_MAX_TICKS } from '../weapons/charge';
 import { WEAPONS, WeaponKind } from '../weapons/defs';
-import { bodyCollisionSystem } from './collision';
-import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import {
   addPerk, FINAL_SHOT_BLOWUP_DMG, hasPerk, LOW_HP, Perk, perkDropSystem, perkSlots, PERK_DMG_MUL, PERK_SPEED_MUL, setPerks,
 } from './perks';
 import { dmgMul, speedMul } from './status';
 import {
-  attackSystem, durabilitySystem, equip, flightSystem, heldFollowSystem, heldItem, pickupSystem, throwSystem,
+  equip, heldItem, 
 } from './weapons';
+import { stepper } from '../tick-order';
 
-const DT = inSeconds(ticks(1));
 
-function step(): void {
-  snapshotSystem();
-  inputSystem();
-  movementSystem(DT);
-  bodyCollisionSystem();
-  heldFollowSystem();
-  throwSystem();
-  attackSystem(DT);
-  flightSystem();
-  pickupSystem();
-  durabilitySystem(DT);
-  world.tick++;
-}
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'durabilitySystem']);
 
 function throwAfter(holdTicks: number): void {
   PlayerInput.throwHeld = true;

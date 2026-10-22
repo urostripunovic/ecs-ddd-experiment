@@ -7,10 +7,9 @@ import { RunViewWritable } from '../components/run-view';
 import { after, inSeconds, meters, ticks } from '../core/units';
 import { add, has, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnOrbitingPillar, spawnPlayer } from '../prefabs';
-import { bodyCollisionSystem } from './collision';
 import { startCutscene } from './cutscene';
-import { movementSystem } from './motion';
-import { orbitSystem, SPIKE_COOLDOWN, SPIKE_DMG, SPIKED_SPEED, spikeGrowthSystem, spikeSystem } from './pillars';
+import { SPIKE_COOLDOWN, SPIKE_DMG, SPIKED_SPEED, spikeGrowthSystem } from './pillars';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 const ORBIT = { radius: meters(9), angle: 0, speed: 0.5 };
@@ -19,12 +18,7 @@ let pillar: EntityId;
 let player: EntityId;
 let boss: EntityId;
 
-function step(): void {
-  orbitSystem(DT);
-  spikeGrowthSystem();
-  spikeSystem();
-  world.tick++;
-}
+const step = stepper(['orbitSystem', 'spikeGrowthSystem', 'spikeSystem']);
 
 // Puts the player against the pillar's surface, on the side away from the orbit centre.
 function touching(): void {
@@ -63,15 +57,13 @@ describe('orbiting pillars', () => {
     Transform.x[player] = 9 * Math.cos(0.3);
     Transform.z[player] = 9 * Math.sin(0.3);
     let deepest = 0;
+    const turn = stepper(['orbitSystem', 'movementSystem', 'bodyCollisionSystem']);
     for (let i = 0; i < 60 * 13; i++) {
-      orbitSystem(DT);
-      movementSystem(DT);
-      bodyCollisionSystem();
+      turn();
       const d = Math.hypot(Transform.x[player] - Transform.x[pillar], Transform.z[player] - Transform.z[pillar]);
       deepest = Math.max(deepest, Collider.radius[pillar] + Collider.radius[player] - d);
       expect(Math.abs(Transform.x[player])).toBeLessThanOrEqual(20);
       expect(Math.abs(Transform.z[player])).toBeLessThanOrEqual(20);
-      world.tick++;
     }
     expect(deepest).toBeLessThan(0.01);
   });

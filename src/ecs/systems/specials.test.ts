@@ -18,35 +18,18 @@ import {
   BURN_TICKS, CATCH_HASTE_TICKS, DIZZY_TICKS, RAIL_BLOOM_MAX, SPECIALS, SMASH_RADIUS, SPIN_DMG_SHARE, SPIN_HIT_TICKS, WEAPONS, WeaponKind,
 } from '../weapons/defs';
 import { ChargeZone, railBloom, spinThrow } from '../weapons/charge';
-import { bodyCollisionSystem } from './collision';
-import { burnSystem, tracerSystem } from './specials';
-import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import { hasted } from './status';
 import {
-  attackSystem, durabilitySystem, equip, flightSystem, heldFollowSystem, heldItem, pickupSystem, stockSystem,
-  stuckFollowSystem, throwSystem,
+  attackSystem, equip, heldItem, stockSystem,
+  
 } from './weapons';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 const PERFECT_TICKS = 44;
 const PERFECT = throwCharge(PERFECT_TICKS / CHARGE_MAX_TICKS);
 
-function step(): void {
-  snapshotSystem();
-  inputSystem();
-  movementSystem(DT);
-  bodyCollisionSystem();
-  heldFollowSystem();
-  stuckFollowSystem();
-  throwSystem();
-  attackSystem(DT);
-  flightSystem();
-  pickupSystem();
-  burnSystem();
-  durabilitySystem(DT);
-  tracerSystem();
-  world.tick++;
-}
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'burnSystem', 'durabilitySystem', 'tracerSystem']);
 
 function throwAfter(holdTicks: number): void {
   PlayerInput.throwHeld = true;

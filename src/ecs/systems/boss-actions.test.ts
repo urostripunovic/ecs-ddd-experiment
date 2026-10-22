@@ -13,11 +13,10 @@ import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs
 import { Action, chainGap, DEFAULT_GAP, paceGap, ROAR_HOLD, ROAR_REAR, type ActionKind } from './boss-actions';
 import { controlsLocked } from './cutscene';
 import { hurt } from './damage';
-import { bossPhaseSystem, bossThresholdSystem, resetScripts, slamSystem } from './boss';
+import { bossThresholdSystem, resetScripts } from './boss';
 import { outbox } from '../core/outbox';
-import { bodyCollisionSystem, projectileCollisionSystem } from './collision';
 import { projectileSystem } from './combat';
-import { movementSystem, snapshotSystem } from './motion';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 type Chain = { from: ActionKind; to: ActionKind; gap: number };
@@ -37,6 +36,8 @@ function arena(phase: number, def: BossDef = WARDEN): void {
   Pressure.evadeReadyAt[b] = 1e9; // evading is tested on its own below
 }
 
+const fight = stepper(['snapshotSystem', 'bossPhaseSystem', 'movementSystem', 'bodyCollisionSystem', 'projectileCollisionSystem', 'slamSystem']);
+
 // Runs the boss for a while, recording every action start and every tick spent airborne.
 function run(ticks: number, playerKeepsAway: boolean) {
   const chains: Chain[] = [];
@@ -49,13 +50,8 @@ function run(ticks: number, playerKeepsAway: boolean) {
       Transform.z[p] = Transform.z[b] > 5 ? Transform.z[b] - 10 : Transform.z[b] + 10;
     }
     const shotsBefore = query(buf, C.Projectile);
-    snapshotSystem();
-    bossPhaseSystem();
-    movementSystem(DT);
-    bodyCollisionSystem();
-    // Bullets leave at the walls, as in the game; without it a long run fills every slot.
-    projectileCollisionSystem();
-    slamSystem();
+    // Bullets leave at the walls (projectileCollisionSystem), as in the game; without it a long run fills every slot.
+    fight();
     if (has(b, C.Airborne) && query(buf, C.Projectile) > shotsBefore) shotsWhileAirborne++;
     if (BossAction.kind[b] !== Action.Idle && BossAction.startedAt[b] !== lastStart) {
       lastStart = BossAction.startedAt[b];
@@ -67,7 +63,6 @@ function run(ticks: number, playerKeepsAway: boolean) {
         });
       }
     }
-    world.tick++;
   }
   return { chains, shotsWhileAirborne };
 }

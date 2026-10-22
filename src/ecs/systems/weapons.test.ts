@@ -14,13 +14,12 @@ import { spawnBoss, spawnPillar, spawnPlayer, spawnWeapon } from '../prefabs';
 import { CHARGE_MAX_TICKS, ChargeZone, throwCharge } from '../weapons/charge';
 import { HASTE_MUL, RESPAWN_TICKS, WEAPONS, WeaponKind, weaponLevelFor } from '../weapons/defs';
 import { addPerk, Perk } from './perks';
-import { bodyCollisionSystem } from './collision';
-import { inputSystem, movementSystem, snapshotSystem } from './motion';
 import { speedMul } from './status';
 import {
-  attackSystem, dropSystem, durabilitySystem, equip, flightSystem, giveWeapon, heldFollowSystem, heldItem, pickupSystem,
-  releaseStuck, stockSystem, stuckFollowSystem, throwSystem,
+  attackSystem, dropSystem, durabilitySystem, equip, giveWeapon, heldItem, 
+  releaseStuck, stockSystem, stuckFollowSystem, 
 } from './weapons';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 const boss = (hitPoints: number) => ({ ...WARDEN, hp: hp(hitPoints) });
@@ -38,20 +37,7 @@ function throwAfter(holdTicks: number): void {
 }
 
 // The weapon slice of the real tick order, without the boss's choreography.
-function step(): void {
-  snapshotSystem();
-  inputSystem();
-  movementSystem(DT);
-  bodyCollisionSystem();
-  heldFollowSystem();
-  stuckFollowSystem();
-  throwSystem();
-  attackSystem(DT);
-  flightSystem();
-  pickupSystem();
-  durabilitySystem(DT);
-  world.tick++;
-}
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'durabilitySystem']);
 
 let p: EntityId;
 let b: EntityId;

@@ -13,11 +13,10 @@ import { BODY_DEFS, type BossDef } from '../bosses/defs';
 import { Body, planFor, type BodyKind } from '../bosses/generate';
 import { spawnBoss, spawnPillar, spawnPlayer, spawnProjectile } from '../prefabs';
 import { Action, chainGap, paceGap, type ActionKind } from './boss-actions';
-import { bossPhaseSystem, bossThresholdSystem, resetScripts, slamSystem } from './boss';
-import { bodyCollisionSystem, projectileCollisionSystem } from './collision';
-import { projectileSystem } from './combat';
-import { hazardSystem, homingSystem } from './hazards';
-import { movementSystem, PLAYER_SPEED, snapshotSystem } from './motion';
+import { bossThresholdSystem, resetScripts } from './boss';
+import { homingSystem } from './hazards';
+import { PLAYER_SPEED } from './motion';
+import { stepper } from '../tick-order';
 
 const DT = inSeconds(ticks(1));
 let p: EntityId;
@@ -37,18 +36,7 @@ function hall(layout: ArenaLayout, kit: number, depth: number, phase = 1, def?: 
   Pressure.evadeReadyAt[b] = 1e9;
 }
 
-function step(): void {
-  snapshotSystem();
-  bossPhaseSystem();
-  homingSystem();
-  movementSystem(DT);
-  bodyCollisionSystem();
-  projectileCollisionSystem();
-  projectileSystem(DT);
-  slamSystem();
-  hazardSystem();
-  world.tick++;
-}
+const step = stepper(['snapshotSystem', 'bossPhaseSystem', 'homingSystem', 'movementSystem', 'bodyCollisionSystem', 'projectileCollisionSystem', 'projectileSystem', 'slamSystem', 'hazardSystem']);
 
 // Runs until the boss starts this action, or gives up.
 function untilAction(kind: ActionKind, most = 6000): boolean {

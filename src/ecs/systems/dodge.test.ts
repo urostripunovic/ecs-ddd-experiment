@@ -5,25 +5,20 @@ import { WARDEN } from '../bosses/defs';
 import {
   C, Cutscene, Health, PlayerInput, resetRunState, RunStatus, Slam, Slowed, Transform, Velocity,
 } from '../components';
-import { hp, inSeconds, ticks } from '../core/units';
+import { hp, inSeconds } from '../core/units';
 import { add, resetWorld, world, type EntityId } from '../core/world';
 import { spawnBoss, spawnPillar, spawnPlayer } from '../prefabs';
 import { slamSystem } from './boss';
-import { bodyCollisionSystem } from './collision';
-import { DODGE_COOLDOWN, DODGE_TICKS, inputSystem, movementSystem, PLAYER_SPEED } from './motion';
+import { DODGE_COOLDOWN, DODGE_TICKS, PLAYER_SPEED } from './motion';
 import { slowed } from './status';
+import { stepper } from '../tick-order';
 
-const DT = inSeconds(ticks(1));
 let p: EntityId;
 let b: EntityId;
 
+const tick = stepper(['inputSystem', 'movementSystem', 'bodyCollisionSystem']);
 function step(n = 1): void {
-  for (let i = 0; i < n; i++) {
-    inputSystem();
-    movementSystem(DT);
-    bodyCollisionSystem();
-    world.tick++;
-  }
+  for (let i = 0; i < n; i++) tick();
 }
 
 const dodge = () => { PlayerInput.dodgePresses++; };
