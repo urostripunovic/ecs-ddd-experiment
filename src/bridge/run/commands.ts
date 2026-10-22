@@ -1,23 +1,22 @@
 import type { BossEvent } from '../../domain/boss/boss';
-import { carriedWeapon, loadoutOf, type Door, type Loadout, type PerkName, type RunCommand } from '../../domain/run/run';
+import { carriedWeapon, loadoutOf, type Loadout, type PerkName, type RunCommand } from '../../domain/run/run';
 import { assertNever, type Tick } from '../../domain/shared/types';
 import { Ammo, C, Durability, Health, Item, Wielder } from '../../ecs/components';
 import type { OutboxSlot } from '../../ecs/core/outbox';
 import { handleAt, has, indexOf, isLive, type EntityId } from '../../ecs/core/world';
-import { DoorNumber } from '../../ecs/systems/tunnel';
 import { PLAYER_ID } from '../ids';
 import { idMap } from '../id-map';
 import { perkSlots } from '../../ecs/systems/perks';
 import { armorPlates } from '../../ecs/systems/armor';
-import { KIND_NAME, PERK_NAME } from './loadout';
+import { doorNameOf, kindNameOf, perkNameOf } from './loadout';
 
 // What the player has on them, in the run's terms. Read on the tick the sensor
 // fired, before anything else can change it. This is where simulation numbers
 // enter the rules, so they go through the run's own constructors.
 function snapshotLoadout(p: EntityId): Loadout {
-  const perks = perkSlots(p).map((k) => PERK_NAME[k]).filter((name): name is PerkName => name !== null);
+  const perks = perkSlots(p).map(perkNameOf).filter((name): name is PerkName => name !== null);
   const h = handleAt(Wielder.held, p);
-  const kind = isLive(h) ? KIND_NAME[Item.kind[indexOf(h)]] : null;
+  const kind = isLive(h) ? kindNameOf(Item.kind[indexOf(h)]) : null;
   const armor = armorPlates(p);
   if (!kind) return loadoutOf(Health.hp[p], null, perks, armor);
   const w = indexOf(h);
@@ -39,8 +38,7 @@ export function toRunCommand(slot: OutboxSlot): RunCommand | null {
   switch (slot.kind) {
     case 'EntityDowned': return { kind: 'PlayerDowned', player: ref.id, tick };
     case 'TunnelEntered': {
-      const door: Door = slot.value === DoorNumber.Final ? 'final' : 'onward';
-      return { kind: 'TunnelEntered', player: ref.id, door, loadout: snapshotLoadout(indexOf(slot.subject)), tick };
+      return { kind: 'TunnelEntered', player: ref.id, door: doorNameOf(slot.value), loadout: snapshotLoadout(indexOf(slot.subject)), tick };
     }
     case 'RewardTouched': return { kind: 'RewardChosen', player: ref.id, option: slot.value, tick };
     default: return assertNever(slot.kind);
