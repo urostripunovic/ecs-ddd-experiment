@@ -45,6 +45,7 @@ The loop: playtests and surprises go back to the interview (a decision), to `gam
 - **`rules-and-simulation`**: the mechanics, true for any game built this way. Where state lives, the rules, the simulation, the seam, the test levels.
 - **`game-design-interview`**: the decisions that differ per game, asked when a change touches them and recorded in the examples tables.
 - **`game-implementation`**: writing the code itself: red with proof, green fast, then a tidy step before the commit; the structure checks that make a reviewer's eye automatic; how to split, when objects or injection help, and per-language cards. Works with Matt Pocock's `implement` and `tdd`.
+- **`self-contained-commits`**: not about games; how every commit here is made. One thing per commit, each builds and passes alone, fixes folded into the commit that caused them, and every edit checked by its diff's size before its contents.
 - **`game-to-tickets`**: the gate, then tickets with decisions, footprint, invariants and a playtest criterion. Run it by name, not automatically.
 
 There's no prototype modelling phase: the prototype is the model (examples tables, glossary, architecture doc). Only a rules area that outgrows a page, or touches money, trades or long-lived saves, gets the ddd-skill kit: `ddd-modelling` (its examples table becomes the model's Examples), then `ddd-to-tickets`, `ddd-implementation` and `ddd-review-all` for that area alone. The simulation never goes through it.
