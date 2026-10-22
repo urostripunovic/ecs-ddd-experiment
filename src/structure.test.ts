@@ -14,7 +14,28 @@ const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts
 // Tests count too: a test file you can't scan is where a broken case hides.
 const MAX_LINES = 300;
 
+const mutations = Object.values(import.meta.glob<{ default: { name: string; file: string; find: string; tests: string[] }[] }>(
+  '../tools/mutations/mutations.json', { eager: true },
+))[0].default;
+const anyFile = import.meta.glob<string>('./**/*.ts', { query: '?raw', import: 'default', eager: true });
+
 describe('structure', () => {
+  // A mutation whose text is gone (the code moved, or changed shape) is skipped,
+  // and a mutation whose tests moved is "missed": both happened after a split,
+  // unnoticed, because the mutation run is too slow for every check. This part is fast.
+  it('every mutation still finds its text once, and its tests exist', () => {
+    const stale = mutations.flatMap((m) => {
+      const source = anyFile[`./${m.file.replace(/^src\//, '')}`];
+      const problems: string[] = [];
+      if (source === undefined) problems.push(`${m.name}: no file ${m.file}`);
+      else if (source.split(m.find).length !== 2) problems.push(`${m.name}: its text is not in ${m.file} exactly once`);
+      for (const test of m.tests) if (anyFile[`./${test.replace(/^src\//, '')}`] === undefined) problems.push(`${m.name}: no test file ${test}`);
+      return problems;
+    });
+    expect(mutations.length).toBeGreaterThan(50);
+    expect(stale).toEqual([]);
+  });
+
   // Randomness is injected: a system takes the stream it draws from as a
   // parameter, and only the tick order (the composition root) and the run's
   // start pick which stream that is. A system reaching for a shared source
@@ -103,6 +124,7 @@ describe('structure', () => {
     'Thrown.leg': 'set at the release, turned by the chakram in flight',
     'Thrown.lastHit': 'cleared at the release, kept by the chakram in flight',
     'Buffs.hasteUntil': 'a haste pickup and a caught chakram; each only pushes the deadline later',
+    'Dizzy.until': 'a hammer breaking mid-spin, and one spun too long; each sets a fresh deadline',
   };
 
   it('every field written by more than one module is listed, with its reason', () => {
