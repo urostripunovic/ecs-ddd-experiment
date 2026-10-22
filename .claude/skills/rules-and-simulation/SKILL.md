@@ -18,10 +18,18 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 1. **Read the code you'll touch, then predict the footprint**: the files per layer (rules, seam, simulation, app, docs) and the existing tests you expect to break. A guess made before reading is a worse number; say so if you give one.
 2. **List the invariants the change touches**, checked against the code, each with a test. They follow the design: when it changes, change the invariant and its test on purpose.
 3. **Ask what the change leaves open.** If it touches a trigger in `game-design-interview`, ask those questions before building.
-4. **Write the failing test first**, and check it fails for the right reason: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 7: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
-5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*.
+4. **Write the failing test first**, and check it fails for the right reason: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 8: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
+5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*. Commit after the tidy step (7), not before it.
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
-7. **Compare** the prediction with what changed, and explain each miss. Show each new test's failing line from step 4, and how much each file you touched grew. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. A file outgrowing its one job is friction too: say so, and split it before building on it. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
+7. **Tidy, as its own step.** Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
+   - Did a file grow past its one job? Split it now, not after the next feature.
+   - Did you branch on a kind ("is this the hammer?") where a field on its definition would do?
+   - Did a field gain a second writer, or a number get a second copy?
+   - Is any comment now false? Comments say why; where things live and who writes them belongs in tests.
+   - Did you take a shortcut you're keeping? Say so in the report instead of leaving it to be found.
+
+   The tests and the structure checks must pass before and after, unchanged: a tidy pass changes shape, never behaviour. A few minutes a stage is cheap; the same cleanup after five features is a session, and by then it's late.
+8. **Compare** the prediction with what changed, and explain each miss. Show each new test's failing line from step 4, and how much each file you touched grew. Then say what was harder than it should have been and why (the architecture, the tooling, or this skill), and any choice you made that nobody asked for. A file outgrowing its one job is friction too: say so, and split it before building on it. Friction is how you learn whether the structure helps or costs; left unsaid, no retro can find it.
 
 ### With a ticket
 
@@ -115,6 +123,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 ## Review checklist
 
 - [ ] Prediction before, comparison after.
+- [ ] A tidy pass before the commit: no file past its job, no kind branches, no unlisted second writers, no comment naming where things live.
 - [ ] New state passed "what reacts?", with a declared lifetime and units at its edges.
 - [ ] Open design questions were asked, and the answers are in the examples table.
 - [ ] Invariants listed, each with a test that failed first.

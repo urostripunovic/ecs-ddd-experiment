@@ -16,3 +16,8 @@ edit to a skill, a test, a lint rule or a type (see `.claude/skills/README.md`).
 
 - **Splitting by file made hidden sharing visible.** Once `weapons.ts` became seven modules, the writers check found fields written from two places that one big file had hidden: the throw sets `Thrown` and flight changes it; the hand was emptied in two places. Some are listed with reasons now; the hand goes through `emptyHand`, and an action's windup through `begin()`.
 - **Option, not done: dependency injection** for randomness and for the boss scripts' view of the world. Today every system reads module-level singletons, which is why tests reset the world and why one new random call shifts every later drop for a seed.
+
+## 2026-10-22: tidy step and comments
+
+- **Pressure is fine; skipping the tidy is not.** Building fast and a little ugly is how a feature's shape gets found. What went wrong was going straight from green to commit. rules-and-simulation now has a tidy step (7) between the playtest and the comparison, with the questions to ask of the diff, and commits come after it.
+- **Comments that said where or how many went stale.** "The weapons are in weapons.ts" survived the split because the old file still compiled as a re-export. 19 comments named a file, and one was left behind by the splitting script on the wrong module. The rule is now: comments say why, never where or how many; `structure.test.ts` fails on a comment naming a source file, and "the only writer of" claims became reasons, with the writers check holding the fact.
