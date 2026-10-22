@@ -38,11 +38,15 @@ ECS's answer to "how does this kind of thing behave?" is which components the en
 - **Definitions tables hold numbers,** the tuning for each kind (damage, speed, how long), not switches that decide behaviour.
 - **The second `if` on a kind is the signal.** One special case is fine while finding the shape; the second branch on the same distinction means a component (or, outside the per-tick systems, an injected behaviour) is missing. Stop and add it.
 
-## One writer per field, and requests for everyone else
+## Writers: one per entity, in a known order; requests where sources combine
 
-Two places writing one field is how values get overwritten mid-tick, in an order nobody chose. Exactly one system writes each field. Everything else that wants it changed **sends a request**: a queue (or a small per-entity request component) that the owning system drains at its place in the tick, validating each one (immunity, caps, which request wins) before applying it. Damage is the classic case: every source asks, one system applies. A shove, a speed effect, a stun work the same way.
+ECS engines (Bevy, Unity's DOTS) let several systems write the same component. What makes that safe is a fixed order: Bevy, for one, reports systems that write the same data with no order between them. The danger isn't two writers, it's two writers whose order is implicit or whose way of combining is an accident. So:
 
-A structure check enforces it: every field is written by one module. If you keep a list of exceptions, it should be short and shrinking, and each line is debt.
+- **One writer per field per entity, in the tick's known order.** Different kinds of entity can have different writers (players moved by input, enemies by their scripts); each entity has one.
+- **Set, then count down, is fine:** one system starts a timer, another runs it out.
+- **Where several sources must combine on the same entity** (damage, shoves, speed effects, screen shake), they send requests: a queue or an event buffer, as engines do for damage events and deferred commands. One system applies them with an explicit policy (sum them, strongest wins, latest wins) and validates them (immunity, caps).
+
+A check lists every field written from more than one module, each with its reason. A reason has to be one of the three above; "several sources combine" without a queue is debt, and the list says so.
 
 ## Objects, functions, injection
 
@@ -80,7 +84,7 @@ An agent working alone optimises for what is checked. Set these up in the first 
 
 | Check | Fails when |
 | --- | --- |
-| One writer | A field is written from more than one module |
+| Shared writers are listed | A field is written from more than one module without a reason: per-entity writers, set-then-count-down, or a request queue |
 | No kind branches | A system compares against a kind outside its definitions table |
 | No file names in comments | A comment names a source file |
 | One tick order | A system is missing from the tick's order, the docs list another order, or a test steps its own list |

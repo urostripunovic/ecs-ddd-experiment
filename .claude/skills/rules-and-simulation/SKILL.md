@@ -73,7 +73,7 @@ Plain words here; the formal terms are in brackets.
 
 - **Flat arrays per field; per-kind numbers in definitions tables.** Numbers that appear together become a named definition (`attack(enemy, HEAVY_SWING)`, never `attack(enemy, 42, 4.5, 30)`).
 - **Every system starts with `reads … | writes …`**, and the tick order is written in one place.
-- **One writer per field, and requests for everyone else.** Two effects on one value get two fields, combined by the reader. When several things must change the same field (damage, a shove, a stun), they send requests to a queue that the one owning system drains, validates and applies at its place in the tick. A check fails on a field written from two modules.
+- **One writer per field per entity, in a known order.** Two effects on one value get two fields, combined by the reader. Different kinds of entity may have different writers (input moves players, scripts move enemies), and one system may start a timer that another counts down. When several sources must combine on the same entity (damage, a shove, a stun), they send requests to a queue that one system drains, validates and applies with an explicit policy. ECS engines work this way: several writers are safe in a fixed order, and damage-style events go through a buffer. A check lists every shared field with its reason.
 - **Behaviour comes from components.** What an entity does is which components it has, and systems run on whatever has theirs. Per-kind definitions hold numbers, not switches.
 - **Inputs that must not be lost or doubled are counters**; sensors fire on the edge and latch until answered.
 - **Durations are deadlines** made with one helper (`after(ticks)`), never countdowns.
@@ -125,7 +125,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 
 - [ ] Prediction before, comparison after.
 - [ ] Proper TDD: one test at a time, each seen failing on its assertion.
-- [ ] A tidy pass before the commit: no module past its job, no second kind branch, no second writer, no comment naming where things live.
+- [ ] A tidy pass before the commit: no module past its job, no second kind branch, no unlisted second writer, no comment naming where things live.
 - [ ] Every commit builds and passes alone; fixes folded into the commit they fix.
 - [ ] New state passed "what reacts?", with a declared lifetime and units at its edges.
 - [ ] Open design questions were asked, and the answers are in the examples table.
