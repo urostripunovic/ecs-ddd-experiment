@@ -14,6 +14,18 @@ const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts
 const MAX_LINES = 400;
 
 describe('structure', () => {
+  // Randomness is injected: a system takes the stream it draws from as a
+  // parameter, and only the tick order (the composition root) and the run's
+  // start pick which stream that is. A system reaching for a shared source
+  // would make its draws shift every other system's for the same seed.
+  it('no system draws from a random source it wasn\'t given', () => {
+    const reaching = code
+      .filter(([file]) => file.includes('/ecs/systems/'))
+      .filter(([, text]) => /import \{[^}]*\b(random|randomRange|streams)\b[^}]*\} from '[./]+\/core\/rng'/.test(text))
+      .map(([file]) => file);
+    expect(reaching).toEqual([]);
+  });
+
   // A test that steps its own list of systems tests a different game: it can
   // leave out a system the real tick runs, or run them in another order, and
   // still pass (a burn system once passed every test and never ran in play).
@@ -28,6 +40,8 @@ describe('structure', () => {
       lines.forEach((line, i) => {
         run = /^\s+\w+System\([^)]*\);/.test(line) ? run + 1 : 0;
         if (run === 3) found.push(`${file}:${i - 1}`);
+        // The same list squeezed onto one line.
+        else if ((line.match(/\b\w+System\(/g) ?? []).length >= 3) found.push(`${file}:${i + 1}`);
       });
       return found;
     });
