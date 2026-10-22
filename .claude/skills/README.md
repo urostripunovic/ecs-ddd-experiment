@@ -10,7 +10,7 @@
 4. Bring or write a playtest bot and recorder early (`tools/playtest/` in the reference game). The gate to tickets requires one in the repo.
 5. Create an empty `SKILL-NOTES.md` for incidents where the skills fell short.
 
-**While prototyping**, just ask for features in plain words. `rules-and-simulation` and `game-design-interview` load on their own:
+**While prototyping**, just ask for features in plain words. `rules-and-simulation`, `game-design-interview` and `game-implementation` load on their own:
 
 - "Add a dodge that makes you invulnerable for a few ticks."
 - "The boss should drop down from a pillar when the arena starts."
@@ -28,20 +28,21 @@ The prototype loop is the main use. Stay in it until the game is worth building 
 
 ## The cycle
 
-Three skills for games built as a simulation (ECS) plus a thin rules module. They plug into Matt Pocock's skills (`grilling`, `to-tickets`, `implement`, `tdd`, `code-review`) and the ddd-skill kit, and work without either.
+Four skills for games built as a simulation (ECS) plus a thin rules module. They plug into Matt Pocock's skills (`grilling`, `to-tickets`, `implement`, `tdd`, `code-review`) and the ddd-skill kit, and work without either.
 
 | Phase | Goal | Skills | What carries forward |
 | --- | --- | --- | --- |
-| 1. Prototype | Find the fun; the design changes daily | `rules-and-simulation`, `game-design-interview` | Code, tests, examples tables, glossary, recorded decisions |
+| 1. Prototype | Find the fun; the design changes daily | `rules-and-simulation`, `game-design-interview`, `game-implementation` | Code, tests, examples tables, glossary, recorded decisions |
 | 2. Vertical slice | One piece complete; the base worth keeping | the same two | The playtest bot in the repo; open items decided |
 | 3. Gate and tickets | Cut the rest into pieces | `game-to-tickets` (gameplay), `to-tickets` (everything else) | Tickets that point at rows, never restate them |
-| 4. Production | One ticket per session | `implement` + `tdd`, following `rules-and-simulation`; `game-design-interview` when a trigger comes up | Features, new examples rows, decisions |
+| 4. Production | One ticket per session | `implement` + `tdd`, following `rules-and-simulation` and `game-implementation`; `game-design-interview` when a trigger comes up | Features, new examples rows, decisions |
 | 5. Review | Before merge | `code-review`, plus `rules-and-simulation`'s checklist | |
 
 The loop: playtests and surprises go back to the interview (a decision), to `game-to-tickets` (a follow-up), or to the skills themselves.
 
 - **`rules-and-simulation`**: the mechanics, true for any game built this way. Where state lives, the rules, the simulation, the seam, the test levels.
 - **`game-design-interview`**: the decisions that differ per game, asked when a change touches them and recorded in the examples tables.
+- **`game-implementation`**: writing the code itself: red with proof, green fast, then a tidy step before the commit; the structure checks that make a reviewer's eye automatic; how to split, when objects or injection help, and per-language cards. Works with Matt Pocock's `implement` and `tdd`.
 - **`game-to-tickets`**: the gate, then tickets with decisions, footprint, invariants and a playtest criterion. Run it by name, not automatically.
 
 There's no prototype modelling phase: the prototype is the model (examples tables, glossary, architecture doc). Only a rules area that outgrows a page, or touches money, trades or long-lived saves, gets the ddd-skill kit: `ddd-modelling` (its examples table becomes the model's Examples), then `ddd-to-tickets`, `ddd-implementation` and `ddd-review-all` for that area alone. The simulation never goes through it.
@@ -56,4 +57,4 @@ There's no prototype modelling phase: the prototype is the model (examples table
 
 **Docs convention:** in `docs/`, backticks mean "this name exists in the code". `src/docs.test.ts` checks every backticked name, so write plain words in plain text.
 
-**Later:** per-language cards (brands, read-only projections, exhaustive switches, coroutines in Go, Java, Rust), written while porting, read only during implementation.
+**Per-language cards** (brands, read-only projections, exhaustive switches, coroutines) live at the end of `game-implementation`: TypeScript now, Go, Java and Rust written while porting.

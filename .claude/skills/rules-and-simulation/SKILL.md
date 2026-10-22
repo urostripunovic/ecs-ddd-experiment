@@ -21,7 +21,7 @@ This skill holds the mechanics, which are true for any game built this way. Deci
 4. **Write the failing test first**, and check it fails for the right reason: an assertion about the behaviour ("expected 1 to be 3"), not a missing module or a typo. Keep the failing line for the report in step 8: a test you can't show red wasn't written first, and the person reviewing should be able to see that without reading code.
 5. **Build one commit per layer**: rules, seam, simulation, app, docs. Each says *why*. Commit after the tidy step (7), not before it.
 6. **Playtest.** A bot plays the real game with nobody at the keyboard, and saves frames to look at. Long runs can skip rendering; frames need it. Feel, "it works but it's wrong", and bugs in anything that only runs in the real loop (menus, dev tools, input timing) only show up here: a unit test never runs them there.
-7. **Tidy, as its own step.** Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
+7. **Tidy, as its own step** (`game-implementation` has the checks and how to split). Steps 4–6 are allowed to be fast and a little ugly: that's how the shape is found, and pressure is fine there. Before committing, stop and re-read your own diff as a reviewer would, then make it clean while it's still small. Ask of the diff:
    - Did a file grow past its one job? Split it now, not after the next feature.
    - Did you branch on what kind of thing it is (`if (kind === X)`: this weapon, this enemy, this tile) where a field on its definition would do?
    - Did a field gain a second writer, or a number get a second copy?
