@@ -11,7 +11,8 @@ const sources = import.meta.glob<string>('./**/*.ts', { query: '?raw', import: '
 const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts'));
 
 // A file past this has usually stopped having one job. Split it before adding to it.
-const MAX_LINES = 400;
+// Tests count too: a test file you can't scan is where a broken case hides.
+const MAX_LINES = 300;
 
 describe('structure', () => {
   // Randomness is injected: a system takes the stream it draws from as a
@@ -60,8 +61,8 @@ describe('structure', () => {
     expect(naming).toEqual([]);
   });
 
-  it(`keeps every source file under ${MAX_LINES} lines`, () => {
-    const long = code.filter(([, text]) => text.split('\n').length > MAX_LINES).map(([file, text]) => `${file} (${text.split('\n').length})`);
+  it(`keeps every file, tests included, under ${MAX_LINES} lines`, () => {
+    const long = Object.entries(sources).filter(([, text]) => text.split('\n').length > MAX_LINES).map(([file, text]) => `${file} (${text.split('\n').length})`);
     expect(long).toEqual([]);
   });
 
