@@ -17,7 +17,7 @@ A hand-written ECS runs the real-time simulation; a thin, pure DDD layer owns th
 
 ## Tick order (60 Hz, fixed)
 
-Written down in `src/app/loop.ts`:
+Written down once, as data, in `TICK_ORDER` (`src/ecs/tick-order.ts`): the game runs every system from it, and tests step a subset of it with `stepper()`, always in this order. Dev cheats run before it and the rules step after it, in `src/app/loop.ts`:
 
 0. Dev builds only: `applyDevCommands` applies the god menu's queued cheats, recorded with this tick
 1. `snapshotSystem`: copy position to previous position, for render interpolation

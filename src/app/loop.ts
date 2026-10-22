@@ -1,60 +1,16 @@
 import { domainStep } from '../bridge/dispatch';
 import { applyDevCommands } from './dev/commands';
-import { inSeconds, ticks } from '../ecs/core/units';
 import { world } from '../ecs/core/world';
-import { bossPhaseSystem, bossThresholdSystem, slamSystem } from '../ecs/systems/boss';
-import { bodyCollisionSystem, projectileCollisionSystem } from '../ecs/systems/collision';
-import { deathSystem, hurtFlashSystem, projectileSystem } from '../ecs/systems/combat';
-import { shakeSystem } from '../ecs/systems/cutscene';
-import { perkDropSystem } from '../ecs/systems/perks';
-import { rewardSensorSystem } from '../ecs/systems/rewards';
-import { orbitSystem, spikeGrowthSystem, spikeSystem } from '../ecs/systems/pillars';
-import { burnSystem, tracerSystem } from '../ecs/systems/specials';
-import { hazardSystem, homingSystem } from '../ecs/systems/hazards';
-import { tunnelSystem } from '../ecs/systems/tunnel';
-import { inputSystem, movementSystem, snapshotSystem } from '../ecs/systems/motion';
-import {
-  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, stockSystem,
-  stuckFollowSystem, throwSystem,
-} from '../ecs/systems/weapons';
+import { DT, runSystems } from '../ecs/tick-order';
 
-export const DT = inSeconds(ticks(1));
+export { DT };
 
-// The order is written down here, not implied by imports. docs/ARCHITECTURE.md mirrors it.
+
+// The systems' order is TICK_ORDER, shared with the tests; the architecture doc mirrors it.
 export function tick(): void {
   // Dev builds only: cheats are inputs, applied before any system runs.
   if (import.meta.env.DEV) applyDevCommands();
-  snapshotSystem();
-  shakeSystem();
-  inputSystem();
-  bossPhaseSystem();
-  homingSystem();
-  movementSystem(DT);
-  orbitSystem(DT);
-  bodyCollisionSystem();
-  heldFollowSystem();
-  stuckFollowSystem();
-  throwSystem();
-  attackSystem(DT);
-  flightSystem();
-  pickupSystem();
-  projectileCollisionSystem();
-  projectileSystem(DT);
-  burnSystem();
-  slamSystem();
-  hazardSystem();
-  spikeSystem();
-  durabilitySystem(DT);
-  stockSystem();
-  hurtFlashSystem();
-  tracerSystem();
-  dropSystem();
-  perkDropSystem();
-  bossThresholdSystem();
-  spikeGrowthSystem();
-  tunnelSystem();
-  rewardSensorSystem();
-  deathSystem();
+  runSystems();
   domainStep(); // decide + evolve + project, inside the same tick
   world.tick++;
 }

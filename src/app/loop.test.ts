@@ -5,6 +5,7 @@ import { readTickLog } from '../bridge/tick-log';
 import { BossPhase, RunStatus, RunView, PlayerInput } from '../ecs/components';
 import { indexOf, world } from '../ecs/core/world';
 import { createFrameDriver, tick } from './loop';
+import { TICK_ORDER } from '../ecs/tick-order';
 
 // The whole stack headless: player holds fire at the boss straight ahead.
 function fight(bossHp: number, maxTicks = 1800): string[] {
@@ -66,7 +67,16 @@ describe('the tick order', () => {
 
   it('calls every system', () => {
     expect(exported.length).toBeGreaterThan(20);
-    for (const system of exported) expect(tickBody, `${system} is never called by tick()`).toMatch(new RegExp(`\\b${system}\\(`));
+    const ordered = new Set<string>(TICK_ORDER.map(([name]) => name));
+    for (const system of exported) expect(ordered.has(system), `${system} is not in TICK_ORDER`).toBe(true);
+    expect(tickBody).toMatch(/\brunSystems\(\)/);
+  });
+
+  // The doc's numbered list and TICK_ORDER must agree on the order, not only on the names.
+  it('is in the same order as the architecture doc says', () => {
+    const at = (name: string) => doc.indexOf(`\`${name}\``);
+    const positions = TICK_ORDER.map(([name]) => at(name));
+    expect([...positions].sort((x, y) => x - y)).toEqual(positions);
   });
 
   it('is written down in the architecture doc', () => {
