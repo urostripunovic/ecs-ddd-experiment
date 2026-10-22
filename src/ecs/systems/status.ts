@@ -1,6 +1,6 @@
 // Effects stored as tick deadlines are read here, in one place, so every system
 // combines them the same way and none of them has to count anything down.
-import { Buffs, Dizzy, Dodge, Slowed } from '../components';
+import { Buffs, Dizzy, Dodge, Slowed, Stagger } from '../components';
 import { world, type EntityId } from '../core/world';
 import { FURY_MUL, HASTE_MUL } from '../weapons/defs';
 import { hasPerk, lowHp, Perk, PERK_DMG_MUL, PERK_SPEED_MUL } from './perks';
@@ -18,3 +18,4 @@ const lastStand = (entity: EntityId) => hasPerk(entity, Perk.LastStand) && lowHp
 export const speedMul = (entity: EntityId) =>
   (hasted(entity) ? HASTE_MUL : 1) * (slowed(entity) ? Slowed.factor[entity] : 1) * (adrenaline(entity) ? PERK_SPEED_MUL : 1);
 export const dmgMul = (entity: EntityId) => (furious(entity) ? FURY_MUL : 1) * (lastStand(entity) ? PERK_DMG_MUL : 1);
+export const staggered = (entity: EntityId) => world.tick < Stagger.until[entity];

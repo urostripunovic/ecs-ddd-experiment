@@ -92,7 +92,7 @@ export function spray(w: EntityId, flamer: EntityId, def: WeaponDef, dt: Seconds
 }
 
 // reads PlayerInput (fire, fireReleases), RunView, Wielder, held item and its level | writes Wielder, Ammo, Durability,
-// Health, Burn; spawns bullets and railgun tracers
+// Health, Burn, Orbit.kick (a rail beam stopped by a pillar); spawns bullets and railgun tracers
 // bloomRng: where an overcharged railgun shot's bloom is drawn from.
 export function attackSystem(dt: Seconds, bloomRng: Random): void {
   const n = query(buf, WIELDERS, C.Dead);

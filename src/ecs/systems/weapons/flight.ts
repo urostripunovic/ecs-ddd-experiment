@@ -1,8 +1,8 @@
 // A thrown item in the air: it sticks, comes home (the chakram), smashes down
 // (the warhammer), bounces (Ricochet) or lands.
-import { Arena, Buffs, C, Collider, Shake, StuckIn, Team, Thrown, Transform, Velocity } from '../../components';
+import { Arena, Buffs, C, Collider, Shake, StuckIn, Team, Thrown, Transform, Velocity, Knockback } from '../../components';
 import { buf, solidBuf, targetBuf } from '../../core/buffers';
-import { after } from '../../core/units';
+import { after, ticks } from '../../core/units';
 import { NOBODY, add, entityAt, handleAt, has, indexOf, isLive, query, remove, toHandle } from '../../core/world';
 import type { EntityId } from '../../core/world';
 import { CATCH_HASTE_TICKS, RETURN_TICKS, SMASH_RADIUS } from '../../weapons/defs';
@@ -10,6 +10,7 @@ import { hurt } from '../damage';
 import { RICOCHET_DMG_MUL } from '../perks';
 import { releaseStuck } from './follow';
 import { CATCH_RADIUS, DROP_LOCK_TICKS, FLYING_ITEMS, SMASH_SHAKE, SOLIDS, TARGETS, THROWN_RADIUS, UNHITTABLE, defOf, equip, heldItem, putOnGround, wear } from './items';
+import { pushPillar } from '../pillars';
 
 // Ricochet: mirror the velocity off the surface, step back off it, and fly on
 // harder, with a fresh flight time.
@@ -36,7 +37,8 @@ export function stick(item: EntityId, host: EntityId): void {
   StuckIn.angle[item] = Math.atan2(Transform.z[item] - Transform.z[host], Transform.x[item] - Transform.x[host]);
 }
 
-// reads Thrown, Transform, Team, Collider | writes Health, Durability, item state, Shake (a smash), Buffs (a caught
+// reads Thrown, Transform, Team, Collider, pillars | writes Health, Durability, item state, Shake and Orbit.kick (a smash),
+// Knockback (a chakram home to full hands), Buffs (a caught
 // chakram); a chakram coming home writes Velocity, Thrown.leg/lastHit; a ricochet writes Velocity,
 // Transform, Thrown.dmg/ticksLeft/bounces
 // A hit lodges the weapon in the target; a miss lands it, locked for a while.
@@ -63,7 +65,7 @@ export function flightSystem(): void {
       struck = t;
     }
     // A hammer doesn't hit what it touches: it comes down there, and the smash does the hurting.
-    if (struck !== -1 && style === 'smash') { smash(f, targets); continue; }
+    if (struck !== -1 && style === 'smash') { smash(f, targets, solids); continue; }
     if (struck !== -1) {
       hurt(struck, Thrown.dmg[f], handleAt(Thrown.by, f));
       wear(f, defOf(f).throwWear * Thrown.wearMul[f]);
@@ -95,7 +97,7 @@ export function flightSystem(): void {
     if (Thrown.ticksLeft[f] > 0) Thrown.ticksLeft[f]--;
     if (Thrown.ticksLeft[f] === 0) landed = true;
 
-    if (landed && style === 'smash') smash(f, targets);
+    if (landed && style === 'smash') smash(f, targets, solids);
     else if (landed) putOnGround(f, x, z, defOf(f).throwLockTicks);
   }
 }
@@ -103,7 +105,7 @@ export function flightSystem(): void {
 // The warhammer coming down: everything of the other side within the radius is
 // hit once, and loses whatever was lodged in it. Reads the targets flightSystem
 // already gathered in targetBuf.
-export function smash(hammer: EntityId, targets: number): void {
+export function smash(hammer: EntityId, targets: number, solids: number): void {
   const x = Transform.x[hammer];
   const z = Transform.z[hammer];
   const by = handleAt(Thrown.by, hammer);
@@ -120,6 +122,16 @@ export function smash(hammer: EntityId, targets: number): void {
     hit = true;
   }
   if (hit) wear(hammer, defOf(hammer).throwWear * Thrown.wearMul[hammer]);
+  // Pillars within reach are knocked away from where it came down.
+  for (let j = 0; j < solids; j++) {
+    const pillar = entityAt(solidBuf, j);
+    if (has(pillar, C.Health)) continue;
+    const dx = Transform.x[pillar] - x;
+    const dz = Transform.z[pillar] - z;
+    const d = Math.hypot(dx, dz);
+    if (d > SMASH_RADIUS + Collider.radius[pillar] || d < 1e-6) continue;
+    pushPillar(pillar, dx / d, dz / d);
+  }
   // Shake has several writers on purpose: each only raises it (see finalShot).
   Shake.trauma = Math.max(Shake.trauma, SMASH_SHAKE);
   putOnGround(hammer, x, z, defOf(hammer).throwLockTicks);
@@ -173,7 +185,7 @@ export function flyChakram(f: EntityId, targets: number, solids: number): void {
   const dz = Transform.z[w] - z;
   const d = Math.hypot(dx, dz);
   if (d <= CATCH_RADIUS) {
-    if (heldItem(w) !== -1) { putOnGround(f, Transform.x[w], Transform.z[w], DROP_LOCK_TICKS); return; }
+    if (heldItem(w) !== -1) { hitHome(f, w); return; }
     Thrown.lastHit[f] = NOBODY;
     equip(w, f);
     // Haste has two writers, pickups and this; each only pushes the deadline
@@ -185,3 +197,17 @@ export function flyChakram(f: EntityId, targets: number, solids: number): void {
   Velocity.x[f] = (dx / d) * speed;
   Velocity.z[f] = (dz / d) * speed;
 }
+
+// Decided with the user: come home to full hands and it hits you instead of
+// your hand. It shoves you along its flight and drops where it hit you.
+function hitHome(chakram: EntityId, wielder: EntityId): void {
+  const speed = Math.hypot(Velocity.x[chakram], Velocity.z[chakram]) || 1;
+  Knockback.x[wielder] = (Velocity.x[chakram] / speed) * CHAKRAM_SHOVE_SPEED;
+  Knockback.z[wielder] = (Velocity.z[chakram] / speed) * CHAKRAM_SHOVE_SPEED;
+  Knockback.until[wielder] = after(CHAKRAM_SHOVE_TICKS);
+  putOnGround(chakram, Transform.x[wielder], Transform.z[wielder], DROP_LOCK_TICKS);
+}
+
+// m/s and how long: a stumble, not a launch.
+const CHAKRAM_SHOVE_SPEED = 7;
+const CHAKRAM_SHOVE_TICKS = ticks(12);

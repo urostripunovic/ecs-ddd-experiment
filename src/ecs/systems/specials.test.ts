@@ -2,11 +2,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RunViewWritable } from '../components/run-view';
 import {
-  C, Dizzy, Durability, Health, Item, PlayerInput, resetArenaState, resetRunState, RunStatus, Stock, StuckIn,
-  Transform, 
+  C, Dizzy, Durability, Health, Item, Knockback, PlayerInput, resetArenaState, resetRunState, RunStatus, Stock, StuckIn,
+  Transform, Velocity,
 } from '../components';
 import { buf } from '../core/buffers';
-import { Rng } from '../core/rng';
+import { Rng, seedStreams } from '../core/rng';
 import { hp, inSeconds, inTicks, seconds, ticks } from '../core/units';
 import { add, entityAt, has, query, remove, resetWorld, toHandle, world, type EntityId } from '../core/world';
 import { PILLAR_RADIUS, specialFor } from '../arenas';
@@ -42,6 +42,9 @@ function throwAfter(holdTicks: number): void {
 let p: EntityId;
 let b: EntityId;
 beforeEach(() => {
+  // The game's streams are module state: without this, how a dizzy player wanders
+  // depends on what earlier tests drew.
+  seedStreams(1);
   resetWorld();
   resetArenaState();
   resetRunState();
@@ -90,13 +93,25 @@ describe('chakram', () => {
     expect(has(gun, C.Grounded)).toBe(true);
   });
 
-  it('lands at your feet when your hands are full as it comes back', () => {
+  // Decided with the user: with your hands full when it comes home, it hits you
+  // instead of your hand. It shoves you along its flight and drops where it hit.
+  it('with your hands full when it comes back, it shoves you and drops where it hit you', () => {
     const item = chakram();
     throwAfter(PERFECT_TICKS);
     equip(p, spawnWeapon(WeaponKind.Sword, 0, 0));
-    for (let i = 0; i < 240 && !has(item, C.Grounded); i++) step();
+    let hitAt = { x: 0, z: 0 };
+    let shove = { x: 0, z: 0 };
+    for (let i = 0; i < 240 && !has(item, C.Grounded); i++) {
+      shove = { x: -Velocity.x[item], z: -Velocity.z[item] };
+      step();
+      if (has(item, C.Grounded)) hitAt = { x: Transform.x[p], z: Transform.z[p] };
+    }
     expect(has(item, C.Grounded)).toBe(true);
-    expect(Math.hypot(Transform.x[item] - Transform.x[p], Transform.z[item] - Transform.z[p])).toBeLessThan(2);
+    expect(Math.hypot(Transform.x[item] - hitAt.x, Transform.z[item] - hitAt.z)).toBeLessThan(1);
+    // Shoved the way it was flying: home toward you, so away from where it came from.
+    expect(Knockback.until[p]).toBeGreaterThan(world.tick);
+    expect(Knockback.x[p] * -shove.x + Knockback.z[p] * -shove.z).toBeGreaterThan(0);
+    expect(hasted(p)).toBe(false);
   });
 });
 
@@ -179,6 +194,29 @@ describe('warhammer spin', () => {
     expect(dizzy(p)).toBe(true);
     PlayerInput.throwHeld = false;
     for (let i = 0; i < DIZZY_TICKS; i++) step();
+    expect(dizzy(p)).toBe(false);
+  });
+
+  // Decided with the user: spinning too long has a price, like breaking it mid-spin.
+  it('spinning past two seconds leaves you dizzy for as long as you overspun, at most two seconds', () => {
+    hammer();
+    PlayerInput.throwHeld = true;
+    for (let i = 0; i < inTicks(seconds(2.5)); i++) step();
+    PlayerInput.throwHeld = false;
+    PlayerInput.throwReleases++;
+    step();
+    expect(dizzy(p)).toBe(true);
+    for (let i = 0; i < inTicks(seconds(0.6)); i++) step();
+    expect(dizzy(p)).toBe(false);
+  });
+
+  it('spinning under two seconds costs nothing', () => {
+    hammer();
+    PlayerInput.throwHeld = true;
+    for (let i = 0; i < inTicks(seconds(1.8)); i++) step();
+    PlayerInput.throwHeld = false;
+    PlayerInput.throwReleases++;
+    step();
     expect(dizzy(p)).toBe(false);
   });
 

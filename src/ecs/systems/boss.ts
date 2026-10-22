@@ -4,6 +4,7 @@ import type { Script } from '../core/script';
 import { after, inTicks, seconds, share, shareOf, ticks } from '../core/units';
 import { entityAt, mask, MAX_ENTITIES, query, remove, toHandle, world, type EntityId } from '../core/world';
 import { hurt } from './damage';
+import { staggered } from './status';
 import { keeperOne, keeperThree, keeperTwo, phaseOne, phaseTwo, procedural, unchainedOne, unchainedTwo } from './boss-scripts';
 import { BossStyleKind } from '../bosses/defs';
 import { phaseAtFor } from '../bosses/generate';
@@ -38,7 +39,7 @@ export function resetScripts(): void {
   runningScript.fill(null);
 }
 
-// reads BossPhase, RunView, Health, GodMode | writes Pressure, BossPhase.running, and via the
+// reads BossPhase, RunView, Health, GodMode, Stagger | writes Pressure, BossPhase.running, and via the
 // phase's script: Velocity, Slam, BossAction, Jump, Airborne
 export function bossPhaseSystem(): void {
   if (RunView.status !== RunStatus.Fighting) return;
@@ -47,6 +48,8 @@ export function bossPhaseSystem(): void {
     const e = entityAt(buf, i);
     // Frozen by the dev menu: stands still and starts nothing new.
     if (import.meta.env.DEV && GodMode.freezeBoss) { Velocity.x[e] = Velocity.z[e] = 0; continue; }
+    // Staggered by a pillar: stands and starts nothing new; what it already telegraphed still lands.
+    if (staggered(e)) { Velocity.x[e] = Velocity.z[e] = 0; continue; }
     if (world.tick - Pressure.markedAt[e] >= PRESSURE_WINDOW) {
       Pressure.recentLoss[e] = Pressure.hpMark[e] - Health.hp[e];
       Pressure.hpMark[e] = Health.hp[e];

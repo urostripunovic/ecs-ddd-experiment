@@ -1,21 +1,22 @@
 // Holding and letting go of throw: the timed gauge, the warhammer's spin, and the
 // Final shot that turns a gun's throw into the rest of its magazine.
-import { Ammo, C, Collider, PlayerInput, Shake, ShapeKind, Team, Thrown, Transform, Velocity, Wielder } from '../../components';
+import { Ammo, C, Collider, PlayerInput, Shake, ShapeKind, Team, Thrown, Transform, Velocity, Wielder, Dizzy } from '../../components';
 import { buf, targetBuf } from '../../core/buffers';
-import { times } from '../../core/units';
+import { times, after, ticks } from '../../core/units';
 import { NOBODY, add, entityAt, query, remove, toHandle, world } from '../../core/world';
 import type { EntityId } from '../../core/world';
 import { spawnProjectile } from '../../prefabs';
 import { CHARGE_MAX_TICKS, ChargeZone, spinThrow, throwCharge } from '../../weapons/charge';
 import type { ThrowCharge } from '../../weapons/charge';
-import { SPIN_DMG_SHARE, SPIN_HIT_TICKS } from '../../weapons/defs';
+import { SPIN_DMG_SHARE, SPIN_HIT_TICKS, SPIN_LIMIT, DIZZY_TICKS } from '../../weapons/defs';
 import { controlsLocked } from '../cutscene';
 import { hurt } from '../damage';
 import { FINAL_SHOT_BLOWUP_DMG, Perk, RICOCHET_BOUNCES, hasPerk } from '../perks';
 import { dmgMul } from '../status';
 import { BULLET_LIFE, BULLET_SPEED, TARGETS, UNHITTABLE, WIELDERS, breakItem, defOf, emptyHand, heldItem, levelMul, wear } from './items';
 
-// reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo, Item.level | writes Wielder.charge, Thrown, Velocity, item state;
+// reads PlayerInput.throwHeld/throwReleases, Wielder, Perks, Ammo, Item.level | writes Wielder.charge/spinSince, Thrown,
+// Velocity, item state, Dizzy (a hammer spun too long);
 // a spinning hammer writes Health (via hurt) and Durability;
 // with Final shot instead: Ammo, Shake, Health (via hurt), spawns a heavy bullet or breaks the gun
 // Holding fills the gauge; the release throws with whatever it reached, so a
@@ -31,6 +32,7 @@ export function throwSystem(): void {
     const def = defOf(item);
     const spins = def.heldThrow === 'spin';
     if (!released) {
+      if (PlayerInput.throwHeld && Wielder.charge[w] === 0) Wielder.spinSince[w] = world.tick;
       if (PlayerInput.throwHeld && Wielder.charge[w] < CHARGE_MAX_TICKS) Wielder.charge[w]++;
       if (spins && spinning(w)) spin(w, item);
       continue;
@@ -39,6 +41,7 @@ export function throwSystem(): void {
     // The hammer's gauge is momentum, with no perfect zone; every other throw is timed.
     const fill = Wielder.charge[w] / CHARGE_MAX_TICKS;
     const charge = spins ? spinThrow(fill) : throwCharge(fill);
+    if (spins) dizzyIfOverspun(w);
     Wielder.charge[w] = 0;
     if (def.finalShot && Ammo.count[item] > 0 && hasPerk(w, Perk.FinalShot)) {
       finalShot(w, item, charge);
@@ -111,4 +114,12 @@ export function finalShot(wielder: EntityId, gun: EntityId, charge: ThrowCharge)
   );
   Ammo.count[gun] = 0;
   Ammo.reload[gun] = def.reloadTime;
+}
+
+// Decided with the user: spin past SPIN_LIMIT and letting go leaves you dizzy
+// for as long as you overspun, at most as long as breaking it mid-spin does.
+function dizzyIfOverspun(w: EntityId): void {
+  const over = world.tick - Wielder.spinSince[w] - SPIN_LIMIT;
+  if (over <= 0) return;
+  Dizzy.until[w] = after(ticks(Math.min(over, DIZZY_TICKS)));
 }

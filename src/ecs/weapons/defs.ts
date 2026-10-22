@@ -128,6 +128,8 @@ export const SPIN_HIT_TICKS = ticks(15);
 export const SPIN_DMG_SHARE = 0.35;
 // Breaking a hammer mid-spin leaves you dizzy this long.
 export const DIZZY_TICKS = inTicks(seconds(2));
+// Spinning a hammer longer than this makes you dizzy when you let go.
+export const SPIN_LIMIT = inTicks(seconds(2));
 export const RAIL_TRACER_TICKS = ticks(10);
 export const BURN_TICKS = inTicks(seconds(2));
 
