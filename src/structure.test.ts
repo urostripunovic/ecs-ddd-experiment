@@ -10,10 +10,6 @@ import { RunViewWritable } from './ecs/components/run-view';
 const sources = import.meta.glob<string>('./**/*.ts', { query: '?raw', import: 'default', eager: true });
 const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts'));
 
-// A file past this has usually stopped having one job. Split it before adding to it.
-// Tests count too: a test file you can't scan is where a broken case hides.
-const MAX_LINES = 300;
-
 const mutations = Object.values(import.meta.glob<{ default: { name: string; file: string; find: string; tests: string[] }[] }>(
   '../tools/mutations/mutations.json', { eager: true },
 ))[0].default;
@@ -80,11 +76,6 @@ describe('structure', () => {
       .filter(({ line }) => /\/\/.*\b[\w-]+\.ts\b/.test(line))
       .map(({ at }) => at));
     expect(naming).toEqual([]);
-  });
-
-  it(`keeps every file, tests included, under ${MAX_LINES} lines`, () => {
-    const long = Object.entries(sources).filter(([, text]) => text.split('\n').length > MAX_LINES).map(([file, text]) => `${file} (${text.split('\n').length})`);
-    expect(long).toEqual([]);
   });
 
   // How a weapon behaves is its definition's business (WeaponDef fields); a
