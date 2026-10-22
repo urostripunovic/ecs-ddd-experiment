@@ -94,6 +94,7 @@ Plain words here; the formal terms are in brackets.
 - **Projections are read-only to everyone but the seam**, like a read-only replica: the projection is exported read-only, its writable side from one module only the seam may import, enforced by the boundary lint. Without read-only types, a source scan test is the fallback.
 - **A level is built from rules state by one function** [spawn projection], for the first level, every level after it, and any load. It builds from **every** rules state, not only the ones play reaches: a level loaded after its boss died has the boss down and the exit open. Rebuilding waits until the rules step ends. Simulation state that honestly lives for the whole run (the tick, the RNG's position, input counters, handle generations) is listed, not hidden.
 - **Identity mapping lives only here.** A dev-only log records each chain: request → fact → what was written.
+- **Names cross through one table per vocabulary.** The rules' word for a thing (a weapon kind, a perk, a door) and the simulation's number for it are two vocabularies, and the boundary lint guarantees they're written twice: the rules may not import the simulation, not even its types. So translate in the seam, through one declared table per vocabulary, rules' name → number, which the compiler can check is complete. The way back is derived from that table, never a second hand-written list and never a conditional (`n === Final ? 'final' : 'onward'`): either one drifts silently when the simulation gains a member. A number with no name is a bug on the simulation's side, so the lookup throws instead of standing in for something else. A test per vocabulary fails when the simulation has a member the rules can't name, because that's the one direction no compiler sees.
 - **Boundaries are enforced by a lint**, not by review.
 - **Cheats and dev tools are requests or loads, never facts or projection writes.** Forcing simulation data is fine (the rules' sensors still watch it); reaching a rules state goes through the load path. Cheats are recorded as inputs, mark the run, and never ship (a test builds the release bundle and looks).
 
@@ -131,6 +132,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - [ ] Open design questions were asked, and the answers are in the examples table.
 - [ ] Invariants listed, each with a test that failed first.
 - [ ] Every request answered in every state; every shared writer listed with a sound reason.
+- [ ] Every name crossing the seam goes through its vocabulary's table: no hand-written reverse list, no conditional turning a number into a name, and the agreement test covers any new vocabulary.
 - [ ] Commits by layer where each stands alone; lint passes; playtested with frames.
 
 ## Not covered yet

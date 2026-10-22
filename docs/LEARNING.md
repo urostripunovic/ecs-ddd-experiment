@@ -34,6 +34,7 @@ Rewrite these for the new game rather than copying them; take what applies. Each
 | src/ecs/tick-order.ts | The tick order as data; `stepper()` lets a test run a subset of it, never a different order |
 | src/ecs/core/rng.ts | One seeded stream per job, passed in, so a new draw in one system can't shift another's |
 | .dependency-cruiser.cjs | The zone lint: rules, seam, simulation and app import only what they may |
+| src/bridge/run/loadout.ts, src/bridge/run/loadout.test.ts | One table per vocabulary that crosses the seam (rules' name → simulation number), the way back derived and throwing on a miss, and a test that fails when the simulation gains a member the rules can't name |
 
 The skills' checks table (game-implementation) says which to set up first. Break each once on purpose before trusting it.
 

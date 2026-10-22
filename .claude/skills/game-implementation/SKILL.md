@@ -99,6 +99,7 @@ An agent working alone optimises for what is checked. Set these up in the first 
 | Randomness is injected | A system imports a shared random source |
 | Mutations are current | An entry's text or tests no longer exist |
 | Docs drift | A name in the docs doesn't exist in the code |
+| Vocabularies agree | The simulation has a member (a kind, a perk, a door) the rules' table has no name for |
 
 Scan the source as text from inside the test runner, so the checks run with every other test.
 
@@ -118,5 +119,5 @@ Restart the dev server after changing modules the bot imports, or it reads stale
 
 ## Per language
 
-- **TypeScript:** branded units at the edges; typed arrays strip brands (re-brand with the checking constructor, never a cast); `Readonly<>` projections with the writable side behind the zone lint; `assertNever` in every switch; `noUnusedLocals` to make a mechanical split's leftovers loud; in Vite, `import.meta.glob` with `?raw` to scan source in tests.
+- **TypeScript:** branded units at the edges; typed arrays strip brands (re-brand with the checking constructor, never a cast); `Readonly<>` projections with the writable side behind the zone lint; `assertNever` in every switch; `noUnusedLocals` to make a mechanical split's leftovers loud; in Vite, `import.meta.glob` with `?raw` to scan source in tests. Cross-zone names: declare `Record<RulesName, number>` (a missing name is a compile error), derive the way back with one `invert()` into a `Map` (so `.get()` is honestly `T | undefined`), and throw on a miss. Never type an indexed lookup as total, such as `readonly (Name | null)[]`: past the end it's `undefined` at runtime whatever the annotation says, and a filter on `!== null` lets it through as a `Name`. `noUncheckedIndexedAccess` would catch it everywhere, but also flags every typed-array read in a flat-array simulation, so honest `Map` lookups at the seam are the cheaper fix.
 - **Go, Java, Rust:** to be written while porting. Each card covers flat arrays, coroutines (or their replacement), exhaustive switches, read-only projections, request queues, and how to write the structure checks.

@@ -91,3 +91,8 @@ Over Stage B, Stage C, the cleanup and the flight split. Most of what went wrong
 - Not into the skills (designer's call): the scripts that went wrong are the agent's own tooling habit, not a game-building lesson; they went into a skill of their own, `self-contained-commits`, with the rest of how commits are made.
 - Next in this repo: the smash and the spin become tags and systems, like the returning throw.
 
+
+## 2026-10-22: a review found the seam's reverse maps drifting
+
+- **A hand-written reverse list drifted from its table, and the types hid it.** The perk table was declared once (name → number) but the way back was a second, hand-written array, typed as if every index held a name. A new simulation perk came back as `undefined`, passed a filter that only removed `null`, and reached the rules' loadout, with typecheck and every test green. With the honest type (`undefined` included) the same code was a compile error. The door had the same shape as a conditional: a third simulation door reached the rules as the onward door. Why: the boundary lint forbids even type-only imports from the rules into the simulation, so every shared name is written twice by design, and nothing checked the copies agreed. Fix: rules-and-simulation (the seam, and its checklist) now says names cross through one table per vocabulary, the way back is derived and throws on a miss, and a test per vocabulary covers the direction no compiler sees; game-implementation lists the check and the TypeScript shape (`Record`, `invert()` into a `Map`).
+- **The rule found an instance the fix didn't.** Fixing perks and weapons, then asking where else a number becomes a name, turned up the door. Writing a lesson down as a rule, not a patch, is what finds the rest.
