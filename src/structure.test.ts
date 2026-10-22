@@ -14,6 +14,26 @@ const code = Object.entries(sources).filter(([file]) => !file.endsWith('.test.ts
 const MAX_LINES = 400;
 
 describe('structure', () => {
+  // A test that steps its own list of systems tests a different game: it can
+  // leave out a system the real tick runs, or run them in another order, and
+  // still pass (a burn system once passed every test and never ran in play).
+  // Tests step with stepper() from the shared tick order instead. Three or more
+  // system calls in a row is a hand-built step list.
+  it('no test builds its own list of systems to step', () => {
+    const tests = Object.entries(sources).filter(([file]) => file.endsWith('.test.ts'));
+    const handBuilt = tests.flatMap(([file, text]) => {
+      const lines = text.split('\n');
+      const found: string[] = [];
+      let run = 0;
+      lines.forEach((line, i) => {
+        run = /^\s+\w+System\([^)]*\);/.test(line) ? run + 1 : 0;
+        if (run === 3) found.push(`${file}:${i - 1}`);
+      });
+      return found;
+    });
+    expect(handBuilt).toEqual([]);
+  });
+
   // A comment says why, never where or how many: file names, owners and counts
   // go stale the moment code moves, and a moved file still compiles under a
   // comment that names its old home. Where things live is for imports and
