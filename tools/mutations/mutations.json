@@ -1,0 +1,725 @@
+[
+ {
+  "name": "revive doesn't stand you up",
+  "file": "src/ecs/systems/rewards.ts",
+  "find": "  remove(player, C.Dead);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/rewards.test.ts",
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "revive keeps nearby bullets",
+  "file": "src/ecs/systems/rewards.ts",
+  "find": "    if (d <= REVIVE_CLEAR_RADIUS) despawn(shot);",
+  "replace": "    void d;",
+  "tests": [
+   "src/ecs/systems/rewards.test.ts"
+  ]
+ },
+ {
+  "name": "a plate never breaks",
+  "file": "src/ecs/systems/damage.ts",
+  "find": "    Armor.broken[target]++;\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/rewards.test.ts"
+  ]
+ },
+ {
+  "name": "pedestal sensor never latches",
+  "file": "src/ecs/systems/rewards.ts",
+  "find": "      add(player, C.RewardPending);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/rewards.test.ts"
+  ]
+ },
+ {
+  "name": "Scattergun fires one pellet",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "for (let k = 0; k < def.pellets; k++)",
+  "replace": "for (let k = 0; k < 1; k++)",
+  "tests": [
+   "src/ecs/systems/rewards.test.ts"
+  ]
+ },
+ {
+  "name": "no pedestals on a clear",
+  "file": "src/bridge/run/rewards.ts",
+  "find": "  offer.forEach(",
+  "replace": "  [].forEach(",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "no pedestals when loading a cleared arena",
+  "file": "src/bridge/spawn.ts",
+  "find": "  if (store.run.status === 'Cleared' && store.run.offer) spawnPedestals(store.run.offer);",
+  "replace": "",
+  "tests": [
+   "src/bridge/run/load.test.ts"
+  ]
+ },
+ {
+  "name": "a refusal keeps the latch",
+  "file": "src/bridge/run/projector.ts",
+  "find": "      if (p !== -1) remove(p, C.RewardPending);\n      return `latch released (${e.reason})`;",
+  "replace": "      return `latch released (${e.reason})`;",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "perks allow a repeat",
+  "file": "src/ecs/systems/perks.ts",
+  "find": "k !== Perk.None && k !== kind",
+  "replace": "k !== Perk.None",
+  "tests": [
+   "src/ecs/systems/perks.test.ts"
+  ]
+ },
+ {
+  "name": "Last stand does nothing",
+  "file": "src/ecs/systems/status.ts",
+  "find": "(lastStand(entity) ? PERK_DMG_MUL : 1)",
+  "replace": "1",
+  "tests": [
+   "src/ecs/systems/perks.test.ts"
+  ]
+ },
+ {
+  "name": "Final shot never blows up",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "  if (charge.zone === ChargeZone.Overcharged) {",
+  "replace": "  if (false) {",
+  "tests": [
+   "src/ecs/systems/perks.test.ts"
+  ]
+ },
+ {
+  "name": "Ricochet never bounces",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    if (landed && Thrown.bounces[f] > 0) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "src/ecs/systems/perks.test.ts"
+  ]
+ },
+ {
+  "name": "Long reach does nothing",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "def.reach * LONG_REACH_MUL : def.reach",
+  "replace": "def.reach : def.reach",
+  "tests": [
+   "src/ecs/systems/perks.test.ts"
+  ]
+ },
+ {
+  "name": "perks don't carry over",
+  "file": "src/bridge/spawn.ts",
+  "find": "  setPerks(p, loadout.perks.map((name) => PERK_NUMBER[name]));\n",
+  "replace": "",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "spikes have no cooldown",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "      SpikeHit.readyAt[player] = after(SPIKE_COOLDOWN);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/pillars.test.ts"
+  ]
+ },
+ {
+  "name": "pillars move in cutscenes",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "export function orbitSystem(dt: Seconds): void {\n  if (controlsLocked()) return;",
+  "replace": "export function orbitSystem(dt: Seconds): void {",
+  "tests": [
+   "src/ecs/systems/pillars.test.ts"
+  ]
+ },
+ {
+  "name": "spikes hurt through a dodge",
+  "file": "src/ecs/systems/damage.ts",
+  "find": "  if (has(target, C.Invulnerable) || dodging(target)) return false;",
+  "replace": "  if (has(target, C.Invulnerable)) return false;",
+  "tests": [
+   "src/ecs/systems/pillars.test.ts"
+  ]
+ },
+ {
+  "name": "the ring leaves no gaps",
+  "file": "src/ecs/systems/boss-scripts/patterns.ts",
+  "find": "    if (!inGap(a, gapAt, def.gapHalf, def.gaps)) shoot(boss, a, def.speed);",
+  "replace": "    shoot(boss, a, def.speed);",
+  "tests": [
+   "src/ecs/systems/patterns.test.ts"
+  ]
+ },
+ {
+  "name": "the ring's gaps turn too far",
+  "file": "src/ecs/systems/boss-scripts/patterns.ts",
+  "find": "export const RING_TURN = 0.14;",
+  "replace": "export const RING_TURN = 0.3;",
+  "tests": [
+   "src/ecs/systems/patterns.test.ts"
+  ]
+ },
+ {
+  "name": "a revive is never used",
+  "file": "src/domain/run/run.ts",
+  "find": "      return s.revives > 0\n",
+  "replace": "      return false\n",
+  "tests": [
+   "src/domain/run/run.test.ts",
+   "src/domain/run/fork.test.ts"
+  ]
+ },
+ {
+  "name": "the offer can repeat a reward",
+  "file": "src/domain/run/run.ts",
+  "find": "pool.splice(Math.floor(next() * pool.length), 1)",
+  "replace": "pool.slice(0, 1)",
+  "tests": [
+   "src/domain/run/run.test.ts",
+   "src/domain/run/fork.test.ts"
+  ]
+ },
+ {
+  "name": "revive offered at eight",
+  "file": "src/domain/run/run.ts",
+  "find": "r !== 'revive' || revives < MAX_REVIVES",
+  "replace": "true",
+  "tests": [
+   "src/domain/run/run.test.ts",
+   "src/domain/run/fork.test.ts"
+  ]
+ },
+ {
+  "name": "a swing ignores the level",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "def.dmg * dmgMul(w) * levelMul(heldItem(w))",
+  "replace": "def.dmg * dmgMul(w)",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "a shot ignores the level",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "times(def.dmg, dmgMul(w) * levelMul(item))",
+  "replace": "times(def.dmg, dmgMul(w))",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "a throw ignores the level",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "charge.dmgMul * levelMul(item);",
+  "replace": "charge.dmgMul;",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "the Final shot ignores the level",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "dmgMul(wielder) * levelMul(gun))",
+  "replace": "dmgMul(wielder))",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "stock comes at level 1",
+  "file": "src/ecs/systems/weapons/upkeep.ts",
+  "find": "spawnWeapon(kind, spot.x, spot.z, weaponLevelFor(RunView.arena))",
+  "replace": "spawnWeapon(kind, spot.x, spot.z)",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "a gift comes at level 1",
+  "file": "src/ecs/systems/weapons/items.ts",
+  "find": "Transform.z[w], weaponLevelFor(RunView.arena)));",
+  "replace": "Transform.z[w]));",
+  "tests": [
+   "src/ecs/systems/weapons.test.ts",
+   "src/ecs/systems/throwing.test.ts",
+   "src/ecs/systems/stock.test.ts"
+  ]
+ },
+ {
+  "name": "the snapshot drops the level",
+  "file": "src/bridge/run/commands.ts",
+  "find": "Ammo.count[w], Item.level[w])",
+  "replace": "Ammo.count[w], 1)",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "the carried weapon takes the arena's level",
+  "file": "src/bridge/spawn.ts",
+  "find": "spawnWeapon(carriedKind, px, pz, loadout.weapon.level)",
+  "replace": "spawnWeapon(carriedKind, px, pz, weaponLevelFor(arena))",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "a new arena's stock is level 1",
+  "file": "src/bridge/spawn.ts",
+  "find": "      spawnWeapon(kind, x, z, stockLevel);",
+  "replace": "      spawnWeapon(kind, x, z);",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "power ignores the level",
+  "file": "src/domain/run/run.ts",
+  "find": "1 + POWER_PER_WEAPON_LEVEL * (loadout.weapon.level - 1)",
+  "replace": "1",
+  "tests": [
+   "src/domain/run/run.test.ts",
+   "src/domain/run/fork.test.ts"
+  ]
+ },
+ {
+  "name": "any weapon level is carriable",
+  "file": "src/domain/run/run.ts",
+  "find": "Number.isInteger(level) && level >= 1 && level <= MAX_ARENAS",
+  "replace": "true",
+  "tests": [
+   "src/domain/run/run.test.ts",
+   "src/domain/run/fork.test.ts"
+  ]
+ },
+ {
+  "name": "the chakram hits once a flight",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    Thrown.leg[f] = 1;\n    Thrown.lastHit[f] = NOBODY;",
+  "replace": "    Thrown.leg[f] = 1;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the chakram never comes home",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    if (!turn) return;",
+  "replace": "    if (!turn) return;\n    putOnGround(f, x, z, defOf(f).throwLockTicks);\n    return;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "catching the chakram gives no haste",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    Buffs.hasteUntil[w] = Math.max(Buffs.hasteUntil[w], after(CATCH_HASTE_TICKS));\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the hammer sticks like a blade",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    if (struck !== -1 && style === 'smash') { smash(f, targets, solids); continue; }",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the smash leaves lodged weapons",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    releaseStuck(t);\n    hit = true;",
+  "replace": "    hit = true;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the smash has no radius",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    const r = SMASH_RADIUS + Collider.radius[t];",
+  "replace": "    const r = 99;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the beam stops at the first body",
+  "file": "src/ecs/systems/specials.ts",
+  "find": "    if (has(solid, C.Health)) continue; // bodies are pierced, not walls",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the beam goes through pillars",
+  "file": "src/ecs/systems/specials.ts",
+  "find": "    if (at < reach) { reach = at; stoppedBy = solid; }",
+  "replace": "    void at;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the railgun never blooms",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "  const off = bloom > 0 ? (bloomRng.next() * 2 - 1) * bloom : 0;",
+  "replace": "  const off = 0;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "bloom starts inside the perfect zone",
+  "file": "src/ecs/weapons/charge.ts",
+  "find": "  if (f <= PERFECT_TO) return 0;",
+  "replace": "  if (f <= PERFECT_FROM) return 0;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "a spin hits nothing",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "      if (spins && spinning(w)) spin(w, item);",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the hammer throw is timed like the rest",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "    const charge = spins ? spinThrow(fill) : throwCharge(fill);",
+  "replace": "    const charge = throwCharge(fill);",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "breaking mid-spin never dizzies",
+  "file": "src/ecs/systems/weapons/upkeep.ts",
+  "find": "    if (defOf(it).heldThrow === 'spin' && has(it, C.Held)) dizzyIfSpinning(it);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "dizzy does nothing",
+  "file": "src/ecs/systems/motion.ts",
+  "find": "    if (dizzy(e) && !locked) {",
+  "replace": "    if (false) {",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the railgun fires while held",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "  if (!released) {\n    if (PlayerInput.fire",
+  "replace": "  if (false) {\n    if (PlayerInput.fire",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "tracers never go",
+  "file": "src/ecs/systems/specials.ts",
+  "find": "    if (world.tick >= Tracer.until[tracer]) despawn(tracer);",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "burning stops at once",
+  "file": "src/ecs/systems/specials.ts",
+  "find": "    if (world.tick >= Burn.until[entity]) continue;",
+  "replace": "    if (world.tick >= Burn.until[entity] || true) continue;",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "the flamethrower burns no fuel",
+  "file": "src/ecs/systems/weapons/attacks.ts",
+  "find": "  wear(flamer, def.fuelPerSec * dt);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "no special in the stock",
+  "file": "src/ecs/systems/weapons/upkeep.ts",
+  "find": "WEAPON_STOCK[kind] + (kind === Stock.special ? 1 : 0)",
+  "replace": "WEAPON_STOCK[kind]",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "a new arena lays out no special",
+  "file": "src/bridge/spawn.ts",
+  "find": "WEAPON_STOCK[kind] + (kind === planned.special ? 1 : 0)",
+  "replace": "WEAPON_STOCK[kind]",
+  "tests": [
+   "src/bridge/run/flow.test.ts"
+  ]
+ },
+ {
+  "name": "the tick forgets the burn",
+  "file": "src/ecs/tick-order.ts",
+  "find": "  ['burnSystem', burnSystem],\n",
+  "replace": "",
+  "tests": [
+   "src/app/loop.test.ts"
+  ]
+ },
+ {
+  "name": "generated slams wind up too fast",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "windup: ticks(big ? 32 : 42)",
+  "replace": "windup: ticks(big ? 20 : 42)",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "generated rings turn too far",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "  const turn = Math.min(maxTurn, between(r, 0.08, 0.16));",
+  "replace": "  const turn = between(r, 0.2, 0.3);",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "generated spirals outrun you",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "step: between(r, 0.03, 0.055),",
+  "replace": "step: between(r, 0.09, 0.12),",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "combos break the density cap",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "      const spiral = { ...spiralDef(r, deep), arms: 2 };",
+  "replace": "      const spiral = { ...spiralDef(r, deep), arms: 4 };",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "orbs outpace you",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "speed: between(r, 3.2, 4.0),",
+  "replace": "speed: between(r, 5, 6),",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "sweeps cover the whole circle",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "arc: between(r, Math.PI * 0.6, Math.PI * 1.4),",
+  "replace": "arc: Math.PI * 2,",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "the plan forgets the signature",
+  "file": "src/ecs/bosses/generate.ts",
+  "find": "  let kinds: MoveKind[] = [SIGNATURE[body]];",
+  "replace": "  let kinds: MoveKind[] = [];",
+  "tests": [
+   "src/ecs/bosses/generate.test.ts"
+  ]
+ },
+ {
+  "name": "a charge never stuns",
+  "file": "src/ecs/systems/boss-scripts/procedural.ts",
+  "find": "    if (againstStone(boss)) { stunned = true; break; }",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/procedural.test.ts"
+  ]
+ },
+ {
+  "name": "a charge hits every tick",
+  "file": "src/ecs/systems/hazards.ts",
+  "find": "    if (world.tick < LineHit.readyAt[p]) continue;\n    const dx = Transform.x[p] - Transform.x[boss];",
+  "replace": "    const dx = Transform.x[p] - Transform.x[boss];",
+  "tests": [
+   "src/ecs/systems/procedural.test.ts"
+  ]
+ },
+ {
+  "name": "the beam ignores cover",
+  "file": "src/ecs/systems/hazards.ts",
+  "find": "    reach = Math.min(reach, rayToCircle(x, z, dx, dz, Transform.x[s], Transform.z[s], Collider.radius[s]));",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/procedural.test.ts"
+  ]
+ },
+ {
+  "name": "orbs never turn",
+  "file": "src/ecs/systems/hazards.ts",
+  "find": "    const turned = heading + Math.max(-most, Math.min(most, off));",
+  "replace": "    const turned = heading;",
+  "tests": [
+   "src/ecs/systems/procedural.test.ts"
+  ]
+ },
+ {
+  "name": "procedural phases ignore the plan",
+  "file": "src/ecs/systems/boss.ts",
+  "find": "BossStyle.kind[e] === BossStyleKind.Procedural ? phaseAtFor(BossGen.phases[e]) :",
+  "replace": "false ? phaseAtFor(BossGen.phases[e]) :",
+  "tests": [
+   "src/ecs/systems/procedural.test.ts"
+  ]
+ },
+ {
+  "name": "the tick forgets the hazards",
+  "file": "src/ecs/tick-order.ts",
+  "find": "  ['hazardSystem', hazardSystem],\n",
+  "replace": "",
+  "tests": [
+   "src/app/loop.test.ts"
+  ]
+ },
+ {
+  "name": "a chakram home to full hands doesn't shove",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "  Knockback.until[wielder] = after(CHAKRAM_SHOVE_TICKS);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "overspinning costs nothing",
+  "file": "src/ecs/systems/weapons/throwing.ts",
+  "find": "    if (spins) dizzyIfOverspun(w);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/specials.test.ts",
+   "src/ecs/systems/railgun.test.ts"
+  ]
+ },
+ {
+  "name": "pillars cover weapons",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "    shoveItems(pillar);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "a push never moves a pillar",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "    const speed = Orbit.speed[pillar] * (has(pillar, C.Spiked) ? SPIKED_SPEED : 1) + kick;",
+  "replace": "    const speed = Orbit.speed[pillar] * (has(pillar, C.Spiked) ? SPIKED_SPEED : 1);",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "the beam never pushes",
+  "file": "src/ecs/systems/specials.ts",
+  "find": "  if (stoppedBy !== -1) pushPillar(stoppedBy, dx, dz);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "the smash never pushes",
+  "file": "src/ecs/systems/weapons/flight.ts",
+  "find": "    pushPillar(pillar, dx / d, dz / d);\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "any pillar rams the boss",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "    if (Math.abs(kick) * Orbit.radius[pillar] >= PUSHED_HITS_FROM) ramBoss(pillar);",
+  "replace": "    ramBoss(pillar);",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "a ram hits every tick",
+  "file": "src/ecs/systems/pillars.ts",
+  "find": "    Orbit.kickUntil[pillar] = world.tick;\n    return;",
+  "replace": "    return;",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ },
+ {
+  "name": "a staggered boss carries on",
+  "file": "src/ecs/systems/boss.ts",
+  "find": "    if (staggered(e)) { Velocity.x[e] = Velocity.z[e] = 0; continue; }\n",
+  "replace": "",
+  "tests": [
+   "src/ecs/systems/pushes.test.ts"
+  ]
+ }
+]
