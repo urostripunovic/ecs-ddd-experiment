@@ -72,7 +72,7 @@ Plain words here; the formal terms are in brackets.
 ## The simulation
 
 - **Flat arrays per field; per-kind numbers in definitions tables.** Numbers that appear together become a named definition (`attack(enemy, HEAVY_SWING)`, never `attack(enemy, 42, 4.5, 30)`).
-- **Every system starts with `reads … | writes …`**, and the tick order is written in one place.
+- **Every system starts with `reads … | writes … | emits …`**, and the tick order is written in one place. Emits names the outbox slots it fills, so which systems can wake the rules (and through them rebuild a level) is readable without tracing.
 - **One writer per field per entity, in a known order.** Two effects on one value get two fields, combined by the reader. Different kinds of entity may have different writers (input moves players, scripts move enemies), and one system may start a timer that another counts down. When several sources must combine on the same entity (damage, a shove, a stun), they send requests to a queue that one system drains, validates and applies with an explicit policy. ECS engines work this way: several writers are safe in a fixed order, and damage-style events go through a buffer. A check lists every shared field with its reason.
 - **Behaviour comes from components.** What an entity does is which components it has, and systems run on whatever has theirs. Per-kind definitions hold numbers, not switches.
 - **Inputs that must not be lost or doubled are counters**; sensors fire on the edge and latch until answered.
@@ -86,6 +86,7 @@ Plain words here; the formal terms are in brackets.
 - **Store handles, never slots; name things by stable ID in logs and tests.**
 - **Randomness is seeded**, so a seed and inputs replay a run. **One stream per job, passed in**: each system that draws gets its own seeded generator as a parameter. With one shared generator, a single new draw anywhere shifts every later draw everywhere, and a seed quietly becomes a different run.
 - **Presentation is derived and never feeds back.** Undo a camera shake before aiming through the camera.
+- **Measure before optimizing the storage.** Flat arrays and preallocated query buffers are the default; archetypes, schedulers and parallel systems wait for a profile of the real workload that asks for them.
 
 ## The seam
 
@@ -93,8 +94,11 @@ Plain words here; the formal terms are in brackets.
 - **A tick is the unit of change.** The rules run once per tick, synchronously, before rendering; every fact of a decision applies in that step, and observers (renderer, save, network) only look between ticks. The tick never waits on anything: predict and correct, or show a waiting mode.
 - **Projections are read-only to everyone but the seam**, like a read-only replica: the projection is exported read-only, its writable side from one module only the seam may import, enforced by the boundary lint. Without read-only types, a source scan test is the fallback.
 - **A level is built from rules state by one function** [spawn projection], for the first level, every level after it, and any load. It builds from **every** rules state, not only the ones play reaches: a level loaded after its boss died has the boss down and the exit open. Rebuilding waits until the rules step ends. Simulation state that honestly lives for the whole run (the tick, the RNG's position, input counters, handle generations) is listed, not hidden.
-- **Identity mapping lives only here.** A dev-only log records each chain: request → fact → what was written.
+- **The seam maps; it never decides.** It turns names into numbers and facts into component writes. A branch in the seam that picks an outcome is a rule that hasn't found its area: move it into the rules, as a fact. The seam for an area should stay smaller than both sides it joins; when it isn't, say so in the report. Signs it's thickening: a projector computing something no fact says, a conditional on rules state other than a mode, the same check in the seam and the rules, a name turned into a number (or back) anywhere but its vocabulary's table.
 - **Names cross through one table per vocabulary.** The rules' word for a thing (a weapon kind, a perk, a door) and the simulation's number for it are two vocabularies, and the boundary lint guarantees they're written twice: the rules may not import the simulation, not even its types. So translate in the seam, through one declared table per vocabulary, rules' name → number, which the compiler can check is complete. The way back is derived from that table, never a second hand-written list and never a conditional (`n === Final ? 'final' : 'onward'`): either one drifts silently when the simulation gains a member. A number with no name is a bug on the simulation's side, so the lookup throws instead of standing in for something else. A test per vocabulary fails when the simulation has a member the rules can't name, because that's the one direction no compiler sees.
+- **Projectors write components and never send requests.** A new request comes from the simulation on the next tick, so a loop is bounded by the tick. Follow-ups run with a fixed maximum depth that fails loudly when passed.
+- **A value both sides hold has one live owner at a time.** A carried item's wear is the simulation's while the level runs; at the crossing a fact records it (the clear carries the loadout), and the spawn projection hands it back. Never both live, never synced field by field mid-level. One state check lists every value both sides hold and says where the world and the rules disagree; the load test and the dev tools call it, and a new crossing value is added to it in the same commit.
+- **Identity mapping lives only here.** A dev-only log records each chain: request → fact → what was written, so one player action can be followed without opening every file it passes.
 - **Boundaries are enforced by a lint**, not by review.
 - **Cheats and dev tools are requests or loads, never facts or projection writes.** Forcing simulation data is fine (the rules' sensors still watch it); reaching a rules state goes through the load path. Cheats are recorded as inputs, mark the run, and never ship (a test builds the release bundle and looks).
 
@@ -133,6 +137,7 @@ The docs are part of the contract, so a **drift test** checks them against the c
 - [ ] Invariants listed, each with a test that failed first.
 - [ ] Every request answered in every state; every shared writer listed with a sound reason.
 - [ ] Every name crossing the seam goes through its vocabulary's table: no hand-written reverse list, no conditional turning a number into a name, and the agreement test covers any new vocabulary.
+- [ ] The seam only maps: no outcome decided there, any new value both sides hold is in the state check, with one live owner at a time.
 - [ ] Commits by layer where each stands alone; lint passes; playtested with frames.
 
 ## Not covered yet
