@@ -23,7 +23,7 @@ import {
 import { stepper } from '../tick-order';
 
 
-const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'durabilitySystem']);
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'returnSystem', 'pickupSystem', 'durabilitySystem']);
 
 function throwAfter(holdTicks: number): void {
   PlayerInput.throwHeld = true;

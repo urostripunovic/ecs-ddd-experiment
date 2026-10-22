@@ -33,7 +33,7 @@ Each is in SKILL-NOTES.md with the fix. The commits are easy to find with `git l
 
 ## Known debt: do it differently in the next game
 
-- **Weapon behaviour is fields on a definition** (`heldThrow`, `throwStyle`) read by large weapon systems. Better than the kind branches it replaced, but the ECS way is a component per behaviour (something that returns when thrown, something that spins on hold) and a small system for each.
+- **Some weapon behaviour is still fields on a definition** (`heldThrow`, `throwStyle: 'smash'`) read by the weapon systems. Better than the kind branches it replaced, but the ECS way is a component per behaviour and a small system for each. The returning throw shows the target: a `Returning` tag, put on at the throw, and `returnSystem`. The smash and the spin should follow.
 - **Shared writers: about nine of the 23 listed ones are debt.** structure.test.ts lists every field written from more than one module, with its reason. Most reasons are sound, the way ECS engines work: each entity has one writer in a known order (position and velocity: input moves the player, scripts move bosses, the weapon systems move items), or one system starts a timer that another counts down (a slam's telegraph, the hit flash, a thrown weapon's flight). The debt is where several sources combine on one entity by writing it directly: the three knockback fields (the latest shove silently wins), haste, dizziness, screen shake, the two ammo fields, and hit points outside the damage function (a revive, the heal reward). Those want requests that one system applies with an explicit policy.
 - **Commits that don't build alone, and fixes that landed commits after their bug.** The history shows both. The next game keeps every commit self-contained.
 

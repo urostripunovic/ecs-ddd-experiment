@@ -32,7 +32,8 @@ Written down once, as data, in `TICK_ORDER` (`src/ecs/tick-order.ts`): the game 
 9. `stuckFollowSystem`: items lodged in the boss ride with it, and drop if it dies
 10. `throwSystem`: holding the throw fills the charge; a release throws the held item with damage and wear set by the gauge
 11. `attackSystem`: gun shots, sword arcs, spear thrusts, fists; melee wear; the railgun charges on fire and fires on the release; the flamethrower sets what's in its cone burning
-12. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s; a chakram flies through and comes home; a warhammer smashes where it stops
+12. `flightSystem`: a hit lodges the item `Stuck` in the target (wear scaled by the charge); a miss lands it `Grounded`, locked for 1–1.5 s; a warhammer smashes where it stops
+12b. `returnSystem`: a `Returning` weapon (the chakram) flies through what it hits, turns at the end of its flight or on stone, and comes home to the thrower's hand, or hits them if their hands are full
 13. `pickupSystem`: empty hands pick up by walking over; `E` swaps; buffs apply on touch
 14. `projectileCollisionSystem`: bullets stop on pillars and walls
 15. `projectileSystem`: bullets damage the other team, and fly under anything airborne

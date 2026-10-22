@@ -316,7 +316,7 @@
  },
  {
   "name": "the chakram hits once a flight",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/returning.ts",
   "find": "    Thrown.leg[f] = 1;\n    Thrown.lastHit[f] = NOBODY;",
   "replace": "    Thrown.leg[f] = 1;",
   "tests": [
@@ -326,7 +326,7 @@
  },
  {
   "name": "the chakram never comes home",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/returning.ts",
   "find": "    if (!turn) return;",
   "replace": "    if (!turn) return;\n    putOnGround(f, x, z, defOf(f).throwLockTicks);\n    return;",
   "tests": [
@@ -336,7 +336,7 @@
  },
  {
   "name": "catching the chakram gives no haste",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/returning.ts",
   "find": "    Buffs.hasteUntil[w] = Math.max(Buffs.hasteUntil[w], after(CATCH_HASTE_TICKS));\n",
   "replace": "",
   "tests": [
@@ -356,7 +356,7 @@
  },
  {
   "name": "the smash leaves lodged weapons",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/smash.ts",
   "find": "    releaseStuck(t);\n    hit = true;",
   "replace": "    hit = true;",
   "tests": [
@@ -366,7 +366,7 @@
  },
  {
   "name": "the smash has no radius",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/smash.ts",
   "find": "    const r = SMASH_RADIUS + Collider.radius[t];",
   "replace": "    const r = 99;",
   "tests": [
@@ -641,7 +641,7 @@
  },
  {
   "name": "a chakram home to full hands doesn't shove",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/returning.ts",
   "find": "  Knockback.until[wielder] = after(CHAKRAM_SHOVE_TICKS);\n",
   "replace": "",
   "tests": [
@@ -688,7 +688,7 @@
  },
  {
   "name": "the smash never pushes",
-  "file": "src/ecs/systems/weapons/flight.ts",
+  "file": "src/ecs/systems/weapons/smash.ts",
   "find": "    pushPillar(pillar, dx / d, dz / d);\n",
   "replace": "",
   "tests": [

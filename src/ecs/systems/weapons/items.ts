@@ -21,9 +21,9 @@ export const GROUNDED = mask(C.Grounded, C.Transform);
 
 export const STUCK_ITEMS = mask(C.Item, C.Stuck);
 
-export const NOT_HELD = mask(C.Grounded, C.Flying, C.Stuck);
+export const NOT_HELD = mask(C.Grounded, C.Flying, C.Stuck, C.Returning);
 
-export const NOT_GROUNDED = mask(C.Held, C.Flying, C.Stuck);
+export const NOT_GROUNDED = mask(C.Held, C.Flying, C.Stuck, C.Returning);
 
 export const TARGETS = mask(C.Health, C.Transform, C.Team, C.Collider);
 

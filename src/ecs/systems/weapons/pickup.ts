@@ -7,7 +7,7 @@ import type { EntityId } from '../../core/world';
 import { BUFF_TICKS, BuffKind } from '../../weapons/defs';
 import { controlsLocked } from '../cutscene';
 import { addPerk } from '../perks';
-import { DROP_LOCK_TICKS, FLYING_ITEMS, GROUNDED, PICKUP_RADIUS, WIELDERS, defOf, equip, heldItem, putOnGround } from './items';
+import { DROP_LOCK_TICKS, FLYING_ITEMS, GROUNDED, PICKUP_RADIUS, WIELDERS, equip, heldItem, putOnGround } from './items';
 
 // Whether this wielder has a chakram in the air. Uses solidBuf, which nothing
 // holds across pickupSystem's loop.
@@ -16,7 +16,7 @@ export function chakramOut(w: EntityId): boolean {
   const n = query(solidBuf, FLYING_ITEMS);
   for (let i = 0; i < n; i++) {
     const f = entityAt(solidBuf, i);
-    if (Thrown.by[f] === h && defOf(f).throwStyle === 'return') return true;
+    if (Thrown.by[f] === h && has(f, C.Returning)) return true;
   }
   return false;
 }

@@ -25,7 +25,7 @@ import { stepper } from '../tick-order';
 const PERFECT_TICKS = 44;
 const PERFECT = throwCharge(PERFECT_TICKS / CHARGE_MAX_TICKS);
 
-const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'burnSystem', 'durabilitySystem', 'tracerSystem']);
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'returnSystem', 'pickupSystem', 'burnSystem', 'durabilitySystem', 'tracerSystem']);
 
 // Holds fire for some ticks, then lets go, as the input layer counts it.
 function fireAfter(holdTicks: number): void {

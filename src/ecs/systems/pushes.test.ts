@@ -89,7 +89,7 @@ describe('pushing a pillar', () => {
     Transform.z[player] = -6;
     Object.assign(PlayerInput, { aimX: 0, aimZ: 1 });
     equip(player, spawnWeapon(WeaponKind.Warhammer, 9, -6));
-    const play = stepper(['inputSystem', 'movementSystem', 'heldFollowSystem', 'throwSystem', 'flightSystem', 'orbitSystem']);
+    const play = stepper(['inputSystem', 'movementSystem', 'heldFollowSystem', 'throwSystem', 'flightSystem', 'returnSystem', 'orbitSystem']);
     PlayerInput.throwHeld = true;
     for (let i = 0; i < CHARGE_MAX_TICKS / 2; i++) play();
     PlayerInput.throwHeld = false;

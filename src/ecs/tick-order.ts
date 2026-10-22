@@ -13,7 +13,7 @@ import { rewardSensorSystem } from './systems/rewards';
 import { burnSystem, tracerSystem } from './systems/specials';
 import { tunnelSystem } from './systems/tunnel';
 import {
-  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, stockSystem,
+  attackSystem, dropSystem, durabilitySystem, flightSystem, heldFollowSystem, pickupSystem, returnSystem, stockSystem,
   stuckFollowSystem, throwSystem,
 } from './systems/weapons';
 import { streams } from './core/rng';
@@ -40,6 +40,7 @@ export const TICK_ORDER = [
   ['throwSystem', throwSystem],
   ['attackSystem', (dt: Seconds) => attackSystem(dt, streams.bloom)],
   ['flightSystem', flightSystem],
+  ['returnSystem', returnSystem],
   ['pickupSystem', pickupSystem],
   ['projectileCollisionSystem', projectileCollisionSystem],
   ['projectileSystem', projectileSystem],

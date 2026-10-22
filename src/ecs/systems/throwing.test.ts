@@ -33,7 +33,7 @@ function throwAfter(holdTicks: number): void {
 }
 
 // The weapon slice of the real tick order, without the boss's choreography.
-const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'pickupSystem', 'durabilitySystem']);
+const step = stepper(['snapshotSystem', 'inputSystem', 'movementSystem', 'bodyCollisionSystem', 'heldFollowSystem', 'stuckFollowSystem', 'throwSystem', 'attackSystem', 'flightSystem', 'returnSystem', 'pickupSystem', 'durabilitySystem']);
 
 let p: EntityId;
 let b: EntityId;

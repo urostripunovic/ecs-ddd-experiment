@@ -13,4 +13,4 @@ The real-time simulation. Imports nothing from `domain/`, `bridge/`, `app/` or t
 - Every component and singleton is listed in exactly one of `ARENA_STATE`, `RUN_STATE` or `CONSTANTS`. Adding one means choosing its lifetime.
 - Numbers with a unit are branded at the edges (`core/units.ts`): definitions, constructors and function signatures. Make deadlines with `after()`, never `world.tick + n`; turn seconds into ticks with `inTicks(seconds(n))`, never `* 60`.
 - A module that loses its single job becomes a folder of modules by job, re-exported from the old file so importers don't change (`systems/weapons/`, `systems/boss-scripts/`). Size is a hint, not the rule.
-- How a weapon behaves is a field on its definition (`WeaponDef`), never a check of its kind in a system.
+- How a weapon behaves comes from its components: a behaviour is a tag and a system (a `Returning` weapon flies under `returnSystem`). Definitions hold the numbers. Never check a kind in a system; some behaviour is still a definition field (`throwStyle: 'smash'`, `heldThrow`), which is debt, not the pattern.

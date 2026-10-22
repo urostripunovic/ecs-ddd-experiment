@@ -51,6 +51,8 @@ export function throwSystem(): void {
     const speed = def.throwSpeed * charge.speedMul;
     remove(item, C.Held);
     add(item, C.Flying);
+    // A weapon that comes back flies under returnSystem; the tag is how it's chosen.
+    if (def.throwStyle === 'return') add(item, C.Returning);
     Transform.x[item] = Transform.px[item] = Transform.x[w] + PlayerInput.aimX * start;
     Transform.z[item] = Transform.pz[item] = Transform.z[w] + PlayerInput.aimZ * start;
     Velocity.x[item] = PlayerInput.aimX * speed;

@@ -5,5 +5,6 @@ export { defOf, equip, giveWeapon, heldItem } from './weapons/items';
 export { spinning, throwSystem } from './weapons/throwing';
 export { attackSystem } from './weapons/attacks';
 export { flightSystem } from './weapons/flight';
+export { returnSystem } from './weapons/returning';
 export { pickupSystem } from './weapons/pickup';
 export { dropSystem, durabilitySystem, stockSystem } from './weapons/upkeep';
