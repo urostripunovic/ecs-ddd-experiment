@@ -22,6 +22,21 @@ This game was built by a designer and an agent working together, as the test bed
 | Mutations that prove tests can fail | tools/mutations/run.py | Each entry breaks one thing on purpose and expects a test to catch it |
 | Size and churn that ask instead of fail | `ONE_JOB` in src/structure.test.ts, `npm run report` | A module that writes many components or runs long states its one job; the report shows what each stage grew and what keeps changing. Flight had no honest sentence and was split |
 
+## Starting a new game: files to take ideas from
+
+Rewrite these for the new game rather than copying them; take what applies. Each is small and was added because something went wrong without it.
+
+| File | Take from it |
+| --- | --- |
+| src/structure.test.ts | A reviewer's eye as tests, scanning source as text: no file names in comments, shared writers listed with reasons, randomness passed in, no hand-built step lists, a module's one job stated, mutations still current. Start each list empty |
+| src/app/loop.test.ts | Every system is in the tick order, and the architecture doc lists the same order |
+| src/docs.test.ts | Docs drift: every code name the docs mention exists, every rules row names a test that exists |
+| src/ecs/tick-order.ts | The tick order as data; `stepper()` lets a test run a subset of it, never a different order |
+| src/ecs/core/rng.ts | One seeded stream per job, passed in, so a new draw in one system can't shift another's |
+| .dependency-cruiser.cjs | The zone lint: rules, seam, simulation and app import only what they may |
+
+The skills' checks table (game-implementation) says which to set up first. Break each once on purpose before trusting it.
+
 ## Mistakes worth learning from
 
 Each is in SKILL-NOTES.md with the fix. The commits are easy to find with `git log --grep`:
