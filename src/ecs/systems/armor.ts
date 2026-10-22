@@ -1,5 +1,5 @@
 // Armor plates: each blocks one hit completely and breaks. Kept apart from the
-// rewards so damage.ts can read it without importing the weapon systems.
+// rewards so hurt() can read it without importing the weapon systems.
 import { Armor } from '../components';
 import type { EntityId } from '../core/world';
 

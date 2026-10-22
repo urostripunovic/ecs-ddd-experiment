@@ -1,6 +1,7 @@
 // What a procedural boss's line attacks and orbs do once they're out: the
 // charge's body and the sweep's beam hurting whoever they reach, and orbs
-// turning after the player. The scripts that start them are in boss-scripts.ts.
+// turning after the player. The scripts start them (charge, sweep, orbs); this
+// is what they do in the world each tick after.
 import { Arena, BossAction, C, Collider, Homing, Knockback, Line, LineHit, LineState, Transform, Velocity } from '../components';
 import { buf, helperBuf, scriptBuf } from '../core/buffers';
 import { after, inSeconds, ticks } from '../core/units';

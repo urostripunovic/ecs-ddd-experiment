@@ -1,6 +1,6 @@
 // Perks: three slots per player, oldest first. Picking up a fourth pushes the
-// oldest out. What they do is read where the effect happens (status.ts for the
-// low-hp ones, the weapon systems for the rest); the run carries the slots
+// oldest out. What they do is read where the effect happens (dmgMul and
+// speedMul for the low-hp ones, the weapon systems for the rest); the run carries the slots
 // between arenas through the loadout.
 import { C, Health, PerkDrop, Perks, RunStatus, RunView } from '../components';
 import { helperBuf } from '../core/buffers';

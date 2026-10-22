@@ -1,7 +1,6 @@
 // The boss's moves: walking, slams, cones and bursts, jumps, the roar, and the
-// helpers every script shares. Every attack goes through begin()/finish()
-// (boss-actions.ts), so attacks never overlap and the gaps between them come
-// from one table.
+// helpers every script shares. Every attack goes through begin()/finish(),
+// so attacks never overlap and the gaps between them come from one table.
 import { Arena, BossPace, C, Collider, Health, Jump, Knockback, Pressure, Shake, ShapeKind, Slam, TeamId, Transform, Velocity } from '../../components';
 import { helperBuf, scriptBuf } from '../../core/buffers';
 import { waitTicks } from '../../core/script';

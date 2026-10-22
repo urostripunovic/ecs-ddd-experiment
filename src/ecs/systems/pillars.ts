@@ -19,7 +19,7 @@ export const SPIKE_DMG = hp(15);
 // you exactly at the surface, so contact is a band, not an overlap.
 const SPIKE_REACH = meters(0.35);
 export const SPIKE_COOLDOWN = inTicks(seconds(0.6));
-// m/s; units.ts has no speed brand yet, like the bullet and boss speeds.
+// m/s; there's no speed brand yet, like the bullet and boss speeds.
 const SPIKE_SHOVE_SPEED = 10;
 const SPIKE_SHOVE = ticks(10);
 

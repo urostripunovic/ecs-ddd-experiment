@@ -7,7 +7,7 @@ The real-time simulation. Imports nothing from `domain/`, `bridge/`, `app/` or t
 - Each system starts with a `// reads X | writes Y` line. Keep it true.
 - Sensors that talk to the domain are edge-triggered and latched (`Dead`, `TunnelPending`), so a command fires once.
 - Systems only `send()` to the outbox. They never call the domain and never write domain-owned components: `RunView` is typed read-only here, and only `bridge/` may import its writable side (`components/run-view.ts`, enforced by the zone lint).
-- Coroutines in `systems/boss-scripts.ts` are choreography inside one phase. Nothing that must survive a save goes in a coroutine.
+- Coroutines in `systems/boss-scripts/` are choreography inside one phase. Nothing that must survive a save goes in a coroutine.
 - Never keep an `EntityId` across ticks; store a `Handle`. "Nobody" is `NOBODY`, not 0. Name an `EntityId` `entity`, or what it is (`player`, `sword`). A field that holds handles is made with `handleField(tag)`, so tools can name what it points at; the tag is what a row needs for its cell to count.
 - Clear a handle before freeing what it points at, as `breakItem` does. In dev builds and tests, `despawn` fails if a live note still points at the row, naming both ends.
 - Every component and singleton is listed in exactly one of `ARENA_STATE`, `RUN_STATE` or `CONSTANTS`. Adding one means choosing its lifetime.

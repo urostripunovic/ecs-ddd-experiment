@@ -43,7 +43,8 @@ function startDodge(entity: EntityId): void {
 
 // reads PlayerInput, RunView, Cutscene, Buffs, Slowed, Knockback, Dodge, Dizzy, rng | writes Velocity (player-controlled only),
 // Dodge, Dizzy.angle
-// The only writer of a player's velocity: every other effect arrives as its own field.
+// Every effect on a player's movement (haste, slows, shoves, dizzy) arrives as its
+// own field and is combined here, so none can erase another.
 export function inputSystem(): void {
   const locked = controlsLocked();
   const speedBase = locked ? 0 : PLAYER_SPEED;

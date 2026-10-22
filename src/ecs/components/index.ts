@@ -50,7 +50,7 @@ export const Wielder = {
 // Items are entities, so a thrown gun keeps its ammo and a dropped sword its wear.
 // pickupAt is the first tick it can be picked up again, so a dropped or landed
 // item isn't grabbed straight back. level: the arena it was found in, set once
-// when it spawns (only spawnWeapon writes it); it scales every hit it deals.
+// when it spawns and never changed after; it scales every hit it deals.
 export const Item = {
   kind: new Uint8Array(MAX_ENTITIES), pickupAt: new Uint32Array(MAX_ENTITIES), level: new Uint8Array(MAX_ENTITIES),
 };
@@ -82,7 +82,7 @@ export const BuffPickup = { kind: new Uint8Array(MAX_ENTITIES) };
 export const Buffs = { hasteUntil: new Uint32Array(MAX_ENTITIES), furyUntil: new Uint32Array(MAX_ENTITIES) };
 export const Slowed = { until: new Uint32Array(MAX_ENTITIES), factor: new Float32Array(MAX_ENTITIES) };
 // Dizzy after a hammer breaks mid-spin: until a tick, your feet wander toward
-// angle, which inputSystem turns a little at random every tick (its only writer).
+// angle, which turns a little at random every tick.
 export const Dizzy = { until: new Uint32Array(MAX_ENTITIES), angle: new Float32Array(MAX_ENTITIES) };
 // A dash. until: when it ends; readyAt: when the next may start; x/z: its
 // direction, fixed at the start. seen: the PlayerInput.dodgePresses this player
@@ -114,7 +114,7 @@ export const Slam = {
   // Ticks the hit slows whoever it lands on; 0 = no slow.
   slowFor: new Uint16Array(MAX_ENTITIES),
 };
-// The one action a boss is doing (see systems/boss-actions.ts). last* is what
+// The one action a boss is doing (see begin() and finish()). last* is what
 // it did before, so the chain-gap table can decide when the next may start.
 // windup: the current action's telegraph in ticks, written by its script, so
 // the renderer times a generated boss's telegraphs as the script does.
@@ -180,7 +180,7 @@ export const Orbit = {
 export const Spikes = { since: new Uint32Array(MAX_ENTITIES) };
 // The first tick spikes may hurt this entity again: one hit per touch, not one per tick.
 export const SpikeHit = { readyAt: new Uint32Array(MAX_ENTITIES) };
-// Three perk slots, oldest first; 0 is empty (Perk in systems/perks.ts).
+// Three perk slots, oldest first; 0 is empty (see Perk).
 export const Perks = { s0: new Uint8Array(MAX_ENTITIES), s1: new Uint8Array(MAX_ENTITIES), s2: new Uint8Array(MAX_ENTITIES) };
 export const PerkPickup = { kind: new Uint8Array(MAX_ENTITIES) };
 // When the next perk may drop; 0 until the arena schedules its first.
@@ -201,7 +201,7 @@ export const PlayerInput = {
   throwHeld: false, throwReleases: 0, interactPresses: 0, dodgePresses: 0, fireReleases: 0,
 };
 // A read model of the domain's run: read-only here, written only by the bridge
-// through run-view.ts. Cleared: the boss is down, the tunnel may be open, and
+// through RunViewWritable. Cleared: the boss is down, the tunnel may be open, and
 // nothing spawns or hurts; the player still moves.
 export const RunStatus = { Fighting: 0, Won: 1, Lost: 2, Cleared: 3 } as const;
 export const RunView: Readonly<typeof RunViewWritable> = RunViewWritable;
@@ -211,7 +211,7 @@ export const Cutscene = { until: 0 };
 // 0..1. The camera shakes by trauma squared; decays per tick so it lasts the
 // same at any frame rate. The wobble itself is the renderer's business.
 export const Shake = { trauma: 0 };
-// Dev-only cheats the simulation honours (see app/dev/commands.ts). Run lifetime,
+// Dev-only cheats the simulation honours (see DevCommand). Run lifetime,
 // so they survive entering the next arena; a restart clears them. cheated marks
 // a run any cheat touched, so a bug report says so.
 export const GodMode = { invulnerable: false, keepWeapons: false, freezeBoss: false, cheated: false };
@@ -221,8 +221,8 @@ export const Stock = { respawnAt: new Uint32Array(16), special: 0 };
 
 // Every component and singleton says how long it lives, here and nowhere else.
 // A new arena wipes ARENA_STATE; RUN_STATE carries on, on purpose; CONSTANTS
-// never change. scope.test.ts fails if anything exported here is in no list or
-// in two, so a new singleton can't silently leak from one arena into the next.
+// never change. A test fails if anything exported here is in no list or in
+// two, so a new singleton can't silently leak from one arena into the next.
 export const ARENA_STATE = {
   Transform, Velocity, Health, Hurt, LastHit, Wielder, Item, Durability, Ammo, Thrown, Burn, Tracer, StuckIn, BuffPickup, Buffs,
   Slowed, Dizzy, Knockback, Dodge, Team, Projectile, Collider, BossPhase, Slam, BossAction, Jump, Pressure, Shape, Cutscene, Shake,

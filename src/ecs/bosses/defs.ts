@@ -12,7 +12,7 @@ export type BossDef = {
   readonly style: number;
   // 1 is its own pace; higher waits less between attacks and shoots a little faster.
   readonly pace: number;
-  // Procedural bosses only (style Procedural): the body (Body in generate.ts)
+  // Procedural bosses only (style Procedural): the body (see Body)
   // and the kit, the seed its moves are generated from (planFor). 0 otherwise.
   readonly body: number;
   readonly kit: number;

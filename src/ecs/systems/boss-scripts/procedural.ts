@@ -1,4 +1,4 @@
-// Procedural bosses (Stage C): their moves come from planFor (bosses/generate.ts);
+// Procedural bosses (Stage C): their moves come from planFor;
 // these are the scripts that play them. The charge is the Lancer's, the sweep
 // and the orbs the Sentinel's, but any kit can draw them.
 import { Body, planFor } from '../../bosses/generate';

@@ -81,7 +81,7 @@ export function slamSystem(): void {
       const r = Slam.radius[e];
       if (dx * dx + dz * dz > r * r) continue;
       if (!hurt(p, Slam.dmg[e], toHandle(e)) || Slam.slowFor[e] === 0) continue;
-      // The only writer of Slowed: a buff can change speed too, but through its own field.
+      // Slowed is a field of its own: a buff changes speed too, through another, so neither erases the other.
       Slowed.until[p] = after(ticks(Slam.slowFor[e]));
       Slowed.factor[p] = SLAM_SLOW_FACTOR;
     }
@@ -89,9 +89,9 @@ export function slamSystem(): void {
 }
 
 // reads Health, BossPhase | writes BossPhase.phase
-// The only writer of the phase. Phases only move forward, one step a tick at
-// most, at the shares PHASE_AT gives its style, so healing never takes a boss back. Nothing outside the fight reacts to the phase, so the
-// rules never hear of it.
+// Phases only move forward, one step a tick at most, at the shares PHASE_AT
+// gives its style, so healing never takes a boss back. Nothing outside the
+// fight reacts to the phase, so the rules never hear of it.
 export function bossThresholdSystem(): void {
   const n = query(buf, BOSSES, C.Dead);
   for (let i = 0; i < n; i++) {

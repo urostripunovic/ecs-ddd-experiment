@@ -17,8 +17,8 @@ import { hp, inTicks, meters, seconds, ticks, type Hp, type Meters, type Seconds
 export const Body = { Colossus: 0, Lancer: 1, Sentinel: 2 } as const;
 export type BodyKind = (typeof Body)[keyof typeof Body];
 
-// The fairness limits. The tests in generate.test.ts check every generated move
-// against them, and against the player's own speed and dodge.
+// The fairness limits. Tests check every generated move against them, and
+// against the player's own speed and dodge, across hundreds of kits.
 export const MIN_TELEGRAPH = ticks(24);
 // Bullets a second, at most, from one action: the Keeper's storm, the hardest
 // pattern players have already accepted.

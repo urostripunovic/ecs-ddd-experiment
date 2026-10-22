@@ -1,6 +1,6 @@
 // What the special weapons leave in the world after the swing or the shot: fire
-// that keeps burning, and the railgun's beam. The weapons themselves are in
-// weapons.ts, with the others.
+// that keeps burning, and the railgun's beam. Swinging, shooting and throwing
+// them is the weapon systems' job, as for every other weapon.
 import { Arena, Burn, C, Collider, Team, Tracer, Transform } from '../components';
 import { buf, helperBuf, solidBuf, targetBuf } from '../core/buffers';
 import { inSeconds, ticks, type TickAt } from '../core/units';

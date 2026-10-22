@@ -115,7 +115,7 @@ export const WEAPONS: readonly WeaponDef[] = [
 ];
 
 // The special weapons: an arena from the second on keeps one of these stocked
-// on top of the basics, drawn from the seed (specialFor in arenas.ts).
+// on top of the basics, drawn from the seed (specialFor).
 export const SPECIALS: readonly number[] = [WeaponKind.Chakram, WeaponKind.Warhammer, WeaponKind.Railgun, WeaponKind.Flamethrower];
 export const CATCH_HASTE_TICKS = inTicks(seconds(1.5));
 // A chakram coming home gives up and lands after this long.

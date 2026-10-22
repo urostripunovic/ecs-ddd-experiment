@@ -135,7 +135,3 @@ export function* keeperThree(boss: EntityId): Script {
   }
 }
 
-// ---- Procedural bosses (Stage C) ----
-// Their moves come from planFor (bosses/generate.ts); these are the scripts
-// that play them. The charge is the Lancer's, the sweep and the orbs the
-// Sentinel's, but any kit can draw them.
