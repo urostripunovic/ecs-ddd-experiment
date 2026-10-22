@@ -17,9 +17,8 @@ This game was built by a designer and an agent working together, as the test bed
 | One function builds a level from rules state, for every level and any load | `buildArena`, src/bridge/run/load.test.ts | A load test builds a world from every rules state and checks it agrees with the rules |
 | The tick order as data, shared by the game and the tests | `TICK_ORDER`, `stepper()` | A test can run fewer systems, never a different order or one the game skips |
 | Randomness injected as one stream per job | `streams`, `Random` | A new random draw in one system can't change another's for the same seed |
-| Behaviour as fields on a definition, not branches on a kind | `WeaponDef` (`heldThrow`, `throwStyle`, `finalShot`) | A new weapon is a row, not a branch in four systems |
 | Fairness as property tests from the player's own numbers | src/ecs/bosses/generate.test.ts | 300 seeds, three bodies, five depths; caught three unfair ranges on the first run |
-| A reviewer's eye as tests | src/structure.test.ts | Line limits, kind branches, shared writers, file names in comments, hand-built step lists, shared randomness |
+| A reviewer's eye as tests | src/structure.test.ts | Kind branches, shared writers, file names in comments, hand-built step lists, shared randomness, stale mutations |
 | Mutations that prove tests can fail | tools/mutations/run.py | Each entry breaks one thing on purpose and expects a test to catch it |
 
 ## Mistakes worth learning from
@@ -31,6 +30,12 @@ Each is in SKILL-NOTES.md with the fix. The commits are easy to find with `git l
 - A system that every test ran and the game never did: `git log --grep "tick order"`.
 - One shared random generator: `git log --grep "stream"`.
 - Design choices the agent made alone that were the designer's to make: the "ask the designer" skills commit.
+
+## Known debt: do it differently in the next game
+
+- **Weapon behaviour is fields on a definition** (`heldThrow`, `throwStyle`) read by large weapon systems. Better than the kind branches it replaced, but the ECS way is a component per behaviour (something that returns when thrown, something that spins on hold) and a small system for each.
+- **Twenty-three fields have more than one writer**, each listed with a reason in structure.test.ts. The rule is one writer per field: everything else sends a request to a queue the owning system drains and validates.
+- **Commits that don't build alone, and fixes that landed commits after their bug.** The history shows both. The next game keeps every commit self-contained.
 
 ## Reading the history
 

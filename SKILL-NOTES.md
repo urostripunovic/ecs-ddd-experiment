@@ -35,3 +35,27 @@ edit to a skill, a test, a lint rule or a type (see `.claude/skills/README.md`).
 - **Two blind tests in one feature, caught by the mutations.** One measured a pillar's angle against a baseline that forgot the ticks spent charging the throw, so it passed with no push code at all. The other said "a staggered boss starts nothing new" and checked only that it was idle, which it was anyway while walking. Both got caught: the first by adding empty stubs to see every test fail on its assertion, the second by a mutation. The empty-stub trick is worth keeping: a test that can only fail on a missing export has never been seen to fail.
 - **Shared game streams leak between tests.** A test of how a dizzy player wanders started failing when new tests before it drew from the same stream. Tests that run the game's systems reseed the streams per case.
 - **A mutation that can't be caught is a finding too.** Removing the "only orbiting pillars move" guard changed nothing, because fixed pillars are never moved anyway. The guard stays as defence; the mutation went.
+
+## Retro, 2026-10-22: what went into the skills
+
+Every note above, and where it ended up. The designer's feedback changed three of them.
+
+| Note | Now in the skills |
+| --- | --- |
+| Tests written after the code, or in a batch | Proper TDD, one behaviour at a time, each test seen failing on its assertion (game-implementation, rules-and-simulation step 4) |
+| Files grew past 700 lines | Split when a module loses its single job, not at a line count; report growth per stage. The 300-line check is gone: a count was the wrong test (designer's call) |
+| Kind branches in every weapon system | The second `if` on a kind is a missing component: in ECS, which components an entity has is its behaviour (designer: "isn't the point of ECS that data is behaviour?") |
+| Second writers crept in | Exactly one writer per field; everyone else sends a request to a queue the owner drains and validates (designer: one writer, a validating queue, not three actors) |
+| Fixes three commits after the bug; commits that don't build alone | Commits are self-contained; a fix is folded into the commit that caused it before pushing (designer). Could become its own skill |
+| A system the tick never ran | One tick order, shared with tests (already folded) |
+| Shared random generator | One injected stream per job (already folded) |
+| Design choices made alone | Ask before any choice a player would feel; if away, smallest version, experimental, question at the top of the merge request |
+| Comments that said where | Comments say why, never where or how many; checked |
+| Mutation list rotted through splits | Mutations as data with a fast staleness check; rerun slow checks after refactors |
+| Blind tests (a forgotten baseline, "idle" for a stun) | "Tests that lie" lists both shapes; proper TDD makes a test that passes before its code exists visible at once |
+| Shared streams leaking between tests | Reset a case's state when it starts, random streams included |
+| A mutation nothing can catch | A finding: dead code to remove, or a missing test |
+| Stale and cold dev server | Playtest tooling notes, generic |
+| The skills named this repo | Skills stand alone, with generic examples; this repo is linked only by choice (docs/LEARNING.md) |
+
+Not folded, on purpose: anything only true of this game (weapon names, the hammer, pillars), which stays in this repo's docs.
