@@ -7,7 +7,7 @@ import { BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jum
 import { MAX_ENTITIES, NOBODY, has, indexOf, isLive, world } from '../../ecs/core/world';
 import type { EntityId, Handle } from '../../ecs/core/world';
 import { Action } from '../../ecs/systems/boss-actions';
-import { dizzy, dodging } from '../../ecs/systems/status';
+import { dizzy, dodging, staggered } from '../../ecs/systems/status';
 import { bossPose } from './boss-pose';
 import { follow } from './camera';
 import type { Follow } from './camera';
@@ -168,7 +168,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
         const elapsed = world.tick - BossAction.startedAt[e] + alpha;
         const pose = bossPose(
           dead ? Action.Idle : BossAction.kind[e], elapsed, winding, Jump.fromHeight[e], BossAction.windup[e],
-          Line.state[e] === LineState.Stunned,
+          Line.state[e] === LineState.Stunned || staggered(e as EntityId),
         );
         // Waiting on a perch before its first move: up there, not inside the pillar.
         const perched = BossAction.kind[e] === Action.Idle && has(e as EntityId, C.Airborne) ? Jump.fromHeight[e] : 0;
