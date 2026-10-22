@@ -3,17 +3,18 @@ import * as THREE from 'three';
 import type { Visual } from './meshes';
 import { DOORS } from '../../ecs/arenas';
 import { BossStyleKind } from '../../ecs/bosses/defs';
-import { BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jump, Line, LineState, Orbit, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity, Wielder } from '../../ecs/components';
-import { MAX_ENTITIES, NOBODY, handleAt, has, indexOf, isLive, world } from '../../ecs/core/world';
+import { BossAction, BossGen, BossPhase, BossStyle, Burn, C, Collider, Hurt, Jump, Line, LineState, Orbit, PerkPickup, PlayerInput, Revive, RewardPickup, RunView, Shake, Shape, ShapeKind, Slam, Spikes, StuckIn, Tracer, Transform, Velocity } from '../../ecs/components';
+import { MAX_ENTITIES, NOBODY, has, indexOf, isLive, world } from '../../ecs/core/world';
 import type { EntityId, Handle } from '../../ecs/core/world';
 import { Action } from '../../ecs/systems/boss-actions';
 import { dizzy, dodging } from '../../ecs/systems/status';
-import { CHARGE_MAX_TICKS } from '../../ecs/weapons/charge';
 import { bossPose } from './boss-pose';
 import { follow } from './camera';
 import type { Follow } from './camera';
-import { AIM_HEIGHT, BODY_COLOR, COLOR, GATE_HEIGHT, HAND_HEIGHT, PERK_COLOR, REWARD_COLOR, SPIKE_GROW_TICKS, SWING_TICKS, build, buildArena, buildGate, flameMat, geo } from './meshes';
+import { AIM_HEIGHT, BODY_COLOR, COLOR, HAND_HEIGHT, PERK_COLOR, REWARD_COLOR, SPIKE_GROW_TICKS, build } from './meshes';
 import { Telegraphs } from './telegraphs';
+import { HeldWeapon } from './held';
+import { buildArena, buildGate, GATE_HEIGHT } from './hall';
 
 // Two sines at unrelated rates: smooth, so the shake rolls instead of jittering.
 // Render-only, so it may be anything; it never reaches the simulation.
@@ -60,9 +61,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
   const gate = buildGate(scene, DOORS.onward.x, COLOR.telegraph);
   const finalGate = buildGate(scene, DOORS.final.x, COLOR.bossFinal);
 
-  const flame = new THREE.Mesh(geo.flame, flameMat);
-  flame.visible = false;
-  scene.add(flame);
+  const held = new HeldWeapon(scene);
 
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.22, 0.3, 32),
@@ -241,7 +240,7 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
       }
     }
 
-    drawHeld(alpha);
+    held.draw(focus(), visuals, visualKind, alpha);
     // A gate sinks into the floor when the run opens its door, and rises again in the next arena.
     const sink = 1 - Math.exp(-dt * 3);
     gate.position.y += ((RunView.tunnelOpen ? -GATE_HEIGHT / 2 - 0.05 : GATE_HEIGHT / 2) - gate.position.y) * sink;
@@ -259,49 +258,6 @@ export function createArenaView(host: HTMLElement, focus: () => Handle): ArenaVi
     // camera would move the aim point, leaking the shake into the simulation.
     camera.position.sub(shakeOffset);
     camera.rotation.z -= roll;
-  }
-
-  // Held items are drawn in the player's hand: the simulation only keeps them at
-  // the player's centre, and the hand, swing and thrust are presentation.
-  function drawHeld(alpha: number): void {
-    flame.visible = false;
-    const h = focus();
-    if (!isLive(h)) return;
-    const p = indexOf(h);
-    const item = handleAt(Wielder.held, p);
-    if (!isLive(item)) return;
-    const v = visuals[indexOf(item)];
-    if (!v) return;
-
-    const yaw = Math.atan2(-PlayerInput.aimX, -PlayerInput.aimZ);
-    const progress = Wielder.swing[p] > 0 ? 1 - Wielder.swing[p] / SWING_TICKS : 0;
-    const kind = visualKind[indexOf(item)];
-    const thrust = kind === ShapeKind.Spear ? Math.sin(progress * Math.PI) * 0.9 : 0;
-    // A sword sweeps right to left across the arc.
-    const sweep = kind === ShapeKind.Sword && progress > 0 ? 1.1 - 2.2 * progress : 0;
-
-    const px = Transform.px[p] + (Transform.x[p] - Transform.px[p]) * alpha;
-    const pz = Transform.pz[p] + (Transform.z[p] - Transform.pz[p]) * alpha;
-    const fx = -Math.sin(yaw);
-    const fz = -Math.cos(yaw);
-    // Right hand: forward rotated a quarter turn clockwise.
-    v.position.set(px - fz * 0.45 + fx * (0.15 + thrust), HAND_HEIGHT, pz + fx * 0.45 + fz * (0.15 + thrust));
-    v.rotation.set(0, yaw + sweep, 0);
-    v.scale.setScalar(1);
-    // A spinning hammer circles you, head out, faster as its momentum builds.
-    if (kind === ShapeKind.Warhammer && PlayerInput.throwHeld && Wielder.charge[p] > 0) {
-      const momentum = Math.min(1, Wielder.charge[p] / CHARGE_MAX_TICKS);
-      const turn = (performance.now() / 1000) * (9 + 15 * momentum);
-      v.position.set(px, HAND_HEIGHT, pz);
-      v.rotation.set(0, turn, 0);
-    }
-    // The flame shows while the simulation says it's spraying (it keeps swing up then).
-    if (kind === ShapeKind.Flamethrower && Wielder.swing[p] > 0) {
-      flame.visible = true;
-      flame.position.set(v.position.x + fx * 0.6, HAND_HEIGHT, v.position.z + fz * 0.6);
-      flame.rotation.set(0, yaw, 0);
-      flame.scale.setScalar(0.92 + Math.sin(performance.now() / 30) * 0.08);
-    }
   }
 
   // The boss's glowing core turns to track the player, so its attention is readable.
