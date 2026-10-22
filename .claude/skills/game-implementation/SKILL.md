@@ -23,6 +23,7 @@ Not a batch of seven tests followed by the code: written together, tests share t
 - Does any field now have a second writer, or any number a second copy?
 - Is any comment now false, or does any say where or how many?
 - Is there a shortcut you're keeping? It goes in the report, and in the merge request.
+- Did this change bring in what a todo check waits for (the first name across the seam, a field's first second writer)? Turn that todo into the check now, with `game-checks-setup`.
 
 ## Commits
 
