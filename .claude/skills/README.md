@@ -10,7 +10,7 @@
 4. Bring or write a playtest bot and recorder early: a bot that plays through the real input path, and a recorder that steps the game on a fake clock and saves frames. The gate to tickets requires one in the repo.
 5. Create an empty `SKILL-NOTES.md` for incidents where the skills fell short.
 6. Create `CODING_STANDARDS.md` with one line pointing the reviewer at `.claude/skills/rules-and-simulation/review.md`. Rules a reviewer applies live there, not in what loads while building.
-7. After the first feature exists, ask to set up the checks (`game-checks-setup`). It writes the structure checks for this game's code and language, breaks each once to prove it works, and leaves the ones with nothing to guard yet as todo tests. The tidy step adds each of those when its code first appears.
+7. After the first feature exists, ask to set up the checks (`game-checks-setup`). It writes the structure checks for this game's code and language, breaks each once to prove it works, and leaves the ones with nothing to scan yet as tripwires: passing tests that fail, naming the check to add, in the commit that brings their code in.
 
 **While prototyping**, just ask for features in plain words. `rules-and-simulation`, `game-design-interview` and `game-implementation` load on their own:
 
@@ -47,7 +47,7 @@ The loop: playtests and surprises go back to the interview (a decision), to `gam
 - **`rules-and-simulation`**: the mechanics, true for any game built this way. Where state lives, the rules, the simulation, the seam, the test levels.
 - **`game-design-interview`**: the decisions that differ per game, asked when a change touches them and recorded in the examples tables.
 - **`game-implementation`**: writing the code itself: red with proof, green fast, then a tidy step before the commit; the structure checks that make a reviewer's eye automatic; how to split, when objects or injection help, and per-language cards. Works with Matt Pocock's `implement` and `tdd`.
-- **`game-checks-setup`**: the structure checks: set up after the first feature, one more whenever a todo check's code appears, and when a retro adds a kind. Any language: what each check catches, how to write it from inside the test runner, and which tool fits in TypeScript, Go, Java and Rust.
+- **`game-checks-setup`**: the structure checks: set up after the first feature, one more whenever a tripwire fails, and when a retro adds a kind. Any language: what each check catches, how to write it from inside the test runner, and which tool fits in TypeScript, Go, Java and Rust.
 - **`self-contained-commits`**: not about games; how every commit here is made. One thing per commit, each builds and passes alone, fixes folded into the commit that caused them, and every edit checked by its diff's size before its contents.
 - **`game-to-tickets`**: the gate, then tickets with decisions, footprint, invariants and a playtest criterion. Run it by name, not automatically.
 

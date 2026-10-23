@@ -1,6 +1,6 @@
 ---
 name: game-checks-setup
-description: Set up the structure checks for a game built as a simulation (ECS) plus a thin rules module, in any language. Use when asked to set up the checks (once, after the first feature), when a retro adds a kind of check, or when a change brings in what a waiting check guards (the tidy step asks); then add only that one check.
+description: Set up the structure checks for a game built as a simulation (ECS) plus a thin rules module, in any language. Use when asked to set up the checks (once, after the first feature), when a retro adds a kind of check, or when a tripwire test fails because the code a waiting check guards has appeared; then add only that one check.
 ---
 
 # Setting up the checks
@@ -10,7 +10,7 @@ description: Set up the structure checks for a game built as a simulation (ECS) 
 ## When
 
 - **Once, after the first feature exists.** Before that there's nothing to check: "every system is in the tick order" passes on an empty repo, and a check you can't break on purpose is a check you can't trust. The boundary lint is the exception; it goes in with the first commit.
-- **When a waiting check's code first appears.** A check with nothing to guard yet (no name crosses the seam, no field has a second writer) can't be broken on purpose, so it isn't written yet. It waits as a todo test that names what it waits for (`it.todo` in Vitest, `t.Skip` in Go, `@Disabled` in JUnit, `#[ignore]` in Rust): "vocabularies agree: waits for the first name that crosses the seam". The runner lists todos on every run, so they stay visible across sessions. When a change brings that code in, the tidy step asks, and the todo becomes the real check in that feature's series.
+- **When a tripwire fails.** Most checks can be written at setup, even with little code: one with an allow-list (shared writers, modules with a stated job) starts with an empty list, passes, and fails on the first case. A few have nothing to scan until some code exists (the vocabulary check before any name crosses the seam, the load test before any rules state). Each of those waits as a **tripwire**: an ordinary, passing test that asserts the code isn't there yet, and fails the moment it is, with a message saying which check to add: "A name crosses the seam now (Perk). Replace this test with the vocabulary check (game-checks-setup)." The tripwire goes red in the very commit that brings the code in, in any language, because every runner shows a failing test (a skipped or todo test shows by name in some runners and not at all in others). Replacing it with the real check is part of that feature's series.
 - **Again when a retro adds a kind of check.** Add that one; don't redo the rest.
 - Not after every session. The checks run with the tests; they don't need setting up again.
 
@@ -19,12 +19,12 @@ description: Set up the structure checks for a game built as a simulation (ECS) 
 1. **Read the code first.** Find the zones, the systems, how the tick runs, where randomness comes from, where definitions live. Each check is written for this code; a check written for code you haven't read checks the wrong thing.
 2. **Take the checks in the order below.** Later ones rely on earlier ones (the step-list check needs a tick order to step from).
 3. **For each check:**
-   1. Write it the plainest way the language allows (see "Writing them in any language"). With nothing to guard yet, write its todo instead (see When) and go on to the next.
+   1. Write it the plainest way the language allows (see "Writing them in any language"). With nothing to scan yet, write its tripwire instead (see When), break it once by adding a dummy case, and go on to the next.
    2. Run it. If it fails on existing code, fix the code first, in its own commit, or list the case with its reason where the check allows one.
    3. **Break the code once on purpose** (add the thing the check forbids), see it fail, keep the failing line, put the code back.
    4. Commit the check after the fixes it forced, so every commit passes, with its failing line in the message.
 4. **Start every list empty.** A check with an allow-list (shared writers, modules with a stated job) begins with nothing in it. Each entry is added when the check asks, with a reason in a sentence. An entry copied from another game is a decision nobody made.
-5. **Report:** each check, the line it failed with when broken on purpose, anything it found in the existing code, and each todo with what it waits for.
+5. **Report:** each check, the line it failed with when broken on purpose, anything it found in the existing code, and each tripwire with what trips it.
 
 A worked example in another repo or language is useful to read, not to copy: its names, its lists and its thresholds belong to its game.
 
@@ -61,6 +61,7 @@ Most checks read the source **as text, from inside the test runner**, so they ru
 | Randomness passed in (4) | a `Random` interface, one seeded stream per job, passed as a parameter | an interface with `Float64()`; one `rand.New(rand.NewPCG(...))` per job | `RandomGenerator`; one `SplittableRandom` per job | a trait object or generic `R: Rng`; one `StdRng::seed_from_u64` per job |
 | Kind branches (5) | `=== Kind.` outside the definitions | `case Kind…` / `== Kind…` outside the definitions | `== Kind.` / `case` on the kind enum outside the definitions | `match` / `==` on the kind enum outside the definitions |
 | Who writes a field (6, 7) | `Component.field[...] =` | `components.Field[i] =` | `component.field[i] =` | `component.field[i] =`; with a borrow checker, also a `&mut` taken by a system |
+| Tripwire (a waiting check) | `expect(found, 'A name crosses the seam now… add the vocabulary check').toEqual([])` | `if len(found) > 0 { t.Fatalf("…add the vocabulary check: %v", found) }` | `assertTrue(found.isEmpty(), () -> "…add the vocabulary check: " + found)` | `assert!(found.is_empty(), "…add the vocabulary check: {found:?}")` |
 | Mutation runner command | `npx vitest run <tests>` | `go test ./... -run <tests>` | `mvn -q test -Dtest=<tests>` or `gradle test --tests <tests>` | `cargo test <tests>` |
 
 The tick-order check (2) compares two lists: every exported or registered system against the tick order, and the tick order against the order the architecture doc lists. Systems are found by naming convention (`...System`) or by a registry; pick whichever the code already has, and make the convention itself a rule in the zone's instructions.
@@ -75,9 +76,9 @@ The tick-order check (2) compares two lists: every exported or registered system
 
 ## Checklist
 
-- [ ] Run after the first feature, for a todo whose code just appeared, or for a check a retro added.
+- [ ] Run after the first feature, for a tripwire that failed, or for a check a retro added.
 - [ ] Each check written for this code, and every list started empty.
 - [ ] Each check broken once on purpose; the failing line kept.
-- [ ] Every check with nothing to guard yet is a todo test naming what it waits for.
+- [ ] Every check with nothing to scan yet is a tripwire that fails, naming the check to add, when its code appears.
 - [ ] Each check committed after the fixes it forced, with its failing line in the message.
 - [ ] Mutation runner and stage report in the repo; the runner judged by exit code.
